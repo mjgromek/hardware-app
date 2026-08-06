@@ -741,3 +741,23 @@ inventory instead, which covers both and survives Phase 3 flagging more. Filed r
 escalated — it changes no behaviour, only a claim.
 
 Commit: test(phase-2): failing specs for the rental engine and the review flag (pending)
+
+---
+
+## [P2 · c3] The AI log becomes a commit gate
+
+`hooks/pre-commit` refuses any commit that does not stage `AI_LOG.md`, and prints the two
+formats rather than just failing. Wired with `git config core.hooksPath hooks` and
+committed to the repo, because `.git/hooks/` is not versioned and does not survive a
+clone — the README carries the one-line setup.
+
+The reason it is a gate and not a convention: the convention held for 24 commits because I
+remembered it, and the Phase 1 audit found the two places I had not. Merges and
+`--no-verify` still pass, the second deliberately.
+
+`conductor`'s standing checks now cover the two things a per-commit hook cannot see —
+`docs/PROMPT_TRAIL.md` drifting behind the ADRs (count one against the other; it was 21
+commits behind when first audited), and work visible in the diff that never reached the
+README's four graded sections.
+
+Commit: chore: enforce AI log as a commit gate (pending)

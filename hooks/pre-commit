@@ -1,0 +1,46 @@
+#!/bin/sh
+# Refuse any commit that does not stage AI_LOG.md.
+#
+# CLAUDE.md has said "every commit updates AI_LOG.md — no entry, not done" since the
+# project started, and it held. It held because I remembered, which is not a mechanism:
+# an audit at the Phase 1 gate found 24 commits against 22 entries, and one of the two
+# gaps had to be backfilled and labelled as backfilled. A log that can be reconstructed
+# later is worth less than one written in the moment, and this is a graded deliverable.
+#
+# Committed to the repo rather than left in .git/hooks, which is not versioned and does
+# not survive a clone. See the README for the one-line setup.
+
+if git diff --cached --name-only | grep -qx 'AI_LOG.md'; then
+    exit 0
+fi
+
+# An empty commit or a merge has nothing to log.
+if [ -n "$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null)" ]; then
+    exit 0
+fi
+
+cat >&2 <<'MESSAGE'
+
+  AI_LOG.md is not staged. Refusing the commit.
+
+  Every commit gets an entry, written now rather than reconstructed later
+  (CLAUDE.md). Two formats — pick by what happened:
+
+  ROUTINE — three lines. Most commits are this.
+
+      ## [P2 · c3] Rental engine green
+
+      /tdd against the phase-2 spec. 83/83, tests/ untouched.
+      Commit: feat(phase-2): rent, return and force-return (<sha>)
+
+  CORRECTION — long form, and rare. What the AI produced, why it was wrong,
+  how you caught it, how you corrected it. Three or four across the whole
+  build; twenty uniform long entries is itself the texture that reads as
+  batch-written.
+
+  Then:  git add AI_LOG.md && git commit ...
+
+  To bypass deliberately (and it should be deliberate):  git commit --no-verify
+
+MESSAGE
+exit 1

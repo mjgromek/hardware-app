@@ -178,6 +178,23 @@ Then open http://127.0.0.1:8000.
 With no environment set, the app runs in development mode with defaults. Production
 is strict — see ADR-0005.
 
+### The commit gate
+
+One line, and a fresh clone needs it:
+
+```bash
+git config core.hooksPath hooks
+```
+
+`hooks/pre-commit` refuses any commit that does not stage `AI_LOG.md`, and prints which
+of the two formats to use. The log is a graded deliverable and it cannot be reconstructed
+honestly after the fact — an audit at the Phase 1 gate found 24 commits against 22
+entries, and one gap had to be backfilled and labelled as backfilled. The hook exists
+because the convention held only as long as somebody remembered it.
+
+The hook lives in `hooks/` rather than `.git/hooks/` precisely so it survives a clone.
+`git commit --no-verify` bypasses it, deliberately.
+
 ### Tests
 
 ```bash
