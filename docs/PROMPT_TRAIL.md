@@ -822,3 +822,52 @@ and `mvp-reviewer` caught a session signature that 47 passing tests did not defe
 the two places where the project's direction can still change cheaply. Spending the
 deepest model there and not on the loop is the same trade as the agent-brief revision in
 Session 10 — buying rigor where it compounds and paying for it where it does not.
+
+
+---
+
+## Session 12 — 2026-08-06 — `/security-review` at the Phase 2 gate → ADR-0013 — *reconstructed*
+
+**Status:** ✅ settled → **ADR-0013**. **Commit:** `5d33b44`. Backfilled at the
+pre-submission doc audit — every other Phase 2 ADR traces to a session here, and this one
+did not: its trail lived only in `AI_LOG.md` P2 · c9 and the ADR itself.
+
+The invocation was the standing gate instruction, not a bespoke prompt: run
+`/security-review` before the gate (`brainstorm.md` §5, phases 1 and 3 — extended to
+Phase 2 because the phase added authentication-adjacent surface). The review returned two
+findings; both were reproduced before being believed, per the Correction #2 rule.
+
+What made it architecture rather than a patch: both findings shared one root —
+`users.id` is a SQLite rowid alias, so a deleted account's id is reissued, and sessions,
+`?held_by=me`, and `audit_events` actors were all keyed on it. The prompt-shaped decision
+was rejecting the local fix (`sqlite_autoincrement=True` changes only `CREATE TABLE` and
+would have left the deployed volume vulnerable) for an identity decision: a per-account
+session token issued once and never reissued, and soft-deleted accounts. → **ADR-0013**.
+
+---
+
+## Session 13 — 2026-08-07 — `mvp-reviewer` at the Phase 2 gate, and who owns the audit write — *verbatim*
+
+**Status:** ✅ settled — an ADR-0010 invariant made structural. **Commits:** `8f127df`
+(red), `e77355d` (green), `eb5b20a` (docs).
+
+The gate ran twice. The invoking prompt both times:
+
+> Use the mvp-reviewer agent for Phase 2.
+
+First verdict: **FAIL** — a docs-only blocker (the README's graded sections still
+described Phase 1) and, among the non-blockers, one that turned out to be design: the
+route wrote the `audit_events` row and `rentals.force_return` accepted a `reason` it
+ignored. The instruction that reopened the gate (verbatim):
+
+> force_return ignores its reason param (app/rentals.py:191). Not cosmetic — ADR-0010
+> makes the reason mandatory, and an override recorded without one defeats the table.
+> Red test first, then fix.
+
+The design consequence goes one level past the finding: rather than the route continuing
+to write the event, the transition now writes its own record, in the same transaction as
+the close — so no future caller of `rentals.force_return` (Phase 3's auditor is the
+likely one) can end a rental and leave no trace. ADR-0010's mandatory reason moved from
+convention (every caller remembers) to structure (the function cannot be called without
+producing the row). Second verdict: **PASS WITH NOTES**, gate cleared, merged as PR #3,
+tagged `v2-rental`.

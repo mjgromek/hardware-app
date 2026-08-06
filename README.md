@@ -165,9 +165,13 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Future:** vitest over the table's keyboard behaviour and the api client's `401`
   handling, both of which are logic rather than markup.
 - **The app seeds itself on boot when the database is empty.** A deploy shim, not a
-  migration strategy — Railway offered no way to run a one-off command against the
-  mounted volume. The emptiness guard is what makes it safe. Admin bootstrap now rides
-  the same path, though it is idempotent and additive rather than destructive.
+  migration strategy. Admin bootstrap now rides the same path, though it is idempotent
+  and additive rather than destructive.
+  **Why:** Railway offered no way to run a one-off command against the mounted volume —
+  no exec, no SSH, `preDeployCommand` silently did not run. The emptiness guard is what
+  makes it safe: once rentals exist the table is never empty, so a restart cannot wipe
+  them.
+  **Future:** a migration step or a one-off job. Boot logic should not write data.
 
 ### ⚠️ Partial / Missing
 
@@ -198,11 +202,17 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
 
 ### 🔮 Next Steps (24h Roadmap)
 
-One branch and one deployed version — the last phase in the table above:
+All three land in Phase 3, one branch and one deployed version — the last phase in
+the table above. `/grill-me` first, per `CLAUDE.md`:
 
-1. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
-   which has to flag record 10 to prove it does anything a regex could not, plus CI
-   and the frontend test suite. `/grill-me` first, per `CLAUDE.md`.
+1. **The AI layer** — semantic search (natural language → schema-validated filter
+   object → SQLite, ADR-0004) and the Inventory Auditor, which has to flag record 10
+   to prove it does anything a regex could not.
+2. **Production hardening** — CI running both suites, the vitest suite the frontend
+   is owed, a health endpoint, and logout/session expiry from the ⚠️ list above.
+3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
+   states, favicon, and the remaining `(pending)` SHA back-annotations in
+   `AI_LOG.md`.
 
 ---
 

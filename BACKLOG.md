@@ -23,14 +23,6 @@ reviving as whoever inherited its recycled id. What remains is the weaker origin
 property: no way to end *your own* session, and no expiry. *Urgent when: a per-session
 revocation is needed — logging out one device rather than retiring the account.*
 
-**`/api/hardware` returns every field**, including `notes` and `history` — the free
-text the Phase 3 auditor reads. **Narrowed, not closed:** ADR-0006 put the endpoint
-behind a session, so a stranger with the URL no longer sees the contradiction material.
-What remains is field-level: every signed-in employee sees `notes`, `history` and
-`review_reason`, which are admin- and auditor-facing rather than employee-facing, and
-no test asserts who may see them. *Urgent when: `/security-review` before the Phase 1
-gate, or when the auditor writes findings into these fields in Phase 3.*
-
 **No per-user-salt test, now that there is a users table to write one against.**
 `test_password_is_hashed_not_stored_plaintext` asserts no stored value equals the
 plaintext, its hex or base64 encoding, or an unsalted MD5/SHA-1/SHA-256 of it — which
@@ -326,18 +318,6 @@ needs its own test.*
 
 
 ## Phase 2 — `mvp-reviewer` at the gate
-
-**Commit `a44f85f` (grilling 2, the six Phase 2 ADRs) has no `AI_LOG.md` entry.** The
-log's own rule, and the pre-commit hook that now enforces it landed two commits later —
-this is the one gap the hook postdates. The Phase 1 audit set the precedent: backfill it
-and *label it as backfilled*, because a reconstructed entry passed off as contemporaneous
-is worse than the gap. *Urgent when: before the final submission — a graded deliverable
-with a known hole and a known precedent for filling it honestly should use it.*
-
-**Every Phase 2 AI_LOG entry still reads `Commit: … (pending)`.** Phase 1 entries carry
-their SHAs; Phase 2's were written before committing (which is the point) and never
-back-annotated after. One pass over `git log` fixes all of them. *Urgent when: same as
-above — the final submission pass.*
 
 **`chore(phase-2): deploy v2` (`3bce364`) ships production code under a `chore` label.**
 The reconcile fix and the seed backfill ride a commit whose type says "no production

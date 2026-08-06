@@ -10,6 +10,16 @@
 > roughly 3.5 hours of process overhead inside a 4–5 hour budget; that was the
 > central flaw and it is fixed here by collapsing phases, not by cutting rigor.
 
+> **Status note, 2026-08-07 (v2 shipped, unrewritten below).** This plan predates
+> ADR-0006–0013; where they disagree, the ADRs win. Known drift, left in place because
+> the plan is a record of what was planned: the 15–20 commit target was missed at 41
+> (owned in the README ⚡ section, with why); Phase 2 shipped wider than §3 describes —
+> an `audit_events` table, force-return, soft-deleted accounts (ADR-0013), field-level
+> visibility (ADR-0012), and a demo reset route; the §7 open item on the authorization
+> enforcement point settled as per-route dependencies in Phase 1; and the documented
+> manual reseed is gone — `persist` refuses while rentals exist (ADR-0011). CI and
+> vitest, listed under Phase 0, still do not exist and are Phase 3 scope.
+
 ---
 
 ## 0. Ground Rules

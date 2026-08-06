@@ -681,7 +681,7 @@ bad commit with a note is worth more than an invisible one.
 
 All 25 entries now carry their commit sha instead of `(pending)`.
 
-Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (pending)
+Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (4f9b07c)
 
 ---
 
@@ -708,7 +708,22 @@ entry from "urgent before the Phase 1 gate" to an *Owned by Phase 2* section; th
 says it in `⚠️ Partial`, and three other places that still said "due before the Phase 2
 gate" now agree with the ADR.
 
-Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (pending)
+Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (7ae6eac)
+
+---
+
+## [P2 · c1a] Grilling 2, six ADRs, and the phase spec
+
+**Backfilled at the pre-submission doc audit, 2026-08-07** — the second entry in this log
+to be written late, and labelled so for the same reason as the first. `a44f85f` shipped
+grilling 2's output (ADR-0007–0012, the ADR-0003 amendment, `docs/specs/phase-2.md`) with
+no entry; `mvp-reviewer` caught it at the gate, and the pre-commit hook that would have
+refused it landed two commits *later* — this is the one gap the hook postdates. The
+session itself is in `docs/PROMPT_TRAIL.md` Session 9, recorded in the moment; only this
+pointer to it was missing. Numbered c1a because every later entry was already numbered
+when the gap was found.
+
+Commit: docs(phase-2): grilling 2, six ADRs, and the phase spec (a44f85f)
 
 ---
 
@@ -740,7 +755,7 @@ but ADR-0002 makes ingestion structural-only, so the Dell XPS imports `Available
 inventory instead, which covers both and survives Phase 3 flagging more. Filed rather than
 escalated — it changes no behaviour, only a claim.
 
-Commit: test(phase-2): failing specs for the rental engine and the review flag (pending)
+Commit: test(phase-2): failing specs for the rental engine and the review flag (3629b17)
 
 ---
 
@@ -760,7 +775,7 @@ remembered it, and the Phase 1 audit found the two places I had not. Merges and
 commits behind when first audited), and work visible in the diff that never reached the
 README's four graded sections.
 
-Commit: chore: enforce AI log as a commit gate (pending)
+Commit: chore: enforce AI log as a commit gate (87167d1)
 
 ---
 
@@ -799,7 +814,7 @@ in one project — the reflex I need is to read my own brief before I read the a
 because if the output is consistently off in one direction, the instruction is where the
 direction came from.
 
-Commit: chore: tighten test-author brief for pace (pending)
+Commit: chore: tighten test-author brief for pace (253b254)
 
 ---
 
@@ -827,7 +842,7 @@ then for a row, so it survives the engine every storage test builds, where `rent
 never existed. `app/storage.py` still knows nothing about what a rental *is* — only that
 rows in that table mean the inventory is not replaceable.
 
-Commit: feat(phase-2): rental engine, clear-flag and audit trail (pending)
+Commit: feat(phase-2): rental engine, clear-flag and audit trail (07120d4)
 
 ---
 
@@ -851,7 +866,7 @@ explicit focus on open plus `Escape` to cancel. The Phase 1 add-hardware dialog 
 same defect and is now in `BACKLOG.md` — worth noticing that a bug shipped in Phase 1,
 survived a review gate, and was only caught by driving the thing.
 
-Commit: feat(phase-2): rent, return and the admin overrides in the UI (pending)
+Commit: feat(phase-2): rent, return and the admin overrides in the UI (5fc9bcb)
 
 ---
 
@@ -883,7 +898,7 @@ Worth stating plainly: this class of defect is invisible to a fresh-database tes
 88 tests passed against a database that had never been upgraded, and the item was stranded
 the moment the code met a real volume.
 
-Commit: chore(phase-2): deploy v2 (pending)
+Commit: chore(phase-2): deploy v2 (3bce364)
 
 ---
 
@@ -928,7 +943,7 @@ hole, and `mvp-reviewer` caught a session signature that no test defended.
 Put plainly: I am spending the deeper model at the two gates where a miss is silent, and
 not on the loop where a miss is loud.
 
-Commit: feat(phase-2): repeatable demo reset (pending)
+Commit: feat(phase-2): repeatable demo reset (139e262)
 
 ---
 
@@ -948,7 +963,7 @@ Worth noting what it does *not* do: the auditor flags the brand as a probable mi
 It does not correct it. Correcting is still judgement, and the item still belongs to a
 human.
 
-Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (pending)
+Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (adca539)
 
 ---
 
@@ -988,7 +1003,7 @@ That is why the belt was missing: declaring it required reconciling two ADRs, no
 keyword. And `current_account`'s docstring, which claimed a deleted account's session was
 refused, is now true instead of aspirational.
 
-Commit: fix(phase-2): soft-delete accounts and sign a session token (pending)
+Commit: fix(phase-2): soft-delete accounts and sign a session token (5d33b44)
 
 ---
 
@@ -1034,7 +1049,7 @@ earn it. The claim I should have checked was the adjacent one nobody had made: *
 migration happening at all?* When a design decision is justified by what it avoids, the
 thing to verify is that the alternative is actually being done.
 
-Commit: fix(phase-2): migrate the users table on boot (pending)
+Commit: fix(phase-2): migrate the users table on boot (4fc27c5)
 
 ---
 
@@ -1051,7 +1066,7 @@ which is the one condition under which `create_all` does the migration for you.
 Also corrected the phase table in the same file, which still described Phase 1 as in
 progress two tags later.
 
-Commit: docs: migration tests are mandatory for schema changes (pending)
+Commit: docs: migration tests are mandatory for schema changes (6e1216a)
 
 ---
 
@@ -1078,7 +1093,7 @@ shared it. A single-guard framing hid a class.
 ADR-0005 now says the invariant holds only under sequential access, which is what it always
 meant rather than what it claimed.
 
-Commit: docs(phase-2): file the architecture-scout findings (pending)
+Commit: docs(phase-2): file the architecture-scout findings (eec6b5b)
 
 ---
 
@@ -1087,7 +1102,7 @@ Commit: docs(phase-2): file the architecture-scout findings (pending)
 `rentals.force_return` demands a mandatory `reason` (ADR-0010) and ignores it — the
 audit write lives in the route, so any second caller ends a rental unrecorded. Red at
 the direct call: 0 audit events.
-Commit: test(phase-2): pin the audit write inside force_return (pending)
+Commit: test(phase-2): pin the audit write inside force_return (8f127df)
 
 ---
 
@@ -1095,7 +1110,7 @@ Commit: test(phase-2): pin the audit write inside force_return (pending)
 
 `audit.record` moves from the route into `rentals.force_return`, same transaction as
 the close; the route-level "exactly one event" test proves nothing double-writes. 98/98.
-Commit: fix(phase-2): force_return writes its own audit event (pending)
+Commit: fix(phase-2): force_return writes its own audit event (e77355d)
 
 ---
 
@@ -1105,4 +1120,16 @@ mvp-reviewer's blocker: the graded sections said the rental engine did not exist
 branch that shipped it. Brought to v2 reality, Reseeding now points at the reset route
 (ADR-0011), the 41-vs-15–20 commit count is acknowledged in ⚡ with its why, and the
 four non-blocking findings are filed in BACKLOG.md.
-Commit: docs(phase-2): bring the README to Phase 2 reality (pending)
+Commit: docs(phase-2): bring the README to Phase 2 reality (eb5b20a)
+
+---
+
+## [P3 · c1] Pre-submission doc audit against the brief
+
+Every `.md` checked against the brief's deliverables. AI_LOG: 17 SHAs back-annotated,
+`a44f85f` backfilled as c1a. PROMPT_TRAIL: Sessions 12–13 close the ADR-0013 and
+gate-review gaps — 13/13 ADRs now trace to a prompt. README: 🔮 lists three next steps,
+seed-on-boot gets its Why/Future. BACKLOG drops three done/false entries; brainstorm.md
+gets a dated status note instead of a rewrite.
+Commit: docs(phase-3): audit every doc against the brief (pending — the one entry the
+final-polish pass back-annotates, since a commit cannot contain its own sha)
