@@ -576,3 +576,193 @@ no longer reachable with the published credential.
 **The triage rule this established:** accepted-not-fixed findings go to the README's
 `⚠️ Partial / Missing` section with the reason, not to `BACKLOG.md`. A reviewer reads the
 README, and "we knew and chose not to" belongs where the claim is made.
+
+---
+
+## Session 9 — 2026-08-06 — Grilling 2, Phase 2 scope — *verbatim*
+
+**Skill:** `/grill-me` → `/grilling` **Scope:** whole-phase, Phase 2 only.
+**Status:** ✅ **Settled in two rounds.** Round 3 was cut deliberately — see the closing
+instruction. Produced ADR-0007–0012, an amendment to ADR-0003, and `docs/specs/phase-2.md`.
+
+### The invoking prompt (verbatim)
+
+> Phase 2, the rental engine. Read brainstorm.md §3 Phase 2, CONTEXT.md, ADR-0003 and
+> ADR-0005.
+>
+> Push hardest on: two users racing for the same item; whether an admin flipping to Repair
+> kills an active rental; who may return an item (renter, admin, both); and how
+> needs_review gets cleared — Phase 2 now owns that.
+>
+> Whole-phase scope only. Don't drift into Phase 3.
+
+### Facts established before Round 1 (looked up, not asked)
+
+- **Seed id 7 is a live rental with no account behind it** — `Sony WH-1000XM4`, `In Use`,
+  `assignedTo: "j.doe@booksy.com"`. No such account exists; Phase 1 creates only
+  `ADMIN_EMAIL` and the demo user.
+- **Phase 1 already shipped the impossible state.** `PATCH /api/hardware/{id}` →
+  `set_status` has no guard, so an admin can flip item 7 from `In Use` to `Repair` today.
+  `CONTEXT.md` lists "a rented item in `Repair`" as an impossible state. So the Repair
+  question is a retrofit onto a live endpoint, not a greenfield choice.
+
+---
+
+### Round 1
+
+**Q1 — Where does rental truth live?** `hardware.status` + `assigned_to` as source of
+truth with a `rentals` log; or `rentals` as truth with `status` derived; or `status`
+computed on read.
+→ **Recommended (a) + a partial unique index on `rentals(item_id) WHERE end IS NULL`.**
+Computed status is cleaner in theory and wrong here — `status` is what the seed ships, the
+dashboard filters on, and 55 tests assert against. The index makes "two active rentals on
+one item" unreachable at the database level rather than by a guard that has to remember.
+**Answer — accepted.**
+
+**Q2 — How is the renter identified?** FK to `users.id`; email snapshot; or both.
+→ **Recommended both.** A bare FK cannot represent seed id 7; `ON DELETE CASCADE` on
+history means deleting an employee erases the record that they held the laptop, which is
+the one fact an audit wants. A bare string cannot answer "is this the signed-in user"
+without comparing on an identity, which is how wrong-user guards break subtly.
+**Answer — accepted.**
+
+**Q3 — Does an admin flipping to `Repair` kill an active rental?** Refuse `409`;
+force-return; or allow coexistence.
+→ **Recommended refuse, plus a separate explicit force-return.** Physical reality argues
+for force-return — a swelling battery should be marked `Repair` whether or not someone is
+holding it — but silent state changes to somebody else's rental are how audit trails
+become fiction. Refusing makes the admin take one deliberate extra action, and that action
+is the record. **Changes the shipped `PATCH /api/hardware/{id}`.**
+**Answer — accepted.**
+
+**Q4 — Who may return an item?** Renter only; renter or admin as the same verb; or renter
+returns and admin *force-returns* as a distinct audited verb.
+→ **Recommended the third.** Renter-only strands every item whose holder leaves the
+company, and this system has no logout let alone offboarding. Folding admin into the same
+verb makes `test_cannot_return_someone_elses_rental` quietly weaker than its name — it
+would pass for a `user` and be meaningless for an admin, and reviewers read the name.
+**Answer — accepted.**
+
+**Q5 — Two users race — where does atomicity live?** A guard that reads state then decides
+cannot win a race, because the read and the write are separate.
+→ **Recommended: guards pre-check for readable errors; the actual claim is an
+`UPDATE … WHERE status='Available'` whose zero rowcount means "you lost".** The honest part
+is admitting the guard layer is *not* the sole decision point for this one transition,
+because atomicity cannot live in a pre-check. `BEGIN IMMEDIATE` would keep the story tidier
+and is more machinery for one transition, and survives a second replica no better.
+**Answer — accepted.** *(Placement revised in Round 2, Q9.)*
+
+**Q6 — How does `needs_review` get cleared, and what is recorded?** Reuse
+`hardware_quarantine`; a new table; or columns on `hardware`. And: is a reason mandatory?
+→ **Recommended a new table with a mandatory free-text reason.** Reusing
+`hardware_quarantine` is wrong because `persist` has replace semantics — a reseed truncates
+it, so an audit trail lives there only until the next documented seed run. Columns on
+`hardware` cannot hold two review cycles. The reason is the whole point: "somebody
+inspected this and it is fit to issue" is the claim a later incident interrogates.
+**Answer — accepted, with an amendment that also settled Round 3's last question:**
+
+> not a review_decisions table — one audit_events table serving force-return, clear-flag,
+> and any future admin override. Same shape (actor, action, item, reason, timestamp), and
+> the two verbs you just designed in Q4 and Q6 are the same kind of event: an admin doing
+> something to a rental or an item that the ordinary user could not, with a reason
+> attached. Two tables for one concept is the shallow-module smell architecture-scout will
+> flag next phase anyway.
+
+**Q7 — What happens to seed id 7?** Backfill an account; a rental row with a `NULL`
+account and the email snapshot; or release it like id 2's orphan rental.
+→ **Recommended the `NULL`-account rental.** Releasing it is what Phase 0 did to id 2 — but
+id 2 was released *because it had no assignee at all*; id 7 names one, so releasing
+destroys the only evidence of who holds the headphones and `docs/DATA_AUDIT.md` would need
+a fourth divergence. Backfilling invents a passwordless account, a login-shaped hole
+created for tidiness. **Answer — accepted.**
+
+**Q8 — Is the UI in Phase 2's scope?** §3 lists no UI, but the wireframes' `Rent` buttons
+and `My Rentals` were both deferred *from* Phase 1 in writing.
+→ **Recommended engine + Rent/Return + My Rentals, and it is the first thing to cut.** A
+rental engine no reviewer can operate is the failure mode `AI_LOG.md` Correction #2 already
+burned this project once. **Answer — accepted.**
+
+---
+
+### Round 2
+
+Two facts established first: **`PRAGMA foreign_keys = 0`**, so any declared FK is
+documentation rather than a constraint; and **two existing routes destroy rental data
+silently** — `persist` truncates `hardware` and is a *documented live operation*
+(`railway run … python -m scripts.seed`), and `delete_item` lets an admin delete an item
+that is `In Use`.
+
+**Q9 — Where does the state machine live, and does it own the SQL?** `rentals.py` owning
+transitions *and* their statements; `rentals.py` deciding and `storage.py` writing; or
+extending `guards.py`.
+→ **Recommended `rentals.py` owns both.** Splitting decision from write makes both modules
+shallow — `storage.py` would hold a `WHERE status='Available'` encoding a rule it claims
+not to know, and `rentals.py` would be a pass-through wrapper, the exact shape
+`architecture-scout` is briefed to flag. **This revises my own Round 1 Q5 answer**, which
+put the `UPDATE` in `storage.py` — the substance stands, the placement was wrong.
+**Answer — accepted; amends ADR-0003 rather than getting its own ADR.**
+
+**Q10 — `rentals` schema: one table or two, and who closed it?**
+→ **Recommended one table, `ended_at` nullable, plus `closed_by_account_id`,
+`closed_by_email`, `close_kind`.** Two tables turn every return into two writes with a
+window where the rental is in neither or both, and the partial unique index already
+provides what that reaches for. `close_kind` is what lets `My Rentals` say "recalled by an
+admin" instead of showing the item silently gone. **Answer — accepted.**
+
+**Q11 — `audit_events` shape, and does it get backfilled?**
+→ **Recommended a closed action enum; no backfill; ordinary rent/return excluded.**
+Retro-writing events for Phase 1 admin actions that were never observed would be
+fabricating an audit trail, which is strictly worse than a gap — and the gap is
+disclosable. Ordinary rent/return stay out because the amendment defines this table as
+admin overrides; a user renting a laptop is the product working, and the `rentals` row is
+its record. **Answer — accepted.**
+
+**Q12 — What stops a reseed or an admin delete from orphaning rentals?**
+→ **Recommended all three protections, and `persist` refusing is the one you cannot
+skip.** `seed_if_empty` guards the *boot* path, but the README documents a manual reseed
+against the live instance — the exact "restart destroys rentals" disaster the emptiness
+guard prevents, reachable by the documented command instead of by a restart. The
+`delete_item` guard checks *active* rentals only, so a returned item stays deletable with
+its history intact. `foreign_keys` is unrelated to the locking pragmas `BACKLOG.md` warns
+off and does not affect the isolation `test_persist_does_not_commit` pins.
+**Answer — accepted.**
+
+**Q13 — Clear-flag semantics.**
+→ **Recommended clear regardless of status; `409` if not flagged; no re-flagging in Phase
+2.** Status and the flag are orthogonal — the same reasoning behind the Phase 1 UI giving
+`needs_review` its own column rather than a fourth chip. `409` on an unflagged item because
+idempotency hides a UI bug *and* writes an audit row with a mandatory reason attached to a
+non-event. **Answer — accepted.**
+
+**Q14 — How distinguishable are the `409` reasons?**
+→ **Recommended one reason per cause, with the race loser receiving the `In Use` reason.**
+By the time the loser is told, "somebody else has it" is simply true — it is the current
+state, not a race report, and a client rendering "another user claimed this microsecond
+before you" leaks implementation detail as UX. Resolves the apparent tension in Q5.
+**Answer — accepted.**
+
+**Q15 — Who may see who holds an item?** Phase 2 turns `assigned_to` from seed residue into
+live data about colleagues.
+→ **Recommended renter identity visible to all signed-in users, `notes`/`history`/
+`review_reason` restricted to admins.** Hiding the renter breaks the product — the point of
+`In Use` on an internal tool is knowing who to ask — and it moves that conversation to
+Slack where the tool cannot see it. Restricting the prose closes `/security-review`'s
+open field-level finding as a side effect of serialisation work Phase 2 must touch anyway.
+**Answer — accepted.**
+
+---
+
+### Round 3 — cut, deliberately
+
+The frontier was not empty. Four questions remained: what
+`test_rental_history_records_both_ends` asserts, which ADRs Phase 2 writes, the `My
+Rentals` payload, and whether force-return needs its own named test. The instruction:
+
+> Stop here — no round 3. Round 3's four questions get settled in /to-spec, not in another
+> grilling round. Phase 2 is already wide.
+
+Recorded because the grilling skill's own stopping condition is an empty frontier, and this
+session stopped short of it on purpose. The four are specification detail rather than
+architecture — none of them changes what the other decisions mean — and Phase 2 carrying
+two shipped-route retrofits, a new module, two new tables and a UI is already the widest
+phase in the project.

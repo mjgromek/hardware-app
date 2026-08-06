@@ -81,6 +81,17 @@ item in `Repair`.
   matters — clearing a flag that does not change rentability is the decoration this
   ADR exists to prevent, in a new place.
 
+- **Amended by grilling 2 (2026-08-06): the guard layer is not the sole decision point
+  for the rent transition.** This ADR says a guard "must not be enforced in a route
+  handler", and that stands. But a guard reads state and then decides, and a read
+  followed by a write cannot win a race — two users claiming one `Available` item would
+  both pass the same pre-check. So the *claim* is an atomic `UPDATE … WHERE
+  status='Available'` whose zero rowcount means the caller lost, and it lives in
+  `app/rentals.py` alongside the transition it belongs to, not in `app/storage.py`
+  (which makes no decisions) and not in `app/guards.py` (which cannot be atomic).
+  Guards keep the pre-checks that produce readable reasons; the transition owns its own
+  atomicity. See ADR-0008.
+
 - **Trade-off accepted:** ingestion can now make an item unrentable on structural
   grounds alone — record 6's future purchase date and record 10's missing fields
   are both quarantined and flagged (§2), so both are blocked from rental even

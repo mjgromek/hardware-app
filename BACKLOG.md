@@ -173,3 +173,20 @@ pagination, at which point counts belong in the API response.*
 **Toasts overlap the bottom of the admin panel.** They are fixed bottom-right, and the
 create-account row sits under them until they dismiss. *Urgent when: a toast covers a
 control somebody needs while it is showing — reserve the space or move the stack.*
+
+**Phase 1's admin verbs are not wired to `audit_events`.** ADR-0010 builds one table for
+admin overrides and Phase 2 writes only its own two actions into it — role changes and
+account deletions from Phase 1 stay unrecorded. Deliberately *not* backfilled: retro-writing
+events that were never observed would be fabricating an audit trail, which is worse than a
+disclosable gap. Wiring them going forward is a small change (two `_enforce`-adjacent call
+sites in `app/main.py`) and the table is already shaped for it — `item_id` and `rental_id`
+are both nullable, so an account-scoped event fits without a migration. *Urgent when: the
+audit trail is ever presented as complete, or Phase 3 needs an actor on a finding.*
+
+**`PRAGMA foreign_keys=ON` if Slice A slips.** ADR-0011 layers three protections over rental
+data and the pragma is the belt behind the other two, not the mechanism — `persist` refusing
+and the `delete_item` guard are what actually stop the loss. If Phase 2 runs short, the
+pragma is the one of the three that can be dropped without leaving a reachable path to
+orphaned rentals, because both reachable paths are guarded above it. Dropping it means the
+declared FKs stay documentation. *Urgent when: a fourth write path to `hardware` appears
+that nobody remembers to guard.*
