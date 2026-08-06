@@ -21,6 +21,8 @@ const emit = defineEmits([
   'add-hardware',
   'toggle-repair',
   'delete-hardware',
+  'force-return',
+  'clear-review',
   'add-account',
   'set-role',
   'delete-account',
@@ -67,8 +69,11 @@ function submitAccount() {
       :items="props.items"
       manage
       :busy-id="props.busyId"
+      :current-email="props.currentEmail"
       @toggle-repair="emit('toggle-repair', $event)"
       @delete="emit('delete-hardware', $event)"
+      @force-return="emit('force-return', $event)"
+      @clear-review="emit('clear-review', $event)"
     />
   </div>
 

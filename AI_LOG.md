@@ -828,3 +828,27 @@ never existed. `app/storage.py` still knows nothing about what a rental *is* —
 rows in that table mean the inventory is not replaceable.
 
 Commit: feat(phase-2): rental engine, clear-flag and audit trail (pending)
+
+---
+
+## [P2 · c5] Slice C — the rental verbs on the dashboard
+
+`frontend-design`, against the Phase 1 aesthetic rather than a new one: same tokens, same
+table, one reused dialog. 86/86 — `?held_by=me` needed a route, so it got three red tests
+first in a new file before any UI existed.
+
+The one design decision worth naming: **a row that cannot be rented says why, instead of
+showing a greyed-out button.** The wireframe greys the button; the row already knows
+whether it is `Repair`, held, or flagged, and those are three different facts. The brief
+asked for a `409` to show its readable reason — this is that requirement moved one step
+earlier, and the server's own message still arrives in a toast when a row goes stale
+between paint and click.
+
+**A keyboard bug the browser found and the code review would not have.** `autofocus` is
+honoured on page load, not when an element is inserted later, so opening the reason dialog
+left focus on the button that opened it and everything I typed went nowhere. Fixed with an
+explicit focus on open plus `Escape` to cancel. The Phase 1 add-hardware dialog has the
+same defect and is now in `BACKLOG.md` — worth noticing that a bug shipped in Phase 1,
+survived a review gate, and was only caught by driving the thing.
+
+Commit: feat(phase-2): rent, return and the admin overrides in the UI (pending)

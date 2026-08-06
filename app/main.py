@@ -109,6 +109,17 @@ def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
     }
 
 
+class HeldBy(str, Enum):
+    """The only accepted value of `?held_by`. Closed, like `Status` and `SortKey`.
+
+    An open parameter taking an email would let any signed-in employee enumerate what a
+    named colleague is holding. That is a different feature with a different
+    authorization question, and Phase 2 has not asked it.
+    """
+
+    ME = "me"
+
+
 class SortKey(str, Enum):
     """The columns the dashboard may sort on. Closed, so an unknown key is a `422`.
 
@@ -388,6 +399,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         account: Account = Depends(current_account),
         status: Status | None = None,
         sort: SortKey | None = None,
+        held_by: HeldBy | None = None,
     ) -> list[dict[str, Any]]:
         """The inventory, for a signed-in caller. Eleven rows needs no paging.
 
@@ -407,6 +419,13 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 status=status,
                 sort_by_purchase_date=sort is SortKey.PURCHASE_DATE,
             )
+            if held_by is HeldBy.ME:
+                # Scoped by *account*, not by "is it In Use" — the second renter is
+                # what makes that difference visible, and getting it wrong hands one
+                # employee's rentals to another. Seed id 7 has no account and so
+                # belongs to nobody's list (ADR-0007).
+                mine = rentals.item_ids_held_by(session, account.id)
+                items = tuple(item for item in items if item.id in mine)
         return [visible_to(asdict(item), account) for item in items]
 
     @app.post("/api/hardware", status_code=status.HTTP_201_CREATED)

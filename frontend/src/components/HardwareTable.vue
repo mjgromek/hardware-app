@@ -9,6 +9,13 @@ import StatusChip from './StatusChip.vue'
 
 const props = defineProps({
   items: { type: Array, required: true },
+  //: The signed-in account's email, so a row can tell "yours" from "somebody's".
+  //: Renter identity is visible to everyone (ADR-0012), which is what makes this
+  //: possible without a second request.
+  currentEmail: { type: String, default: '' },
+  //: Rent / Return live on the dashboard. Off for the admin table, which has its own
+  //: verbs and would otherwise offer two ways to move one item.
+  rentable: { type: Boolean, default: false },
   // Admin columns and row actions. A plain user sees the same inventory and none of
   // the controls — the server refuses them anyway (403), so this only avoids
   // offering an action that cannot succeed.
@@ -17,7 +24,23 @@ const props = defineProps({
   busyId: { type: [Number, null], default: null },
 })
 
-const emit = defineEmits(['sort', 'toggle-repair', 'delete'])
+const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', 'force-return', 'clear-review'])
+
+//: Why this row cannot be rented, in the words the API would use. Shown *before* the
+//: click rather than only after it: the reason is already in the row, and making
+//: somebody press a button to be told "it is in Repair" is a worse version of knowing.
+//: A 409 can still arrive — the row can go stale between paint and click — and the
+//: toast carries the server's own reason when it does.
+function blockedBecause(item) {
+  if (item.needs_review) return 'Needs review before it can be rented'
+  if (item.status === 'Repair') return 'In Repair'
+  if (item.status === 'In Use') return 'Somebody else has it'
+  return null
+}
+
+function heldByMe(item) {
+  return item.status === 'In Use' && item.assigned_to === props.currentEmail
+}
 
 const rows = ref([])
 const focusIndex = ref(0)
@@ -90,7 +113,7 @@ function shown(value) {
           </th>
           <th scope="col"><span class="th-label">Status</span></th>
           <th scope="col"><span class="th-label">Review</span></th>
-          <th v-if="props.manage" scope="col">
+          <th v-if="props.manage || props.rentable" scope="col">
             <span class="th-label" style="justify-content: flex-end">Actions</span>
           </th>
         </tr>
@@ -114,14 +137,65 @@ function shown(value) {
             <span v-if="shown(item.purchase_date)">{{ item.purchase_date }}</span>
             <span v-else class="missing" title="No purchase date recorded">—</span>
           </td>
-          <td><StatusChip :status="item.status" /></td>
+          <td>
+            <StatusChip :status="item.status" />
+            <span v-if="item.status === 'In Use'" class="held-by">
+              {{ heldByMe(item) ? 'you' : item.assigned_to || 'unknown holder' }}
+            </span>
+          </td>
           <td>
             <span v-if="item.needs_review" class="chip chip-flag" :title="item.review_reason">
               Needs review
             </span>
             <span v-else class="missing">—</span>
           </td>
-          <td v-if="props.manage" class="cell-actions">
+          <td v-if="props.rentable" class="cell-actions">
+            <button
+              v-if="heldByMe(item)"
+              type="button"
+              class="button button-quiet"
+              :disabled="props.busyId === item.id"
+              @click="emit('return', item)"
+            >
+              Return
+            </button>
+            <template v-else-if="blockedBecause(item)">
+              <span class="blocked-reason">{{ blockedBecause(item) }}</span>
+            </template>
+            <button
+              v-else
+              type="button"
+              class="button"
+              :disabled="props.busyId === item.id"
+              @click="emit('rent', item)"
+            >
+              Rent
+            </button>
+          </td>
+
+          <td v-else-if="props.manage" class="cell-actions">
+            <button
+              v-if="item.needs_review"
+              type="button"
+              class="icon-button"
+              :disabled="props.busyId === item.id"
+              :title="`Clear the review flag on ${item.name}`"
+              :aria-label="`Clear the review flag on ${item.name}`"
+              @click="emit('clear-review', item)"
+            >
+              <Icon name="flag" />
+            </button>
+            <button
+              v-if="item.status === 'In Use'"
+              type="button"
+              class="icon-button"
+              :disabled="props.busyId === item.id"
+              :title="`Recall ${item.name} from ${item.assigned_to}`"
+              :aria-label="`Recall ${item.name} from ${item.assigned_to}`"
+              @click="emit('force-return', item)"
+            >
+              <Icon name="out" />
+            </button>
             <button
               type="button"
               class="icon-button"

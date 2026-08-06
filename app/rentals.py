@@ -51,6 +51,7 @@ __all__ = [
     "force_return",
     "open_seed_rental",
     "active_rental",
+    "item_ids_held_by",
     "rental_count",
     "CloseKind",
 ]
@@ -208,6 +209,20 @@ def active_rental(session: Session, item_id: int) -> Rental | None:
         .one_or_none()
     )
     return None if row is None else _rental(row)
+
+
+def item_ids_held_by(session: Session, account_id: int) -> set[int]:
+    """The items this account is holding right now.
+
+    ``ended_at IS NULL`` is the whole definition of "right now" — without it the caller
+    gets every item the employee has ever held, and My Rentals grows forever.
+    """
+    rows = session.execute(
+        select(rentals.c.item_id).where(
+            rentals.c.account_id == account_id, rentals.c.ended_at.is_(None)
+        )
+    ).all()
+    return {row[0] for row in rows}
 
 
 def rental_count(session: Session) -> int:

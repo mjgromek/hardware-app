@@ -240,3 +240,31 @@ pragma is the one of the three that can be dropped without leaving a reachable p
 orphaned rentals, because both reachable paths are guarded above it. Dropping it means the
 declared FKs stay documentation. *Urgent when: a fourth write path to `hardware` appears
 that nobody remembers to guard.*
+
+## Phase 2 UI — found while building slice C
+
+**The add-hardware dialog still has the focus bug that `ReasonDialog` just fixed.**
+`autofocus` is honoured on page load, not when an element is inserted later, so opening
+either dialog left focus on the button that opened it and typing went nowhere — found by
+driving the browser, not by reading the code. `ReasonDialog` now focuses explicitly on
+open and handles `Escape`; `AdminPanel`'s add-hardware dialog does neither. *Urgent when:
+the next time anybody uses the admin panel by keyboard, which is how an internal tool gets
+used all day.*
+
+**`close_kind` is recorded and never shown.** ADR-0007 added the column specifically so
+`My Rentals` could say "recalled by an admin" rather than showing an item silently gone,
+and slice C shows neither — a returned item just disappears from the list. The data is
+there; the surface is not. *Urgent when: the first time an admin recalls something and the
+employee asks where it went.*
+
+**Every action refetches the whole world.** `act()` reloads the inventory, My Rentals and
+the account list after each mutation — three requests per click, on eleven rows. Correct
+and wasteful, and it is why the UI has no optimistic state to get wrong. *Urgent when: the
+inventory outgrows one page, at which point the refetch and the pagination question arrive
+together.*
+
+**`?held_by=me` has no `held_by=someone-else` counterpart, deliberately.** An admin cannot
+ask "what is Novak holding" through the API; they can only read it off the dashboard's
+renter column. The parameter is a closed enum for that reason (see
+`tests/test_held_by_filter.py`). *Urgent when: offboarding needs "everything this person
+has", which is a real workflow and a different authorization question.*
