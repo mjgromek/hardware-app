@@ -11,10 +11,10 @@ Nothing is deleted. A row that fails structural validation becomes a
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Iterable, Mapping
 
-from app.domain import IngestReport
+from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
 
 __all__ = ["ingest", "normalise_purchase_date"]
 
@@ -45,7 +45,91 @@ def ingest(
     - **Orphan rental** (``In Use`` with no ``assignedTo``) — resolved at import.
     - **Missing optional fields** — nullable, not an error.
     """
-    raise NotImplementedError("ingest is not implemented yet")
+    today = today or date.today()
+    rows = [dict(record) for record in records]
+
+    # Re-keying draws from above every id the seed uses, so a fresh id cannot
+    # collide with a record that has not been reached yet.
+    seed_ids = {row.get("id") for row in rows if isinstance(row.get("id"), int)}
+    next_id = max(seed_ids) + 1 if seed_ids else 1
+
+    claimed: set[int] = set()
+    imported: list[HardwareItem] = []
+    quarantined: list[QuarantineRecord] = []
+
+    for row in rows:
+        # One quarantine record per rejected row, however many defects it carries.
+        reasons: list[str] = []
+        source_id = row.get("id")
+
+        item_id = source_id
+        rekeyed_from: int | None = None
+        if item_id in claimed:
+            rekeyed_from = item_id
+            item_id = next_id
+            next_id += 1
+        claimed.add(item_id)
+
+        try:
+            purchase_date = normalise_purchase_date(row.get("purchaseDate"))
+        except ValueError:
+            purchase_date = None
+            reasons.append(
+                f"purchase date {row.get('purchaseDate')!r} is not a recognised "
+                "date format"
+            )
+        else:
+            if purchase_date is not None and purchase_date > today:
+                reasons.append(
+                    f"purchase date {purchase_date.isoformat()} is in the future"
+                )
+
+        raw_status = row.get("status")
+        try:
+            status = Status(raw_status)
+        except ValueError:
+            # Available, never Repair: the seed tells us the record is
+            # unidentifiable, not that the item is broken (ADR-0002). ADR-0003's
+            # guard blocks it from rental either way.
+            status = Status.AVAILABLE
+            reasons.append(
+                f"status {raw_status!r} is not a recognised status "
+                f"({', '.join(s.value for s in Status)})"
+            )
+
+        assigned_to = row.get("assignedTo")
+        if status is Status.IN_USE and not assigned_to:
+            # An orphan rental names nobody to return the item, so the rental
+            # cannot be reconstructed. Releasing it is the only repair available.
+            status = Status.AVAILABLE
+
+        review_reason = "; ".join(reasons) if reasons else None
+        imported.append(
+            HardwareItem(
+                id=item_id,
+                name=row.get("name", ""),
+                brand=row.get("brand"),
+                purchase_date=purchase_date,
+                status=status,
+                source_id=rekeyed_from,
+                needs_review=bool(reasons),
+                review_reason=review_reason,
+                notes=row.get("notes"),
+                history=row.get("history"),
+                assigned_to=assigned_to,
+            )
+        )
+
+        if reasons:
+            quarantined.append(
+                QuarantineRecord(
+                    source_id=source_id,
+                    reason=review_reason or "",
+                    payload=row,
+                )
+            )
+
+    return IngestReport(imported=tuple(imported), quarantined=tuple(quarantined))
 
 
 def normalise_purchase_date(raw: str | None) -> date | None:
@@ -55,4 +139,19 @@ def normalise_purchase_date(raw: str | None) -> date | None:
     ``None`` for a null or empty value. Raises ``ValueError`` for a string that
     is neither format — structural invalidity, which is ingestion's business.
     """
-    raise NotImplementedError("normalise_purchase_date is not implemented yet")
+    if raw is None:
+        return None
+
+    text = raw.strip()
+    if not text:
+        return None
+
+    # ISO first. "22-05-2023" cannot match it — day 2023 is out of range — so the
+    # two formats stay unambiguous and DD-MM-YYYY is never read month-first.
+    for pattern in ("%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, pattern).date()
+        except ValueError:
+            continue
+
+    raise ValueError(f"{raw!r} is not a recognised purchase date format")

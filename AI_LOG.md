@@ -205,3 +205,24 @@ read-only from here: 11 records, 10 unique ids, `4` twice, no `8`, matching all 
 rows of `brainstorm.md` §2.
 
 Commit: chore(phase-0): add seed data verbatim from brief (pending)
+
+---
+
+## [P0 · c4] Quarantine importer and admin bootstrap
+
+`/tdd` green pass against the 18 red specs. 18/18 pass, `tests/` untouched, no
+corrections needed. Ingestion stayed structural: no keyword scan, `"Appel"`
+preserved, the Dell XPS and MacBook Air imported `Available` and unflagged.
+
+Run against the real `data/seed.json` it reproduces §2's audit exactly — 11
+imported, 2 quarantined, and the duplicate re-keyed to 12 with `source_id: 4`,
+which is the id §2 predicted before the code existed.
+
+One gap the green pass exposed rather than closed: resolving the orphan rental
+(id 2, `In Use` with nobody assigned) releases it to `Available` and leaves no
+record of the change. Every other divergence from the seed is written to
+quarantine with a reason; this one is not, so the database silently disagrees with
+the brief about one row. §2 row 9 says only "resolved at import", so the
+implementation matches the spec and the spec is what is thin. Flagged, not fixed.
+
+Commit: feat(phase-0): quarantine importer and admin bootstrap (pending)
