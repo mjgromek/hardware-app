@@ -197,6 +197,18 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     seed_if_empty(engine)
 
+    # Every boot, not only an empty one. A volume seeded before Phase 2 has items that
+    # are `In Use` with a holder and no rental row — unreturnable and unrecallable —
+    # and `seed_if_empty` will never run again to fix them. Idempotent, so a restart
+    # over a reconciled database does nothing.
+    with new_session(engine) as session:
+        reconciled = rentals.reconcile_held_items(session, load_items(session))
+        session.commit()
+    if reconciled:
+        logging.getLogger(__name__).info(
+            "reconciled %d held item(s) that had no rental record", reconciled
+        )
+
     # Admin #1 comes from the environment, not from a migration (ADR-0005). Done at
     # boot for the same reason the seed is: the deploy target offers no way to run a
     # one-off command against the mounted volume. Unlike the seed this is idempotent

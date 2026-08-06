@@ -852,3 +852,35 @@ same defect and is now in `BACKLOG.md` — worth noticing that a bug shipped in 
 survived a review gate, and was only caught by driving the thing.
 
 Commit: feat(phase-2): rent, return and the admin overrides in the UI (pending)
+
+---
+
+## [P2 · c6] Deploy v2, and the bug only the deploy could find
+
+v2 live on the Phase 0 URL. 88/88.
+
+**Two of the four flows I set out to verify could not be run, and that was the finding.**
+Item 7 reported `In Use` and force-return answered "not currently rented": the ADR-0007
+seed rental is opened inside `seed_if_empty`, which returns early on a database that
+already has hardware — true of every volume that existed before Phase 2. So on the
+upgraded instance the headphones were held by an address with no account *and* no rental
+row. Unreturnable, because there was no rental to close. Unrecallable, for the same
+reason. `CONTEXT.md`'s "In Use with no renter" impossible state, arrived at through a
+deploy rather than through the seed.
+
+Boot now reconciles held items on **every** start rather than only an empty one — the
+opposite of how the seed is guarded, and deliberately: seeding writes inventory and must
+never repeat, while this reconciles a row that already exists. Idempotent, so a restart
+over a healthy database does nothing.
+
+**My own test then caught a footgun in my own code.** It asserted that an account-scoped
+query finds nothing for the accountless rental, and it failed — SQLAlchemy renders
+`column == None` as `IS NULL`, so `item_ids_held_by(None)` matched seed id 7 and would
+have handed it to whoever asked. Not reachable through the API, one line to close, and
+exactly the shape of bug that becomes reachable later.
+
+Worth stating plainly: this class of defect is invisible to a fresh-database test suite.
+88 tests passed against a database that had never been upgraded, and the item was stranded
+the moment the code met a real volume.
+
+Commit: chore(phase-2): deploy v2 (pending)

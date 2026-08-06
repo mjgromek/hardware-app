@@ -13,8 +13,8 @@ Built as a recruitment task for the Early Careers Programme.
 | Version | Phase | URL | Status |
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
-| **v1** | Phase 1 — auth, admin, dashboard | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v2 | Phase 2 — rental engine | — | 🔮 planned |
+| v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
+| **v2** | Phase 2 — rental engine, review queue, audit trail | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 | v3 | Phase 3 — AI layer + hardening | — | 🔮 planned |
 
 ### Signing in
@@ -66,7 +66,7 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue** — every flagged item with the reason ingestion recorded
   (read-only; see below)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 55 tests, all green
+- 88 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 

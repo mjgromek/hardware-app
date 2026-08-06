@@ -271,14 +271,9 @@ def _open_seed_rentals(report: IngestReport, session) -> int:
     id 2's orphan rental — would destroy the only evidence of who holds the headphones;
     id 2 was released precisely *because* it named nobody.
     """
-    from app.rentals import open_seed_rental
+    from app.rentals import reconcile_held_items
 
-    opened = 0
-    for item in report.imported:
-        if item.status is Status.IN_USE and item.assigned_to:
-            if open_seed_rental(session, item.id, item.assigned_to) is not None:
-                opened += 1
-    return opened
+    return reconcile_held_items(session, report.imported)
 
 
 def seed_if_empty(engine: Engine) -> bool:

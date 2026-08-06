@@ -50,6 +50,7 @@ __all__ = [
     "return_",
     "force_return",
     "open_seed_rental",
+    "reconcile_held_items",
     "active_rental",
     "item_ids_held_by",
     "rental_count",
@@ -197,6 +198,32 @@ def open_seed_rental(session: Session, item_id: int, renter_email: str) -> Renta
     return _insert_rental(session, item_id, None, renter_email)
 
 
+def reconcile_held_items(session: Session, items) -> int:
+    """Give a rental to every item that is `In Use` with a holder and no rental row.
+
+    **Runs on every boot, not only on an empty database** — the opposite of how the seed
+    is guarded, and deliberately. Seeding *writes inventory* and must never repeat;
+    this *reconciles* a row that already exists.
+
+    Found by deploying v2 over a volume Phase 1 had already seeded: `seed_if_empty`
+    returns early on a populated database, so seed id 7 arrived `In Use`, held by
+    `j.doe@booksy.com`, with no rental behind it. Nobody could return it, because there
+    was no rental to close, and no admin could recall it for the same reason —
+    `CONTEXT.md`'s "In Use with no renter" impossible state, reached through a deploy
+    rather than through the seed.
+
+    Idempotent by construction: `open_seed_rental` skips an item that already has an
+    active rental, so a restart adds nothing and the partial unique index is never
+    tested. Returns how many were reconciled, so boot can say if it did anything.
+    """
+    reconciled = 0
+    for item in items:
+        if item.status is Status.IN_USE and item.assigned_to:
+            if open_seed_rental(session, item.id, item.assigned_to) is not None:
+                reconciled += 1
+    return reconciled
+
+
 def active_rental(session: Session, item_id: int) -> Rental | None:
     """The open rental on this item, or `None`. `ended_at IS NULL` is the definition."""
     row = (
@@ -217,6 +244,14 @@ def item_ids_held_by(session: Session, account_id: int) -> set[int]:
     ``ended_at IS NULL`` is the whole definition of "right now" — without it the caller
     gets every item the employee has ever held, and My Rentals grows forever.
     """
+    # `None` is not an account. SQLAlchemy renders `column == None` as `IS NULL`, which
+    # would match the accountless seed rental (ADR-0007) and hand item 7 to whoever
+    # asked — so the absence of an id returns nothing rather than everything nobody
+    # owns. Not reachable through the API today; one line, and the alternative is a
+    # data-leak-shaped bug waiting for the first caller who passes a missing id.
+    if account_id is None:
+        return set()
+
     rows = session.execute(
         select(rentals.c.item_id).where(
             rentals.c.account_id == account_id, rentals.c.ended_at.is_(None)
