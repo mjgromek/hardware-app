@@ -1198,3 +1198,14 @@ search with the mode label shown (ADR-0016), auditor panel where each finding is
 button whose reason arrives prefilled and editable — the recorded claim is the
 human's. 117/117.
 Commit: feat(phase-3): admin flag-review verb (pending)
+
+---
+
+## [P3 · c8] Deploy v3 — hardening at the gate
+
+Health endpoint red-then-green (sessionless by design, touches nothing), bundle
+grepped clean of the provider and any key, README at v3 reality, wireframe doc gains
+the two AI surfaces. 118/118. Live verification after the push: smoke flow, one
+semantic search, one audit run — the auditor's live judgment on ids 9 and 10 is the
+claim the suite cannot make (mocked model), so it is checked on the deployment.
+Commit: chore(phase-3): deploy v3 (pending)

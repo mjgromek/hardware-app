@@ -14,8 +14,8 @@ Built as a recruitment task for the Early Careers Programme.
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
-| **v2** | Phase 2 — rental engine, review queue, audit trail | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v3 | Phase 3 — AI layer + hardening | — | 🔮 planned |
+| v2 | Phase 2 — rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
+| **v3** | Phase 3 — semantic search, Inventory Auditor, flag-review | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 | v4 | Phase 4 — wireframe fidelity | — | 🔮 planned, after v3 |
 
 ### Signing in
@@ -110,8 +110,19 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`?held_by=me`** — the dashboard's "My Rentals" view, server-side
 - **Demo reset** — one confirmed admin route restores the seed's fingerprints
   (see "Restoring the demo" above)
+- **Semantic search** — natural language → schema-validated filter object → SQLite
+  (ADR-0004); the model cannot hallucinate inventory, the filter has no predicate
+  over restricted fields for anyone (ADR-0015), and every response is labelled
+  `semantic` or `keyword` so the fallback cannot pass as the primary (ADR-0016)
+- **The Inventory Auditor** — closed finding kinds, proposes and never disposes
+  (ADR-0014), admin-only, computed per run and persisted nowhere; refuses with a
+  `503` rather than degrading, because a keyword auditor cannot find id 10
+- **The flag-review verb** — a human acts on a finding: mandatory reason, audit
+  event, `409` when already flagged (ADR-0017); the loop ADR-0002 opened is closed
+  end to end — ingestion declined to judge, the auditor judges, an admin decides
+- **Health endpoint** — `GET /api/health`, sessionless by design, touches nothing
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 98 tests, all green
+- 118 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -176,8 +187,6 @@ Each of these works, and each cost something. The full table with reasoning is i
 
 ### ⚠️ Partial / Missing
 
-- The AI layer — semantic search and the Inventory Auditor. The wireframe's "Ask AI…"
-  bar is absent for the same reason
 - Editing an item's name, brand or date — only status changes and deletion exist
 - **The last-admin guard is not race-safe** — it reads the admin count and writes in a
   separate statement, so two simultaneous demotions of the final two admins both pass and
@@ -186,7 +195,10 @@ Each of these works, and each cost something. The full table with reasoning is i
   conditional-`UPDATE` pattern is the known fix when it matters
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
-- CI, vitest, a health endpoint
+- CI and vitest
+- `test_auditor_flags_misspelled_brand` (id 9, `"Appel"`) — cut under the red-pass
+  test cap as plumbing-identical to id 10's test; ADR-0002's typo loop is exercised
+  live rather than pinned in the suite. See `BACKLOG.md`
 
 Carried over from `/security-review` as accepted rather than fixed, each with the reason
 (the field-level authorization finding that used to lead this list is closed —
@@ -203,14 +215,11 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
 
 ### 🔮 Next Steps (24h Roadmap)
 
-All three land in Phase 3, one branch and one deployed version — the last phase in
-the table above. `/grill-me` first, per `CLAUDE.md`:
-
-1. **The AI layer** — semantic search (natural language → schema-validated filter
-   object → SQLite, ADR-0004) and the Inventory Auditor, which has to flag record 10
-   to prove it does anything a regex could not.
-2. **Production hardening** — CI running both suites, the vitest suite the frontend
-   is owed, a health endpoint, and logout/session expiry from the ⚠️ list above.
+1. **CI and the frontend test suite** — a workflow running both build steps and both
+   suites, and vitest over the table's keyboard behaviour and the api client's `401`
+   handling. The two oldest ⚠️ entries, and the ones a reviewer hits first.
+2. **Logout and session expiry** — the remaining half of the session story: ending
+   one session without retiring the account.
 3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
    states, favicon, and the remaining `(pending)` SHA back-annotations in
    `AI_LOG.md`.

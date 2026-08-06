@@ -635,6 +635,16 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             session.commit()
         return {"item_id": item_id, "needs_review": False}
 
+    @app.get("/api/health")
+    def health() -> dict[str, str]:
+        """Alive, and nothing else. The deliberate second exception to ADR-0006.
+
+        No session (the caller is a load balancer) and no database read — it must be
+        able to answer while the volume is broken, which is exactly when somebody is
+        asking.
+        """
+        return {"status": "ok"}
+
     @app.post(f"{HARDWARE}/{{item_id}}/flag-review")
     def flag_review_item(
         item_id: int, body: Reason, admin: Account = Depends(current_admin)
