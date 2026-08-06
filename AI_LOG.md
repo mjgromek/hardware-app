@@ -761,3 +761,42 @@ commits behind when first audited), and work visible in the diff that never reac
 README's four graded sections.
 
 Commit: chore: enforce AI log as a commit gate (pending)
+
+---
+
+## Correction #3 — I wrote the brief that made the agent slow
+
+**What I observed.** `test-author` was taking about twenty minutes a phase and producing
+far more than I asked for: 18 tests in Phase 0, and 11 in Phase 1 against a named list of
+nine. The suite is now at 55 tests — 83 with Phase 2's red pass — for a brief that asked
+for three critical ones. None of the extra tests are bad. Several are the best tests in the
+project. That is what took me so long to see the problem.
+
+**What I diagnosed.** The agent brief was the cause, not the agent. Two lines did it. The
+first was *"the named test list is your floor, not your ceiling"* — which is not a
+permission to expand, it is an instruction to. The second was the input list: the phase
+spec, `brainstorm.md`, the relevant ADRs, and every existing test file, all read before
+writing a line. I specified thoroughness in the inputs and again in the scope, and
+thoroughness is exactly what I got, on time, every time.
+
+**What I changed.** One input file instead of four. *"Write exactly the named list"* in
+place of the floor-and-ceiling line. A hard cap of twelve tests. Mutation testing banned
+outright — it earned its keep once, on `persist`, and became a tax everywhere else. A
+five-line cap on the report.
+
+**Why it is the right trade here.** Coverage is already well past what the brief asks for,
+and the binding constraint on this project is time, not rigor. Cutting the agent's reading
+list costs me tests I would probably never have missed, and buys back the minutes that
+Phase 2's three slices need. If I were building this to run in production rather than to be
+read in a review, I would revert every one of these changes.
+
+**What I am taking from it.** This is the same lesson as Correction #2, which is the part
+worth writing down. There, every finding the pipeline surfaced was correct and I acted on
+all of them, and the aggregate was wrong. Here, every test the agent wrote was justified by
+the brief I gave it, and the aggregate was wrong. Both times the agent did exactly what I
+told it to. Both times I looked at the output first and the instruction second. Second time
+in one project — the reflex I need is to read my own brief before I read the agent's work,
+because if the output is consistently off in one direction, the instruction is where the
+direction came from.
+
+Commit: chore: tighten test-author brief for pace (pending)

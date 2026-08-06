@@ -766,3 +766,34 @@ session stopped short of it on purpose. The four are specification detail rather
 architecture — none of them changes what the other decisions mean — and Phase 2 carrying
 two shipped-route retrofits, a new module, two new tables and a UI is already the widest
 phase in the project.
+
+
+---
+
+## Session 10 — 2026-08-06 — Agent-brief revision #2 — *verbatim*
+
+**Status:** ✅ settled. **Commit:** `chore: tighten test-author brief for pace`.
+
+Not a prompt to a model — an edit to `.claude/agents/test-author.md`, the file that
+*becomes* the prompt every time that agent runs. It is in this trail because an agent brief
+shapes what gets built as much as any instruction typed into a session, and it does so
+invisibly and repeatedly. This is the second such revision, which is why it is worth a
+numbered entry rather than a line in a commit message.
+
+**The change:** one input file instead of four; *"write exactly the named list"* replacing
+*"the named test list is your floor, not your ceiling"*; a hard cap of twelve tests;
+mutation testing banned outright; a five-line report cap.
+
+**The observation behind it:** 18 tests in Phase 0 and 11 in Phase 1 against a named list
+of nine, at roughly twenty minutes a phase, on a brief that asks for three critical tests.
+The output was good and the aggregate was wrong.
+
+**Why it belongs in an architecture trail.** The first revision was the original agent
+split itself — `test-author` may not touch `app/`, the implementer may not touch `tests/`
+— recorded in `AI_LOG.md` [Phase −1 · commit 1] as the thing that makes TDD structurally
+enforced rather than aspirational. That decision shaped every phase since. This one shapes
+every phase remaining, in the opposite direction: the first bought rigor at the cost of
+speed, this one sells some of it back. Both are architecture. Neither is code.
+
+The full reasoning, including why it is the same mistake as Correction #2, is in
+`AI_LOG.md` Correction #3.
