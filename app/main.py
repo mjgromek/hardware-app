@@ -7,13 +7,14 @@ cross-origin request to configure.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from dataclasses import asdict
 from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Mapping
+from typing import Annotated, Any, Literal, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +25,7 @@ from app.config import PRODUCTION, load_settings
 from app.domain import Account, Role, Status
 from app.storage import (
     add_item,
+    persist,
     clear_review,
     create_engine_for,
     create_schema,
@@ -78,6 +80,16 @@ class NewHardware(BaseModel):
 
 class StatusChange(BaseModel):
     status: Status
+
+
+#: Typed in full so the request cannot be issued by accident. The route destroys rental
+#: history on a live instance, and a bare POST that fires on the first request is one
+#: mistyped URL away from wiping what ADR-0011 exists to protect.
+RESET_CONFIRMATION = "reset the demo data"
+
+
+class ResetConfirmation(BaseModel):
+    confirm: Literal["reset the demo data"]
 
 
 class Reason(BaseModel):
@@ -609,6 +621,50 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             )
             session.commit()
         return {"item_id": item_id, "needs_review": False}
+
+    @app.post("/api/admin/reset-demo")
+    def reset_demo(
+        _body: ResetConfirmation, _: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Put the seed's defects back: clear rentals and audit events, then reseed.
+
+        The live instance is a demonstration, and demonstrating it consumes it — item 7
+        gets recalled, flags get cleared, items get rented. `docs/DATA_AUDIT.md` is
+        written about those rows and Phase 3's auditor needs the contradictions intact,
+        so restoring them has to be one repeatable action rather than a story about a
+        database somebody edited.
+
+        **An HTTP route because nothing else can reach the data.** Railway exposes no
+        exec and no SSH — the same constraint that put seeding on the boot path — so a
+        CLI reset would be documented for a deployment that cannot run it.
+
+        **Clears the blocker rather than bypassing it.** ADR-0011's refusal is correct
+        and stays: this deletes the rentals first, so the reseed passes the guard
+        instead of being exempted from it.
+        """
+        from scripts.seed import SEED_PATH, ingest
+
+        report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
+        with new_session(engine) as session:
+            cleared_rentals = rentals.clear_all(session)
+            cleared_events = audit.clear_all(session)
+            persist(report, session)
+            restored = rentals.reconcile_held_items(session, report.imported)
+            session.commit()
+
+        logging.getLogger(__name__).info(
+            "demo reset: cleared %d rental(s) and %d audit event(s), reseeded %d items",
+            cleared_rentals,
+            cleared_events,
+            len(report.imported),
+        )
+        return {
+            "items": len(report.imported),
+            "quarantined": len(report.quarantined),
+            "rentals_cleared": cleared_rentals,
+            "audit_events_cleared": cleared_events,
+            "seed_rentals_restored": restored,
+        }
 
     # Single origin (ADR-0001): the same app serves the API and the bundle, so
     # there is no CORS middleware to configure. Mounted last, at the root, so it

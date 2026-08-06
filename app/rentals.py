@@ -33,6 +33,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    delete,
     insert,
     select,
     update,
@@ -54,6 +55,7 @@ __all__ = [
     "active_rental",
     "item_ids_held_by",
     "rental_count",
+    "clear_all",
     "CloseKind",
 ]
 
@@ -258,6 +260,18 @@ def item_ids_held_by(session: Session, account_id: int) -> set[int]:
         )
     ).all()
     return {row[0] for row in rows}
+
+
+def clear_all(session: Session) -> int:
+    """Delete every rental. Only the demo reset calls this.
+
+    Named bluntly because it is blunt: this is the data ADR-0011 stops `persist` from
+    destroying. The reset uses it to *clear the blocker* before reseeding, which keeps
+    the refusal intact for every other caller — a `force=True` on `persist` would have
+    removed the protection for all of them.
+    """
+    result = session.execute(delete(rentals))
+    return result.rowcount
 
 
 def rental_count(session: Session) -> int:

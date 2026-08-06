@@ -36,6 +36,36 @@ nothing. Deleting it deliberately keeps it deleted; a restart does not resurrect
 This is a separate account from the deployment's own bootstrap admin, whose credential
 stays in Railway's environment and is not published (ADR-0005).
 
+### Restoring the demo
+
+Demonstrating the live instance consumes it: renting an item, recalling item 7 or clearing
+a flag all change the rows the project is *about*. `docs/DATA_AUDIT.md` describes those
+rows, and Phase 3's Inventory Auditor needs the seed's contradictions intact — so putting
+them back is one repeatable action, not a story about a database somebody edited.
+
+Signed in as the bootstrap admin (not the demo account, which is read-only):
+
+```bash
+curl -X POST "$URL/api/admin/reset-demo" \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt \
+  -d '{"confirm": "reset the demo data"}'
+```
+
+The confirmation phrase is typed in full on purpose. The route deletes rental history,
+and a bare `POST` that fires on the first request is one mistyped URL away from wiping
+what ADR-0011 exists to protect.
+
+**It clears the blocker rather than bypassing it.** ADR-0011 has `persist` refuse while
+rentals exist, and that refusal stays: the reset deletes rentals and audit events *first*,
+then reseeds through the same guard every other caller meets. A `force=True` on `persist`
+would have removed the protection for all of them.
+
+It is an HTTP route rather than a CLI because Railway exposes no exec or SSH — the same
+constraint that put seeding on the boot path. Afterwards the fingerprints are back: 11
+items, ids 6 and 10 flagged, item 7 held by `j.doe@booksy.com`, id 12 re-keyed from the
+duplicate, the `Appel` typo intact, and 3 quarantine records.
+
 **It is deliberately not an admin.** It was, until `/security-review` pointed out that
 publishing an admin credential on a public instance hands every reader delete rights
 over the inventory and the account list. Read access shows the dashboard, the review

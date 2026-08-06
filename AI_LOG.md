@@ -884,3 +884,48 @@ Worth stating plainly: this class of defect is invisible to a fresh-database tes
 the moment the code met a real volume.
 
 Commit: chore(phase-2): deploy v2 (pending)
+
+---
+
+## [P2 · c7] A repeatable demo reset, and a model change
+
+**The reset.** Verifying v2 consumed the state the project is about — item 7 recalled,
+both flags cleared. `POST /api/admin/reset-demo` clears rentals and audit events, then
+reseeds. Three tests, 91/91.
+
+Two decisions inside it. It is an **HTTP route rather than a CLI** because Railway exposes
+no exec or SSH — the same constraint that put seeding on the boot path — so
+`python -m scripts.reset` would have been documented for a deployment that cannot run it.
+And it **clears the blocker rather than bypassing it**: ADR-0011's refusal is right and
+stays, so the reset deletes rentals first and then reseeds through the same guard every
+other caller meets. A `force=True` parameter on `persist` would have been three characters
+shorter and would have removed the protection for everyone.
+
+The confirmation phrase is a `Literal`, so a wrong one is a `422` from the model rather
+than a branch somebody can forget.
+
+**The tension it creates, filed rather than hidden:** this route erases the audit trail
+ADR-0010 was written to protect, and nothing records that a reset happened. It has to
+clear the events — a trail pointing at rental ids that no longer exist describes events
+that did not occur — but "the most destructive route leaves no trace" is fine only because
+this instance exists to be restored. In `BACKLOG.md`, with the condition that makes it
+urgent.
+
+Verified against the live instance and run twice: 7 rentals and 3 audit events cleared, 11
+items and 3 quarantine records reseeded, 1 seed rental restored. Every fingerprint back —
+ids 6 and 10 flagged, item 7 held by `j.doe@booksy.com`, id 12 carrying `source_id` 4, the
+`Appel` typo intact, and the Dell XPS `Available` with its swelling-battery note.
+
+**The model change.** `mvp-reviewer` now runs on Fable 5, and grillings use Fable 5 from
+here. The reason is where reasoning depth actually pays: implementation is constrained by
+a spec and a red test that either passes or does not, and a cheaper model reaching the
+same green is the same result. Adversarial self-review and grilling have no such
+backstop — nothing fails loudly when a reviewer misses the finding or a grilling asks the
+comfortable question instead of the sharp one, and both are exactly where this project has
+been saved twice already: the whole-project grilling caught the rentable-swelling-battery
+hole, and `mvp-reviewer` caught a session signature that no test defended.
+
+Put plainly: I am spending the deeper model at the two gates where a miss is silent, and
+not on the loop where a miss is loud.
+
+Commit: feat(phase-2): repeatable demo reset (pending)

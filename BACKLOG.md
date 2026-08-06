@@ -268,3 +268,12 @@ ask "what is Novak holding" through the API; they can only read it off the dashb
 renter column. The parameter is a closed enum for that reason (see
 `tests/test_held_by_filter.py`). *Urgent when: offboarding needs "everything this person
 has", which is a real workflow and a different authorization question.*
+
+**The demo reset deletes the audit trail, which ADR-0010 exists to protect.** `POST
+/api/admin/reset-demo` clears `audit_events` along with `rentals`, and it has to — a trail
+referencing rental ids that no longer exist describes events that did not happen. But it
+means the one route that most needs an audit record is the one that erases them, and
+nothing anywhere records that a reset occurred. Defensible on a demo instance whose whole
+purpose is being restored, and indefensible on anything else. *Urgent when: this codebase
+is ever pointed at data somebody depends on — at which point the route should be gated on
+`ENVIRONMENT != production`, or should write its own event to a table it does not clear.*

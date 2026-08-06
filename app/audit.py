@@ -25,13 +25,14 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    delete,
     insert,
 )
 from sqlalchemy.orm import Session
 
 from app.domain import Account
 
-__all__ = ["Action", "create_schema", "record"]
+__all__ = ["Action", "create_schema", "record", "clear_all"]
 
 metadata = MetaData()
 
@@ -72,6 +73,15 @@ audit_events = Table(
 def create_schema(engine: Engine) -> None:
     """Create the audit table if it is absent."""
     metadata.create_all(engine)
+
+
+def clear_all(session: Session) -> int:
+    """Delete every audit event. Only the demo reset calls this.
+
+    A reset that reseeded the inventory but kept the events would leave a trail
+    referencing item and rental ids that no longer mean what it says.
+    """
+    return session.execute(delete(audit_events)).rowcount
 
 
 def record(

@@ -797,3 +797,28 @@ speed, this one sells some of it back. Both are architecture. Neither is code.
 
 The full reasoning, including why it is the same mistake as Correction #2, is in
 `AI_LOG.md` Correction #3.
+
+
+---
+
+## Session 11 — 2026-08-06 — Model assignment as an architectural choice — *verbatim*
+
+**Status:** ✅ settled. Not a prompt and not a brief edit — a change to *which model runs
+which role*, which belongs here for the same reason Session 10 does: it changes what gets
+produced, invisibly and on every run.
+
+**The change:** `mvp-reviewer` runs on Fable 5, and grilling sessions use Fable 5 from
+here. Implementation stays where it is.
+
+**The reason:** reasoning depth pays where a miss is silent. Implementation is fenced by a
+spec and a red test — a weaker model that reaches the same green has produced the same
+result, and the test says so immediately. Adversarial self-review and grilling have no
+such fence. Nothing fails when a reviewer overlooks a finding or a grilling asks the
+comfortable question, and this project has twice been saved at exactly those two points:
+grilling 1 caught a rental engine that would have issued a laptop with a swelling battery,
+and `mvp-reviewer` caught a session signature that 47 passing tests did not defend.
+
+**Why it is architecture rather than configuration:** the review gate and the grilling are
+the two places where the project's direction can still change cheaply. Spending the
+deepest model there and not on the loop is the same trade as the agent-brief revision in
+Session 10 — buying rigor where it compounds and paying for it where it does not.
