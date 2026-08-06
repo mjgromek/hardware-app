@@ -17,10 +17,26 @@ give it one.
 
 from __future__ import annotations
 
-from sqlalchemy import Engine
+import json
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    Engine,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    delete,
+    insert,
+    select,
+)
 from sqlalchemy.orm import Session
 
-from app.domain import HardwareItem, IngestReport, QuarantineRecord
+from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
 
 __all__ = [
     # Re-exported so callers and tests can name the types they hold without
@@ -35,23 +51,61 @@ __all__ = [
     "load_quarantine",
 ]
 
+metadata = MetaData()
+
+hardware = Table(
+    "hardware",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=False),
+    Column("name", String, nullable=False),
+    Column("brand", String, nullable=True),
+    Column("purchase_date", Date, nullable=True),
+    Column("status", String, nullable=False),
+    # Set only on a re-keyed row: the id the seed originally used.
+    Column("source_id", Integer, nullable=True),
+    Column("needs_review", Boolean, nullable=False),
+    Column("review_reason", Text, nullable=True),
+    Column("notes", Text, nullable=True),
+    Column("history", Text, nullable=True),
+    Column("assigned_to", String, nullable=True),
+)
+
+#: Nothing from the seed is silently deleted — rejected rows land here with a
+#: reason and the original row as evidence, so this table is as load-bearing as
+#: ``hardware`` itself. Its own key is synthetic: ``source_id`` is not unique
+#: (the seed repeats id 4) and may be absent entirely on a malformed row.
+hardware_quarantine = Table(
+    "hardware_quarantine",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source_id", Integer, nullable=True),
+    Column("reason", Text, nullable=False),
+    Column("payload", Text, nullable=False),
+)
+
 
 def create_engine_for(database_url: str) -> Engine:
     """Build the engine for ``database_url``, e.g. ``sqlite:///./hardware_hub.db``.
 
     Once per process, from ``Settings.database_url`` — not once per query.
+
+    Default pooling on purpose. A ``StaticPool`` would hand every session the same
+    connection, which would let one session see another's uncommitted rows and
+    quietly destroy the isolation ``test_persist_does_not_commit`` exists to pin.
+    For the same reason, no locking pragmas: the onlooker's SELECT has to be able
+    to run while a writer holds an open transaction.
     """
-    raise NotImplementedError("create_engine_for is not implemented yet")
+    return create_engine(database_url)
 
 
 def create_schema(engine: Engine) -> None:
     """Create the hardware and quarantine tables if they are absent."""
-    raise NotImplementedError("create_schema is not implemented yet")
+    metadata.create_all(engine)
 
 
 def new_session(engine: Engine) -> Session:
     """Open a session the caller owns, commits, and closes."""
-    raise NotImplementedError("new_session is not implemented yet")
+    return Session(engine)
 
 
 def persist(report: IngestReport, session: Session) -> None:
@@ -67,7 +121,44 @@ def persist(report: IngestReport, session: Session) -> None:
     A reseed is a documented operation on a deployed instance, so this behaviour
     is specified rather than incidental.
     """
-    raise NotImplementedError("persist is not implemented yet")
+    session.execute(delete(hardware_quarantine))
+    session.execute(delete(hardware))
+
+    if report.imported:
+        session.execute(
+            insert(hardware),
+            [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "brand": item.brand,
+                    "purchase_date": item.purchase_date,
+                    "status": item.status.value,
+                    "source_id": item.source_id,
+                    "needs_review": item.needs_review,
+                    "review_reason": item.review_reason,
+                    "notes": item.notes,
+                    "history": item.history,
+                    "assigned_to": item.assigned_to,
+                }
+                for item in report.imported
+            ],
+        )
+
+    if report.quarantined:
+        session.execute(
+            insert(hardware_quarantine),
+            [
+                {
+                    "source_id": record.source_id,
+                    "reason": record.reason,
+                    # The rejected row is evidence, so it is stored whole rather
+                    # than flattened into columns it does not reliably have.
+                    "payload": json.dumps(dict(record.payload)),
+                }
+                for record in report.quarantined
+            ],
+        )
 
 
 def load_items(session: Session) -> tuple[HardwareItem, ...]:
@@ -77,7 +168,25 @@ def load_items(session: Session) -> tuple[HardwareItem, ...]:
     ``Status`` member, ``needs_review``, ``source_id`` for re-keyed rows, and the
     normalised ``purchase_date`` as a ``date``.
     """
-    raise NotImplementedError("load_items is not implemented yet")
+    rows = session.execute(select(hardware)).mappings().all()
+    return tuple(
+        HardwareItem(
+            id=row["id"],
+            name=row["name"],
+            brand=row["brand"],
+            purchase_date=row["purchase_date"],
+            # Back through the enum, not out as a bare string: the status stays
+            # closed on the way out of the database as well as into it.
+            status=Status(row["status"]),
+            source_id=row["source_id"],
+            needs_review=bool(row["needs_review"]),
+            review_reason=row["review_reason"],
+            notes=row["notes"],
+            history=row["history"],
+            assigned_to=row["assigned_to"],
+        )
+        for row in rows
+    )
 
 
 def load_quarantine(session: Session) -> tuple[QuarantineRecord, ...]:
@@ -87,4 +196,12 @@ def load_quarantine(session: Session) -> tuple[QuarantineRecord, ...]:
     unexplained deletion by another name. ``payload`` round-trips as the original
     seed row.
     """
-    raise NotImplementedError("load_quarantine is not implemented yet")
+    rows = session.execute(select(hardware_quarantine)).mappings().all()
+    return tuple(
+        QuarantineRecord(
+            source_id=row["source_id"],
+            reason=row["reason"],
+            payload=json.loads(row["payload"]),
+        )
+        for row in rows
+    )

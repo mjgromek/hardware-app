@@ -325,3 +325,18 @@ walk past. I had no mechanism for deferring a legitimate finding, so every
 legitimate finding became work.
 
 Commit: docs: findings discipline rule after Phase 0 scope drift (pending)
+
+---
+
+## [P0 · c8] SQLite persistence for items and quarantine
+
+`/tdd` green pass over the six storage specs. 26/26, `tests/` untouched. SQLAlchemy
+Core rather than the ORM — the domain objects are frozen dataclasses and mapping
+them would add a layer that buys nothing at this size.
+
+Verified the suite discriminates against *this* implementation and not only the
+scratchpad reference it was written against: with `persist` patched to commit via a
+pytest plugin, 1 failed / 5 passed — only `test_persist_does_not_commit`. The
+repo was not modified to run that check.
+
+Commit: feat(phase-0): SQLite persistence for items and quarantine (pending)
