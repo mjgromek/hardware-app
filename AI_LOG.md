@@ -161,3 +161,16 @@ whole-project scope before any code exists, not per feature.
 
 **Commit:** `docs: ADRs 0001–0005 from whole-project grilling` (pending)
 
+
+---
+
+## [P0 · c1] Scaffold and module skeletons
+
+Backend scaffold plus signature-only skeletons: `app/config.py`, `app/domain.py`,
+`app/main.py`, `scripts/seed.py`. Every function body raises `NotImplementedError`
+— no logic, so the Phase 0 tests can fail on a real assertion rather than on
+`ImportError`, which `CONTEXT.md` defines as broken rather than red. Vue/Vite,
+vitest and CI are Phase 0 scope but not needed by the five backend tests; they are
+deferred to a later Phase 0 commit.
+
+Commit: chore(phase-0): scaffold and module skeletons (pending)
