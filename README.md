@@ -21,33 +21,57 @@ Built as a recruitment task for the Early Careers Programme.
 
 ## Status
 
-**✅ Done**
+### ✅ Fully Implemented
 
 - Seed ingestion: structural validation, quarantine with reasons, nothing deleted
 - SQLite persistence with caller-owned transactions and replace-semantics reseed
 - `GET /api/hardware` — the full inventory
 - Vue page listing every item with its status and review flag
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 28 tests, all green
+- 30 tests, all green
 
-**⚡ Partial**
+### ⚡ Shortcuts & Hacks
 
-- Frontend is one unstyled page. No router, no state management — Phase 1's job.
-- `needs_review` is set and displayed but nothing can clear it yet (see trade-offs).
-- The wireframes are not committed — they are Booksy's material, the brief marks
-  them confidential, and this repo is public. They stay local and gitignored;
-  [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) describes
-  each deviation in words, including what the original showed, so it stands alone
-  without them.
+Each of these works, and each cost something. The full table with reasoning is in
+[Trade-offs taken](#trade-offs-taken) below.
 
-**⚠️ Missing**
+- **The wireframes are not committed.** They stay on the local machine, gitignored,
+  and [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) describes
+  every deviation in prose — including what the original showed — so it can be
+  judged without them.
+  **Why:** they are Booksy's material, the brief marks them confidential, and this
+  repository is public.
+  **Future:** in a private or internal repo the images would be committed alongside
+  the justification doc. The prose-only form exists solely because this one is
+  public.
+- **The frontend is one unstyled page**, no router and no state management. Enough
+  to prove the pipeline end to end; Phase 1 is where it becomes a UI.
+- **`needs_review` is set and displayed but nothing can clear it yet.** The flag
+  blocks rental (ADR-0003), so until Phase 1 ships the admin queue, releasing a
+  flagged item takes a database edit.
+- **The app seeds itself on boot when the database is empty.** A deploy shim, not a
+  migration strategy — Railway offered no way to run a one-off command against the
+  mounted volume. The emptiness guard is what makes it safe.
+
+### ⚠️ Partial / Missing
 
 - Authentication and roles — no login exists, so the API is fully public
 - Rental engine — items have statuses but cannot be rented or returned
 - The AI layer — semantic search and the Inventory Auditor
 - CI, vitest, a health endpoint
 
-**🔮 Planned** — Phases 1–3 above.
+### 🔮 Next Steps (24h Roadmap)
+
+In order, one branch and one deployed version each — the phases in the table above:
+
+1. **Phase 1 — auth, admin, dashboard.** Session-cookie login and role guards over
+   the public API, admin CRUD, and the review queue that can finally clear
+   `needs_review`.
+2. **Phase 2 — rental engine.** Rent and return, with `Repair` and `needs_review`
+   blocking through one guard (ADR-0003).
+3. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
+   which has to flag record 10 to prove it does anything a regex could not, plus CI
+   and the frontend test suite.
 
 ---
 
@@ -148,6 +172,7 @@ a note on when it becomes urgent.
 | [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
 | [`docs/adr/`](docs/adr/) | Architectural decisions, with the reasoning that produced them. |
 | [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
+| [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |
 | [`BACKLOG.md`](BACKLOG.md) | Findings deferred rather than acted on. |
 | [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | The grilling sessions that settled the plan. |

@@ -425,3 +425,20 @@ instead, so it can be judged without them. Recorded in the README's ⚡ section
 rather than left as a silent omission.
 
 Commit: docs: wireframe justification scaffold (pending)
+
+---
+
+## [P1 · c2] README status sections renamed to the brief's four
+
+The four headings now read exactly as the brief names them, which forced a
+redistribution: my "⚡ Partial" had been holding both shortcuts and absences, and
+they are different claims. Anything that works but cost something is a shortcut;
+anything that does not exist is missing. The wireframe omission carries both a Why
+and a Future, like every other trade-off.
+
+Correcting the headings surfaced a stale figure next to them — the summary said 28
+tests where `pytest --collect-only` counts 30, from the two boot-seed specs in c10.
+The status block is the part of the README a reviewer trusts most and verifies
+least.
+
+Commit: docs: align README status sections with the brief (pending)
