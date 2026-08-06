@@ -20,6 +20,28 @@ Failures and wrong turns stay in. A log with no wrong answers in it did not happ
 
 ---
 
+## [Phase −1 · commit 2] Conventions, domain language, and this log
+
+**Backfilled at Phase 1's review gate.** This commit — `14313c7`, *docs: project
+conventions, domain language, AI log* — shipped without an entry, and an audit against
+`git log` at the Phase 1 gate found it: 24 commits, 22 entries, and the numbering here
+jumps from commit 1 to commit 3 because of it. `CLAUDE.md` says no entry means not done,
+so the honest fix is an entry that says it was written late rather than one pretending
+otherwise.
+
+What the commit contained: `CLAUDE.md` (the non-negotiables), `CONTEXT.md` (the domain
+language — "quarantine record", not "the row we couldn't import"), and this file's own
+scaffold. No application code. The one decision worth recording is that the vocabulary was
+fixed *before* the schema, which is why `needs_review` and `hardware_quarantine` read the
+same way in the tests, the ADRs and the UI.
+
+The other commit with no entry is `168048c`, the Phase 0 merge PR, which is a merge commit
+and gets none by design.
+
+Commit: docs: project conventions, domain language, AI log (14313c7)
+
+---
+
 ## [Phase −1 · commit 1] Tooling setup, and two MCP servers that did not work
 
 **Goal:** get the workflow in place before writing any application code — skills,
@@ -586,3 +608,27 @@ reason each was not fixed, rather than to `BACKLOG.md` — a reviewer reads the 
 "we knew and chose not to" belongs where the claim is made.
 
 Commit: fix(phase-1): demote published demo account to read-only (pending)
+
+---
+
+## [P1 · c8] Log audit against git
+
+Audited both logs against `git log` rather than against memory. 24 commits, 22 entries —
+two gaps: `14313c7` (backfilled above, and marked as backfilled) and `168048c`, the Phase 0
+merge, which needs none.
+
+`docs/PROMPT_TRAIL.md` was the real gap: last touched at commit 3 of 24, while ADR-0006,
+the session requirement, the enforcement point and three other architectural decisions had
+been taken since. The cause is visible in `CLAUDE.md`, which lists this file as "after every
+grilling" — and Phases 0 and 1 have no grilling by design, so the trigger never fired. The
+brief asks for the prompts that shaped the architecture, not grilling transcripts.
+Backfilled as Part II, seven sessions, each marked *verbatim* or *reconstructed* and each
+naming its commit. The Phase 0 ones are reconstructed and say so; inventing wording would
+have made the document worth less than the gap it filled.
+
+One inconsistency this audit found and did not fix: every entry ends `(pending)` rather than
+the commit sha, including entries whose commits are long since pushed. `CLAUDE.md`'s own
+example shows `(a1b2c3d)`. Left alone because rewriting 22 of them at the review gate is a
+mechanical change I would rather the human sanction than discover.
+
+Commit: docs(phase-1): backfill prompt trail and audit both logs (pending)

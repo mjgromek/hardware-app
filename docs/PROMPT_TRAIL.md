@@ -1,9 +1,17 @@
 # Prompt Trail
 
-Grilling transcripts and architecture-shaping prompts, in the order they happened.
-Append-only. Answers are preserved verbatim — the disagreements are the point.
+The prompts that shaped the architecture and design, in the order they happened.
+Append-only.
+
+Two parts, because the material differs. **Part I** is one grilling session, transcribed
+verbatim — the disagreements are the point, so the answers are preserved as given.
+**Part II** is the architecture-shaping prompts from ordinary build sessions, each marked
+*verbatim* or *reconstructed* depending on whether the wording survived. Every entry names
+the commit and the ADR it produced, so a claim here can be checked against the code.
 
 ---
+
+# Part I — Grilling 1
 
 ## Session 1 — 2026-08-06 — Whole-project scope
 
@@ -318,3 +326,253 @@ Not asked, because each depends on an answer still open above:
 - **LLM provider** (§14 open item) — blocks on Q4's shape.
 
 ---
+
+---
+
+# Part II — Architecture-shaping prompts after grilling 1
+
+Session 1 above is a full verbatim transcript, because it was one long interactive
+grilling. Everything below happened in ordinary build sessions, so the record has two
+different qualities and this file labels which is which:
+
+- **Verbatim** — the prompt as typed, recovered from the session transcript.
+- **Reconstructed** — the prompt is gone; what survives is the decision, in `AI_LOG.md`
+  and the ADRs. The entry states what was asked for in substance and marks itself
+  reconstructed. It is evidence of the decision, not of the wording.
+
+Backfilled in one pass at Phase 1's review gate, having noticed this file had not been
+touched since commit 3 of 24 while five architectural decisions had been taken since.
+That gap is itself worth recording: the ADRs kept up and the prompt trail did not,
+because ADRs are a non-negotiable in `CLAUDE.md` and this file was listed only as
+"after every grilling" — and no grilling happened in Phases 0 or 1 by design.
+
+---
+
+## Session 2 — Phase 0 build — *reconstructed*
+
+**Status:** ✅ settled. **Source:** `AI_LOG.md` [P0 · c1]–[P0 · c12], Correction #2.
+
+Three architectural decisions came out of this phase that were not in any grilling.
+
+**The findings-discipline rule.** *(Reconstructed — the prompt was a question about what
+a reviewer would see if the budget ran out at that moment.)* The agent pipeline had been
+surfacing real spec gaps at a rate that turned every one into work: a persistence layer
+with caller-owned transactions, replace semantics specified rather than inferred, 26
+tests including a mutation-verified check that `persist` does not commit — and zero
+visible product. The answer became a standing rule in `CLAUDE.md`: non-blocking findings
+go to `BACKLOG.md` and work continues; only something that makes the current work *wrong*
+interrupts. → `AI_LOG.md` Correction #2, commit `29779c2`.
+
+**Seed-on-boot-if-empty.** *(Reconstructed — driven by the deploy failing three ways.)*
+Railway's API exposes no exec or SSH, `preDeployCommand` silently did not execute across
+two deploys, and `railway ssh` needed an SSH key the machine did not have. With no way to
+run `python -m scripts.seed` once against the mounted volume, seeding moved into
+`create_app`, guarded by emptiness. Recorded as a deploy shim rather than a migration
+strategy, because boot logic that writes data couples "the process started" to "the data
+changed". → `BACKLOG.md`, commit `74c38f6`.
+
+**A passing log assertion proves nothing about visibility.** *(Reconstructed.)* The
+boot-seed log line was emitted, asserted, and never appeared in production: under uvicorn
+the root logger has no handler, and `caplog` captures propagated records regardless. Found
+by reading deploy logs for a line that should have been there. → commit `3efe885`.
+
+---
+
+## Session 3 — Wireframes are confidential and this repo is public — *verbatim*
+
+**Status:** ✅ settled. **Commits:** `36ec0b4`, `3121790`.
+
+> Add docs/wireframes/ to .gitignore — the wireframes are Booksy's material, the brief
+> marks it confidential, and this repo is public.
+>
+> Create docs/WIREFRAME_JUSTIFICATION.md with a header explaining they're kept locally
+> and deliberately not committed, and that deviations are described in prose so the
+> document stands alone without them.
+
+**Why this is architectural rather than housekeeping.** It fixes the form of every UI
+justification for the rest of the build: each deviation has to describe what the original
+showed *before* saying what was built, because the reader cannot open the image. The
+thirteen Phase 1 entries are all written to that constraint.
+
+Checked before anything was staged that the images had never been committed
+(`git log --all -- docs/wireframes` was empty), so no history rewrite was needed.
+
+A follow-up in the same session aligned the README's status headings with the brief's
+four (`✅ Fully Implemented`, `⚡ Shortcuts & Hacks`, `⚠️ Partial / Missing`,
+`🔮 Next Steps`), which forced a distinction that had been blurred: what works but cost
+something is a shortcut, what does not exist is missing. It also surfaced a stale test
+count — the README said 28 where collection reported 30.
+
+---
+
+## Session 4 — Phase 1 red, and the prompt that exposed a Phase 0 defect — *verbatim*
+
+**Status:** ✅ settled → **ADR-0006**. **Commit:** `0b0bd7e`.
+
+> Use the test-author agent for Phase 1.
+>
+> Input: brainstorm.md §3 Phase 1 test list, plus ADR-0001, 0003, 0005.
+>
+> Write the nine Phase 1 tests as failing tests. Tests only — never app/ or frontend/.
+>
+> Scope: login, session cookie (same-site, free under single origin), admin/user roles,
+> admin CRUD on hardware, admin account creation, the last-admin guard, and dashboard
+> sort/filter.
+>
+> Per CLAUDE.md findings discipline: non-blocking observations go to BACKLOG.md, not to
+> me. Only interrupt if something makes the current work wrong.
+
+**What it produced that nobody asked for.** `test-author` wrote the nine, plus a tenth
+pinning the session cookie's `HttpOnly` and `SameSite` attributes — §3 names the cookie
+as scope and no named test touched it, and ADR-0001 making `SameSite` *free* is not the
+same as it being *set*. It also filed a question rather than deciding it: its tests read
+`/api/hardware` anonymously because Phase 0's green tests did, and reversing that would
+turn three passing tests red, which is not a test author's call.
+
+The answer, in the next prompt:
+
+> Settle the open question: GET /api/hardware requires a session. The brief says only
+> admin-created users can access the Hub, so an unauthenticated inventory endpoint
+> contradicts it.
+>
+> Use the test-author agent to update the two Phase 0 tests that assumed no auth. This is
+> a spec change, not test-weakening — record it in BACKLOG.md as resolved and note it in
+> the AI_LOG entry.
+
+It was three Phase 0 tests, not two. → **ADR-0006**, written in a later prompt in the
+same session with an explicit instruction about what the argument had to be:
+
+> Lead with the concrete reason, not the brief's wording: /api/hardware was serving notes
+> and history to anyone with the URL — the Dell XPS "battery swelling" note and the
+> MacBook's liquid-damage history, internal maintenance records, public on the internet.
+> The brief's "only admin-created users can access the Hub" is the supporting citation,
+> not the argument.
+
+**The decision worth reading twice:** the endpoint was wrong when it shipped in Phase 0,
+not newly wrong in Phase 1. ADR-0002 keeps that free text in the database as the Phase 3
+auditor's raw material, which makes the exposure worse rather than incidental — the fields
+are candid *by design*.
+
+Two sub-decisions inside the same change: the boot-seed pair moved off HTTP to
+`app.storage` rather than growing a login, since their subject is what boot did to the
+table and not who may read it; and `GET /` stays public, pinned by
+`test_serves_built_bundle_at_root`, or nobody can reach the login page.
+
+---
+
+## Session 5 — Phase 1 green, and the enforcement point — *verbatim*
+
+**Status:** ✅ settled. **Commit:** `180329c`. Closes v2 §7's last open question.
+
+> /tdd — Phase 1 green. Login first, then re-run and confirm all eleven fail on their own
+> assertions, not in the fixture. Contract is tests/conftest.py:22. Don't edit tests/.
+
+**Where authorization is enforced — the question deferred from grilling 1 Round 1.**
+Answer: **per-route dependencies, not middleware.** The argument is not preference. A
+global "refuse without a session" middleware sees the static mount too, so it takes `GET
+/` down with it — and `test_serves_built_bundle_at_root` fetches `/` unauthenticated and
+is green. The wrong shape fails a passing test instead of shipping. A dependency also puts
+the requirement in the signature of the route it protects.
+
+**The guard layer.** ADR-0005 says the zero-admin invariant lives in the same layer as
+the rental guards, so it went in `app/guards.py` rather than a handler, with one
+`_enforce` helper mapping `GuardViolation` to `409` with the reason intact. Phase 2's rent
+and return now find a layer rather than a precedent of inline `if` statements.
+
+**Credential path, standard library only** — `hashlib.scrypt` with a per-account salt and
+an HMAC-signed cookie, no new dependency, matching `app/config.py`'s existing stance. The
+digest has no field on `domain.Account`, so no route can echo one.
+
+The instruction to confirm all eleven fail *on their own assertions* is the part that
+earned its keep: seven had been failing in fixture setup behind a login that did not
+exist, which is a different fact from failing on their subject.
+
+---
+
+## Session 6 — Pace, and pruning the working documents — *verbatim*
+
+**Status:** ✅ settled. **Commit:** `d26270f`.
+
+`CLAUDE.md`, `CONTEXT.md` and the three agent briefs were replaced with shorter versions,
+adding explicit pace rules — report in five lines, make reversible decisions yourself,
+stop only for security, data loss, or a contradiction with an ADR. Then:
+
+> Prune BACKLOG.md. Delete outright: […] Keep only what is still true and still
+> unaddressed.
+
+**The rule this established:** backlog entries are deleted when done, not annotated. The
+record of *why* something changed belongs in `AI_LOG.md` and `docs/adr/`; a backlog that
+carries its own history stops being a list of what is owed. Four entries went, plus three
+more the same audit found had been closed by the green commit.
+
+---
+
+## Session 7 — The Phase 1 UI, and two routes the spec never had — *verbatim*
+
+**Status:** ✅ settled. **Commit:** `1dc0921`.
+
+> Build the Phase 1 Vue UI. Wireframes in docs/wireframes/ as reference.
+>
+> Screens: login, dashboard (sortable/filterable table), admin panel (add/delete
+> hardware, toggle Repair, create accounts), needs_review queue.
+>
+> Constraints: internal tool, the dense table is the primary surface, clarity over
+> expressiveness, status legible at a glance across Available / In Use / Repair /
+> needs_review. Focus states and keyboard nav on the table. 401 shows the login screen.
+>
+> Deviations from the wireframes go in docs/WIREFRAME_JUSTIFICATION.md as you make them.
+
+**Two endpoints the wireframes required and §3 never specified**, both written test-first
+in new files rather than by touching `test-author`'s green ones:
+
+- `POST /api/hardware` — the wireframe's "Add New Device" button had nothing behind it.
+- `GET /api/session` — the cookie is `HttpOnly`, so a reloaded page knows it has a
+  session but not whose. The alternative was probing `/api/users` for a `403` and reading
+  an authorization failure as data, which makes a genuine permissions bug and a plain
+  `user` account indistinguishable.
+
+**The design decision inside the constraint "status legible at a glance across Available
+/ In Use / Repair / needs_review".** Those four are not one axis. A flagged item still has
+a status — both flagged seed rows are `Available` — so `needs_review` cannot be a fourth
+chip in the status cell. It takes its own column plus an amber edge marker on the row,
+which is what makes it scannable down a dense table without reading every line. Thirteen
+deviations recorded; the load-bearing ones are the status labels keeping the enum's words,
+and the login screen having no client-side `@booksy.com` rule (it would lock out
+`ADMIN_EMAIL`, and it leaks the domain fact the API refuses to confirm).
+
+**A correction in this session, and it was the assistant's.** Verifying the live
+deployment, `DELETE /api/users/1` was sent at production expecting the ADR-0005 guard to
+refuse it. It did not refuse — correctly, a second admin had just been created for the
+demo account — and the deployment's real bootstrap admin was deleted. Restored
+immediately; inventory untouched. The lesson recorded was not "be careful with DELETE" but
+that a *destructive* probe was run to observe a *refusal*, against production, when
+`test_cannot_remove_last_admin` already proved that behaviour locally.
+
+---
+
+## Session 8 — Security review triage — *verbatim*
+
+**Status:** ✅ settled. **Commit:** `332b87a`.
+
+> Triage the /security-review findings. Fix only what is genuinely exploitable on a public
+> deployment with published demo credentials. Everything else goes to the README ⚠️
+> Partial section with a one-line reason, not to BACKLOG.
+
+`/security-review` raised two code findings and both filtered out as false positives: the
+dev `SECRET_KEY` fallback (the live service sets `ENVIRONMENT=production`, provable from
+outside because the session cookie returns `Secure` and only that branch sets the flag),
+and the `notes`/`history` exposure (this branch *narrowed* it from anonymous to
+authenticated; what remains is maintenance prose about laptops).
+
+**The genuinely exploitable thing was what the review flagged as outside its own scope:**
+the README published an **admin** credential on a public instance, so any reader had
+delete rights over the inventory and the account list. `demo@booksy.com` is now `user`;
+all five admin routes answer `403` to it.
+
+This settles *inside* ADR-0005 rather than against it — the ADR requires published demo
+credentials and never said they had to be admin. The cost is recorded: the admin panel is
+no longer reachable with the published credential.
+
+**The triage rule this established:** accepted-not-fixed findings go to the README's
+`⚠️ Partial / Missing` section with the reason, not to `BACKLOG.md`. A reviewer reads the
+README, and "we knew and chose not to" belongs where the claim is made.
