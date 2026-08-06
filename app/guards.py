@@ -25,6 +25,7 @@ __all__ = [
     "ensure_an_admin_remains",
     "ensure_item_is_rentable",
     "ensure_no_active_rental",
+    "ensure_account_holds_nothing",
 ]
 
 
@@ -110,4 +111,27 @@ def ensure_no_active_rental(rental, item: HardwareItem, action: str) -> None:
     raise GuardViolation(
         f"{item.name} is out with {rental.renter_email} and cannot be {action} while "
         "it is held. Recall it first."
+    )
+
+
+def ensure_account_holds_nothing(held_item_ids, account) -> None:
+    """Refuse to delete an account that still has equipment out (ADR-0009, ADR-0011).
+
+    Deleting the holder used to leave the rental active and pointing at a row id SQLite
+    then reissued, so the next employee to be created inherited somebody else's laptop
+    and could close their rental — `/security-review` reproduced exactly that. The
+    session token fixes who a *cookie* names; it cannot fix `rentals.account_id`, which
+    is still a recyclable integer. This guard is what makes that unreachable: no active
+    rental outlives its owner, so there is nothing to inherit.
+
+    `409` rather than `403`, and for the same reason as the last-admin guard: an admin is
+    allowed to delete accounts, and this request would break an invariant rather than
+    exceed a permission.
+    """
+    if not held_item_ids:
+        return
+    raise GuardViolation(
+        f"{account.email} still has {len(held_item_ids)} item(s) out "
+        f"(ids {sorted(held_item_ids)}). Recall them first — an account cannot be "
+        "removed while equipment is signed out to it."
     )

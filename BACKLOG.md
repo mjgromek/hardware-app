@@ -11,12 +11,17 @@ changed lives in `AI_LOG.md` and `docs/adr/`; this file is only what is still ow
 ## Before the Phase 1 gate
 
 **Logout, session expiry and login throttling are in no phase's scope.** There is no
-route that ends a session, the cookie has no lifetime, and the login endpoint can be
-hit without limit on a deployment that publishes demo credentials. The session is also
-**stateless by design** (`app/sessions.py`): an HMAC over the account id with no server
-side, so there is nothing to invalidate — a leaked cookie stays valid until
-`SECRET_KEY` changes, and logout can only clear the browser's copy. *Urgent when:
-`/security-review` before the Phase 1 gate.*
+route that ends a session, the cookie has no lifetime, and the login endpoint can be hit
+without limit on a deployment that publishes demo credentials. The cookie is an HMAC over
+a per-account token (ADR-0013) with no server-side session record, so a *leaked* cookie
+stays valid until the account is deleted or `SECRET_KEY` changes.
+
+**Narrowed by ADR-0013:** deleting an account now genuinely revokes its sessions —
+`deleted_at` is set, the token is cleared, and the id is never reissued, so the cookie
+matches nothing. Before that, `/security-review` showed a deleted account's cookie
+reviving as whoever inherited its recycled id. What remains is the weaker original
+property: no way to end *your own* session, and no expiry. *Urgent when: a per-session
+revocation is needed — logging out one device rather than retiring the account.*
 
 **`/api/hardware` returns every field**, including `notes` and `history` — the free
 text the Phase 3 auditor reads. **Narrowed, not closed:** ADR-0006 put the endpoint

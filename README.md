@@ -96,7 +96,7 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue** — every flagged item with the reason ingestion recorded
   (read-only; see below)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 88 tests, all green
+- 95 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -129,11 +129,11 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Future:** Phase 2 owns it — ADR-0003 assigns the mechanism there, because clearing a
   rentability guard is a transition in the rental state machine rather than a field edit.
 - **Sign out is client-side only.** It drops the app's state and returns to the login
-  screen; the cookie is not revoked server-side, because the session is a signed cookie
-  with no server record and there is no logout route.
-  **Why:** stateless sessions were the cheap correct thing for one process, and expiry
-  and revocation were out of Phase 1's scope.
-  **Future:** a logout route plus session expiry — pointed at `/security-review`.
+  screen; the cookie itself is not revoked, because there is no logout route.
+  **Why:** stateless sessions were the cheap correct thing for one process. Deleting the
+  *account* does now revoke its sessions properly (ADR-0013) — what is missing is ending
+  one session without retiring the person.
+  **Future:** a logout route plus session expiry.
 - **The frontend has no tests.** vitest is still not set up, and the UI now carries
   real logic: a roving-tabindex table, the `401`-to-login-screen path, filter counts.
   **Why:** time, and the Python suite covers the contract the UI consumes.
@@ -289,7 +289,7 @@ the moment it was taken.
 | **No CI** | Time. The tests exist and run locally; automating them was the cut. | A workflow running both build steps and both suites. |
 | **The app seeds itself on boot when the database is empty** | The deploy target offers no way to run a one-off command against the mounted volume: Railway's API has no exec or SSH, `preDeployCommand` silently did not run, and `railway ssh` needs an SSH key. Seeding at startup was the only mechanism left. An emptiness guard makes it safe — once rentals exist the table is never empty, so it can never wipe them. | A migration step or a one-off job. Boot logic should not write data. See [`BACKLOG.md`](BACKLOG.md). |
 | **Deploying needed three human-in-the-loop steps** | Browser OAuth for the Railway MCP, a *second* browser authorization for the Railway CLI, and an SSH key — none of which any tooling removes. Seed-on-boot-if-empty was chosen partly to delete the manual seeding step for whoever redeploys next. | Nothing to fix in this codebase; recorded because the deploy story is otherwise easy to tell as smoother than it was. |
-| **Sign out does not revoke the session** | The session is a signed cookie with no server-side record, which was the cheap correct thing for one process. There is no logout route, so the control clears the client and says so. | A logout route and session expiry. A leaked cookie is valid until `SECRET_KEY` changes. |
+| **Sign out does not revoke the session** | The session is a signed cookie with no server-side record. There is no logout route, so the control clears the client and says so. Deleting the account *does* revoke its sessions (ADR-0013); ending one session without retiring the person is what is missing. | A logout route and session expiry. A leaked cookie is valid until the account is deleted or `SECRET_KEY` changes. |
 
 Deferred findings that are not shortcuts — interface concerns, spec gaps, things
 noticed and consciously not acted on — are in [`BACKLOG.md`](BACKLOG.md), each with

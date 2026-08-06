@@ -4,10 +4,17 @@ Separate from ``app.accounts`` because it answers a different question. Accounts
 who exists; this knows how a browser carries the claim "I am account 3" so the server
 can trust it without storing anything. Nothing here touches the database.
 
-**Signed, not encrypted.** The account id is not a secret — it is in every admin
-listing — so confidentiality buys nothing and integrity is the whole requirement: a
-client must not be able to change the id it presents. An HMAC over the id with
-``SECRET_KEY`` gives exactly that, in the standard library.
+**Signed, not encrypted.** Integrity is the requirement: a client must not be able to
+change the subject it presents. An HMAC over the subject with ``SECRET_KEY`` gives that,
+in the standard library.
+
+**The subject is a per-account token, not the row id.** It was the row id until
+`/security-review` showed what that costs: `users.id` is a SQLite rowid alias, so
+deleting the highest-id account frees its id, and the next account created inherits it —
+along with every unexpired cookie naming it. A deleted `user`'s cookie became a live
+admin's. A row id is a storage detail, and making it the session identity turned a
+storage decision into a security one. Tokens are issued once and never reissued, so a
+deleted account's cookie matches nothing, permanently.
 
 Stateless, which is a real trade-off recorded in ``BACKLOG.md``: there is no server
 side to invalidate, so logout can only clear the cookie and a leaked one stays valid
@@ -27,14 +34,13 @@ COOKIE_NAME = "hardware_hub_session"
 _SEPARATOR = "."
 
 
-def issue(account_id: int, secret_key: str) -> str:
-    """The cookie value asserting ``account_id``, signed with ``secret_key``."""
-    subject = str(account_id)
-    return f"{subject}{_SEPARATOR}{_sign(subject, secret_key)}"
+def issue(session_token: str, secret_key: str) -> str:
+    """The cookie value asserting ``session_token``, signed with ``secret_key``."""
+    return f"{session_token}{_SEPARATOR}{_sign(session_token, secret_key)}"
 
 
-def subject_of(cookie_value: str | None, secret_key: str) -> int | None:
-    """The account id a cookie legitimately claims, or ``None``.
+def subject_of(cookie_value: str | None, secret_key: str) -> str | None:
+    """The session token a cookie legitimately claims, or ``None``.
 
     ``None`` covers every way a cookie can fail to mean anything — absent, malformed,
     or signed with a different key — because the caller's response to all of them is
@@ -45,11 +51,14 @@ def subject_of(cookie_value: str | None, secret_key: str) -> int | None:
         return None
 
     subject, separator, signature = cookie_value.rpartition(_SEPARATOR)
-    if not separator or not subject.isdigit():
+    # `token_urlsafe` never emits the separator, so the split is unambiguous. An empty
+    # subject is rejected outright rather than looked up, so a bare `.signature` cannot
+    # become a query for the token nobody has.
+    if not separator or not subject:
         return None
     if not hmac.compare_digest(signature, _sign(subject, secret_key)):
         return None
-    return int(subject)
+    return subject
 
 
 def cookie_kwargs(*, production: bool) -> dict[str, object]:

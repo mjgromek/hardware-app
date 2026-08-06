@@ -949,3 +949,43 @@ It does not correct it. Correcting is still judgement, and the item still belong
 human.
 
 Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (pending)
+
+---
+
+## [P2 · c9] Soft-delete accounts, and stop signing a row id
+
+`/security-review` at the Phase 2 gate, both findings reproduced end to end. 95/95.
+
+**The defect underneath both was that `users.id` is a SQLite rowid alias.** No
+`AUTOINCREMENT` keyword, so deleting the highest-id account frees its number and the next
+account created is handed it. Three things were keyed on that number and all three broke:
+a deleted `user`'s untouched cookie came back as the *replacement admin*; a departed
+employee's active rental appeared in their successor's `?held_by=me` and could be closed
+through the renter verb ADR-0009 calls absolute; and an `audit_events` actor became
+whoever inherited the id.
+
+The third is what chose the fix. ADR-0010 exists so "somebody inspected this and it is fit
+to issue" can be interrogated later, and that is only truthful while actor identity is
+stable. **An id that can be reissued is not an identity.**
+
+So: sessions name a per-account token issued once and never reissued, and accounts are
+soft-deleted — the row stays, `deleted_at` is set, the token is cleared, and every
+authentication and listing read filters on it. Both columns are additive and backfilled on
+boot, which is the reason this and not `sqlite_autoincrement=True`: that only affects
+`CREATE TABLE`, so it would have left the deployed database exactly as vulnerable while
+looking like a fix.
+
+**Two consequences worth stating rather than discovering.** Existing live sessions
+invalidate on this deploy — accepted, since there is no logout route and they had no other
+way to end. And a deleted address cannot be reissued (`409`), which is correct rather than
+incidental: the trail names actors by email as well as id, and reusing an address rebuilds
+the same ambiguity one field over.
+
+The FKs ADR-0011 claimed also now exist. They needed `ForeignKey(hardware.c.id)` rather
+than the string — `rentals` and `audit_events` keep their own `MetaData` so `persist`
+cannot reach them (ADR-0007), and a string target cannot resolve across that boundary.
+That is why the belt was missing: declaring it required reconciling two ADRs, not adding a
+keyword. And `current_account`'s docstring, which claimed a deleted account's session was
+refused, is now true instead of aspirational.
+
+Commit: fix(phase-2): soft-delete accounts and sign a session token (pending)

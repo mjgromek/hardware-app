@@ -20,6 +20,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Engine,
+    ForeignKey,
     Integer,
     MetaData,
     String,
@@ -31,6 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Session
 
 from app.domain import Account
+from app.storage import hardware
 
 __all__ = ["Action", "create_schema", "record", "clear_all"]
 
@@ -60,7 +62,9 @@ audit_events = Table(
     Column("actor_account_id", Integer, nullable=True),
     Column("actor_email", String, nullable=False),
     Column("action", String, nullable=False),
-    Column("item_id", Integer, nullable=True),
+    # Same reasoning as `rentals.item_id`: the event survives the item it describes,
+    # because "who cleared this flag and why" outlives the row it was about.
+    Column("item_id", Integer, ForeignKey(hardware.c.id, ondelete="SET NULL"), nullable=True),
     Column("rental_id", Integer, nullable=True),
     #: Mandatory. "Somebody inspected this and it is fit to issue" is the claim a later
     #: incident interrogates, and a cleared flag with no reason is indefensible on the

@@ -243,6 +243,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             if fresh
             else None
         )
+        # Additive and idempotent: accounts created before the column existed get a
+        # token here. Their existing cookies stop working, which is the intended cost —
+        # there is no logout route, so an old-scheme cookie has no other way to end.
+        backfilled = accounts.backfill_session_tokens(session)
         session.commit()
 
     log = logging.getLogger(__name__)
@@ -250,6 +254,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         log.info("bootstrapped admin #1 from the environment: %s", created.email)
     if demo is not None:
         log.info("created the published read-only demo account: %s", demo.email)
+    if backfilled:
+        log.info("issued session tokens to %d pre-existing account(s)", backfilled)
 
     # ------------------------------------------------------------------
     # The enforcement point (brainstorm.md §7, settled here)
@@ -271,16 +277,23 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         the login screen and an error page. A `403` there is a dead end for someone
         who only needs to log in.
 
-        The cookie is verified *and* the account re-read, so a session naming an
-        account that has since been deleted is refused rather than trusted — the
-        signature proves the id was not tampered with, not that it still exists.
+        The cookie carries a per-account token, not the row id, and the account is
+        re-read on every request — so a session whose account has been deleted is
+        refused, and stays refused. That claim used to be false: the subject was
+        `users.id`, SQLite recycles the highest rowid, and the next account created
+        inherited both the id and every cookie naming it. `/security-review` turned a
+        deleted `user`'s untouched cookie into a live admin that way. Tokens are issued
+        once and never reissued, so there is nothing for a stale cookie to land on.
+
+        The signature proves the subject was not tampered with; the lookup proves it
+        still refers to somebody.
         """
-        account_id = sessions.subject_of(
+        token = sessions.subject_of(
             request.cookies.get(sessions.COOKIE_NAME), settings.secret_key
         )
-        if account_id is not None:
+        if token is not None:
             with new_session(engine) as session:
-                account = accounts.find_by_id(session, account_id)
+                account = accounts.find_by_token(session, token)
             if account is not None:
                 return account
         raise HTTPException(
@@ -326,9 +339,12 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_CREDENTIALS
             )
 
+        with new_session(engine) as session:
+            token = accounts.session_token_for(session, account.id)
+
         response.set_cookie(
             sessions.COOKIE_NAME,
-            sessions.issue(account.id, settings.secret_key),
+            sessions.issue(token, settings.secret_key),
             **sessions.cookie_kwargs(production=settings.environment == PRODUCTION),
         )
         return {"email": account.email, "role": account.role.value}
@@ -407,9 +423,18 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def delete_user(account_id: int, _: Account = Depends(current_admin)) -> Response:
         """Remove an account, unless it is the last admin (ADR-0005)."""
         with new_session(engine) as session:
-            if accounts.find_by_id(session, account_id) is None:
+            target = accounts.find_by_id(session, account_id)
+            if target is None:
                 raise HTTPException(status_code=404, detail="No such account")
             _enforce(guards.ensure_an_admin_remains, session, account_id)
+            # No active rental may outlive its owner: `rentals.account_id` is a
+            # recyclable rowid, so a rental left behind is one an unrelated future
+            # employee inherits (`/security-review`).
+            _enforce(
+                guards.ensure_account_holds_nothing,
+                rentals.item_ids_held_by(session, account_id),
+                target,
+            )
             accounts.delete_account(session, account_id)
             session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)

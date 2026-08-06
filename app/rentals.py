@@ -27,6 +27,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Engine,
+    ForeignKey,
     Index,
     Integer,
     MetaData,
@@ -65,7 +66,24 @@ rentals = Table(
     "rentals",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("item_id", Integer, nullable=False, index=True),
+    # Declared, and enforced — `create_engine_for` turns `PRAGMA foreign_keys` on.
+    # ADR-0011 named this belt and it did not exist until now. `SET NULL` rather than
+    # `RESTRICT` on purpose: the ADR is explicit that deleting a *returned* item stays
+    # legal with its history intact, so a closed rental keeps its row and loses only the
+    # pointer. An active rental cannot reach this path at all — `ensure_no_active_rental`
+    # refuses that delete before the database is asked.
+    Column(
+        "item_id",
+        Integer,
+        # The column object, not the string "hardware.id": `rentals` keeps its own
+        # MetaData so `persist`'s replace semantics can never reach it (ADR-0007), and a
+        # string target cannot resolve across that boundary. This is why ADR-0011's belt
+        # did not exist until now — declaring it needed the two decisions reconciled,
+        # not just a keyword.
+        ForeignKey(hardware.c.id, ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    ),
     # Nullable for exactly one reason: seed id 7 is held by an address with no account
     # behind it, and inventing an account for it would be a login-shaped hole created
     # for tidiness (ADR-0007).
@@ -156,7 +174,12 @@ def return_(session: Session, item_id: int, account: Account) -> Rental:
         raise GuardViolation(
             f"item {item_id} is not currently rented, so there is nothing to return."
         )
-    if rental.account_id != account.id:
+    # Both, and the email is the belt. `account_id` is a SQLite rowid alias, so it is
+    # recyclable — the id comparison alone was enough for a newly created employee to
+    # close a departed one's rental once the id came round again. The open-rental guard
+    # on account deletion is what makes that unreachable; this is the second lock, and
+    # it costs one comparison.
+    if rental.account_id != account.id or rental.renter_email != account.email:
         raise GuardViolation(
             f"item {item_id} is held by {rental.renter_email}, not by you. An admin can "
             "recall it if it needs to come back."
