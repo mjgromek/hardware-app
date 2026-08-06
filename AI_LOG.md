@@ -1145,3 +1145,13 @@ wireframe deviations (Purchase Date, filtering) pre-registered for
 `WIREFRAME_JUSTIFICATION.md`. §0, CLAUDE.md's phase table and the README (🔮 + a v4 row)
 now agree there are five gates.
 Commit: docs(phase-4): plan the wireframe-fidelity phase (pending)
+
+---
+
+## [P3 · c3] Grilling 3, four ADRs, and the phase spec
+
+Two rounds, frontier cut deliberately — flag-verb detail assigned to the spec, the
+Session 9 precedent. ADR-0014–0017: propose-never-dispose, no restricted-field
+predicates, announced degradation, and the flag-review verb ADR-0010 withheld.
+Spec sliced A/B/C with hardening as a gate checklist.
+Commit: docs(phase-3): grilling 3, four ADRs, and the phase spec (pending)

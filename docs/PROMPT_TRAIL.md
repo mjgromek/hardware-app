@@ -871,3 +871,94 @@ likely one) can end a rental and leave no trace. ADR-0010's mandatory reason mov
 convention (every caller remembers) to structure (the function cannot be called without
 producing the row). Second verdict: **PASS WITH NOTES**, gate cleared, merged as PR #3,
 tagged `v2-rental`.
+
+
+---
+
+## Session 14 — 2026-08-07 — Grilling 3, Phase 3 scope — *verbatim*
+
+**Skill:** `/grill-me` → `/grilling` **Scope:** Phase 3, the AI layer only.
+**Status:** ✅ **Settled in two rounds**, the second answered inline with the closing
+instruction. Produced ADR-0014–0017 and `docs/specs/phase-3.md`. Remaining detail on the
+flag verb (refusal semantics, prefill) was assigned to `/to-spec` rather than a third
+round — the Session 9 precedent.
+
+### The invoking prompt (verbatim)
+
+> Phase 3, the AI layer. Read brainstorm.md §3 Phase 3, ADR-0004, ADR-0012.
+>
+> Architecture is settled — the LLM emits a schema-validated filter object, SQLite
+> returns the rows. Provider is Gemini Flash, key in GEMINI_API_KEY, server-side only.
+>
+> Push on: what the auditor may and may not assert; whether search results can leak
+> notes/history to a non-admin, given ADR-0012 restricts them but the auditor reads
+> them; fallback when the API is down; and whether the auditor writing into
+> review_reason changes who may see that field.
+>
+> Short session. Don't relitigate ADR-0004. Phase 4 (UI fidelity) is out of scope.
+
+### Facts established before Round 1 (looked up, not asked)
+
+- `visible_to` nulls the restricted fields in `app/main.py`, and `architecture-scout`'s
+  filed finding says it must move to `app/domain.py` *before* Phase 3 adds its two
+  second callers.
+- ADR-0010: `clear-review` has **no re-flag counterpart** — withheld deliberately.
+- CONTEXT.md fixes the fallback vocabulary: keyword search on LLM timeout/error.
+- `review_reason` has exactly one author (ingestion) and one consumer (`clear-review`,
+  which deletes it with the flag).
+
+### Round 1
+
+**Q1 — What may the auditor assert, and may it act?** Free prose or a closed
+finding-kind enum; and may it set `needs_review` itself?
+→ **Recommended a closed enum** (`status_contradiction`, `unidentifiable`,
+`probable_misspelling` — the three classes ADR-0002 deferred), each with evidence quote
+and explanation, and **propose-never-dispose**: no setting `needs_review`, no writing
+`review_reason`, no correcting `"Appel"`. ADR-0004's logic one layer up — model output
+is validated data; deterministic code and humans are the only actors. An open
+vocabulary invites untestable prose. **Answer — accepted.** → **ADR-0014**
+
+**Q2 — Can search leak restricted fields through the *filter*, not the payload?**
+Nulling `notes` in results is the easy half; a predicate *over* `notes` makes result-set
+membership an oracle — a `user` learns the Dell XPS has battery notes by seeing it match.
+→ **Recommended: no `notes`/`history`/`review_reason` predicate in the filter schema,
+for anyone**, and the keyword fallback obeys the same rule. The oracle becomes
+structurally unreachable; one schema for both roles; it is ADR-0004's accepted
+expressiveness trade, not a new one. **Answer — accepted.** → **ADR-0015**
+
+**Q3 — Fallback shape: visible? does the auditor get one? what does a missing key do?**
+→ **Recommended announced degradation** (`mode: "semantic" | "keyword"`, UI labels it —
+a silent fallback means a reviewer cannot tell the AI ever ran); **no auditor fallback —
+it refuses loudly** (a keyword auditor cannot find id 10, and a degraded audit wearing
+the AI's name is worse than a `503`); **feature-off, not boot refusal** for
+`GEMINI_API_KEY` (`SECRET_KEY` guards a security invariant, this key guards a feature —
+rentals must not go down because a demo key rotated). **Answer — accepted.** → **ADR-0016**
+
+**Q4 — Where do findings live, and does the auditor writing `review_reason` change who
+may see it?** Into `review_reason`; their own table; or a computed payload.
+→ **Recommended the computed payload from an admin-only route, persisted nowhere — and
+the auditor never touches `review_reason`, so the visibility question dissolves rather
+than gets answered.** The field keeps one author and one consumer; LLM prose in a field
+an admin's clear action erases would entangle two lifecycles. Admin-only is forced, not
+chosen: findings quote `notes`/`history`, and derived content inherits its source's
+restriction. **Answer — accepted.** → **ADR-0014**
+
+### Round 2
+
+**Q5 — Does Phase 3 add the admin `flag-review` verb ADR-0010 deliberately withheld,
+so a finding can make the Dell XPS unrentable?**
+
+**Answer (verbatim):**
+
+> yes, Phase 3 adds the admin flag-review verb. Without it the auditor finds the Dell
+> XPS and nothing can happen, which is the same "a flag that changes nothing is
+> decoration" argument ADR-0003 already made, one level up: a finding nobody can act on
+> is a report, not a product. It also completes the loop ADR-0002 opened — ingestion
+> deliberately declined to judge, the auditor judges, a human decides. Writes an
+> audit_events row, which is exactly the actor ADR-0010 reserved it for.
+
+→ **ADR-0017.** The closing instruction ended the session, ordered the trail entry, the
+four ADRs, the `visible_to` move (the scout's "urgent when a second caller appears" —
+this phase adds two), the sliced spec (A: search + fallback · B: auditor · C: re-flag
+verb + UI, first to cut), and production hardening as a gate checklist rather than a
+slice.
