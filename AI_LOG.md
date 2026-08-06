@@ -226,3 +226,30 @@ the brief about one row. §2 row 9 says only "resolved at import", so the
 implementation matches the spec and the spec is what is thin. Flagged, not fixed.
 
 Commit: feat(phase-0): quarantine importer and admin bootstrap (pending)
+
+---
+
+## [P0 · c5] Orphan rental audit trail and seed fidelity specs
+
+Two red specs from `test-author`, closing the gap the green pass exposed. Committed
+red, deliberately: the second one changes an interface decision and I wanted the
+failure in the history rather than only its fix.
+
+`test_seed_records_orphan_rental_in_quarantine` settles the spec thinness in §2
+row 9 — releasing id 2 is a divergence from the brief, so it leaves a quarantine
+record, but no `needs_review`. The item is usable; we simply cannot say who held
+it, and flagging it would make a working MacBook unrentable over missing paperwork.
+
+`test_importer_reproduces_documented_audit` runs the real `data/seed.json` rather
+than a fixture, so `docs/DATA_AUDIT.md` becomes falsifiable. Every other test in
+the file builds its own row, which keeps failures legible but means none of them
+would notice the seed and the importer drifting apart.
+
+The finding is mine to own: I made quarantine emission and `needs_review` the same
+signal in c4 — one `reasons` list driving both. The orphan rental is the first case
+where they must diverge, so the cheap fix turns the audit test green and leaves the
+orphan test red on exactly the assertion written to catch it. The test-author
+separation earned its keep here; the implementer could not have quietly widened the
+test to fit the code.
+
+Commit: test(phase-0): orphan rental audit trail and seed fidelity specs (pending)

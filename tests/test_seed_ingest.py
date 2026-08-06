@@ -3,9 +3,11 @@
 Ingestion validates **structure only** (ADR-0002). Every test here asserts on the
 ``IngestReport`` a caller receives, never on how ``ingest`` arrived at it.
 
-Fixtures are inline and hermetic. The seed's 11 records exist in this repo only as
-the defect table in `brainstorm.md` §2, so each test reproduces the one defect it
-pins rather than depending on a file that does not exist.
+Fixtures are inline and hermetic: each test reproduces the one defect it pins, so a
+red test names a behaviour rather than a row number. The single exception is
+``test_importer_reproduces_documented_audit``, which runs the real `data/seed.json`
+end to end precisely so that `docs/DATA_AUDIT.md` is falsifiable — if the seed file
+or the importer drifts apart from the documented audit, that test goes red.
 
 The invariant underneath all of it: **nothing is deleted**. A row that fails
 structural validation becomes a quarantine record with a reason; it does not
@@ -14,7 +16,9 @@ vanish.
 
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
@@ -24,6 +28,9 @@ from scripts.seed import ingest, normalise_purchase_date
 
 # Injected rather than read from the clock, so plausibility checks are deterministic.
 TODAY = date(2026, 8, 6)
+
+# Resolved from this file, not the CWD, so the suite runs the same from anywhere.
+SEED_PATH = Path(__file__).resolve().parents[1] / "data" / "seed.json"
 
 
 def _record(**overrides: Any) -> dict[str, Any]:
@@ -275,6 +282,56 @@ def test_seed_resolves_orphan_rental() -> None:
     )
 
 
+def test_seed_records_orphan_rental_in_quarantine() -> None:
+    """Releasing the orphan rental is a divergence from the seed, so it is recorded.
+
+    ``test_seed_resolves_orphan_rental`` pins the repair; this pins the *record* of
+    it. Every other divergence between the brief and the database lands in
+    ``hardware_quarantine`` with a reason. Without one here, the database silently
+    disagrees with the brief about a row it changed, and no admin can find out why.
+
+    The item itself is **not** flagged. It is a usable MacBook; all we lost is the
+    name of whoever held it. ``needs_review`` blocks rental (ADR-0003), so flagging
+    would punish a perfectly good item for a defect in the paperwork.
+    """
+    raw = _record(
+        id=2,
+        name="Apple MacBook Pro 13",
+        brand="Apple",
+        purchaseDate="2021-12-20",
+        status="In Use",
+        assignedTo=None,
+    )
+
+    report = ingest([raw], today=TODAY)
+
+    quarantined = _quarantine_for(report, 2)
+    assert quarantined.reason.strip(), "a quarantine record must carry a readable reason"
+    reason = quarantined.reason.lower()
+    assert "in use" in reason, (
+        "the reason must name the state the seed claimed, or an admin cannot tell "
+        f"what was changed; got {quarantined.reason!r}"
+    )
+    assert any(word in reason for word in ("assign", "renter", "orphan")), (
+        "the reason must say that nobody was holding the item — that missing renter "
+        f"is the whole defect; got {quarantined.reason!r}"
+    )
+    assert dict(quarantined.payload) == raw, (
+        "the original row is preserved verbatim — ingestion is loss-free"
+    )
+
+    assert len(report.imported) == 1, (
+        "quarantine records the divergence, it does not withhold the item"
+    )
+    item = _imported_by_name(report, "Apple MacBook Pro 13")
+    assert item.needs_review is False, (
+        "an orphan rental is fully repaired by releasing the item, so nothing is "
+        "left for a human to decide. needs_review blocks rental (ADR-0003) and this "
+        f"item is rentable; got needs_review={item.needs_review!r} "
+        f"review_reason={item.review_reason!r}"
+    )
+
+
 # --------------------------------------------------------------------------
 # ADR-0002 — the declared boundary of ingestion's remit
 # --------------------------------------------------------------------------
@@ -311,3 +368,91 @@ def test_seed_ignores_semantic_contradiction_in_notes() -> None:
         "a semantic contradiction is not a structural failure; "
         f"got {[(rec.source_id, rec.reason) for rec in report.quarantined]}"
     )
+
+
+# --------------------------------------------------------------------------
+# §2 as a whole — the documented audit, run against the real seed
+# --------------------------------------------------------------------------
+
+
+def test_importer_reproduces_documented_audit() -> None:
+    """`docs/DATA_AUDIT.md` is a claim about `data/seed.json`; this makes it falsifiable.
+
+    The one integration-flavoured test in this file. Every other test builds its own
+    row, which keeps failures legible but means none of them would notice if the
+    committed seed and the importer drifted apart. This one runs the real file and
+    asserts the audit table in `brainstorm.md` §2 line by line.
+
+    ``today`` is injected like everywhere else. Record 6's defect is "purchased in
+    the future", which stops being true in October 2027 — a test that quietly
+    asserts nothing from then on is worse than no test.
+    """
+    records = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+
+    assert len(records) == 11, (
+        f"the audit is written against the 11 rows committed from the brief; "
+        f"{SEED_PATH} now has {len(records)}"
+    )
+
+    report = ingest(records, today=TODAY)
+
+    assert len(report.imported) == 11, (
+        "nothing is deleted: 11 seed rows in, 11 hardware items out; "
+        f"got {len(report.imported)}"
+    )
+
+    quarantined_ids = sorted(rec.source_id for rec in report.quarantined)
+    assert quarantined_ids == [2, 6, 10], (
+        "the audit documents exactly three divergences from the brief — id 2's "
+        "orphan rental, id 6's future purchase date, id 10's off-enum status. "
+        "Each must leave a quarantine record saying so; "
+        f"got {[(rec.source_id, rec.reason) for rec in report.quarantined]}"
+    )
+    assert "future" in _quarantine_for(report, 6).reason.lower(), (
+        "id 6's reason must name the future purchase date; "
+        f"got {_quarantine_for(report, 6).reason!r}"
+    )
+    assert "unknown" in _quarantine_for(report, 10).reason.lower(), (
+        "id 10's reason must name the off-enum status; "
+        f"got {_quarantine_for(report, 10).reason!r}"
+    )
+    assert "in use" in _quarantine_for(report, 2).reason.lower(), (
+        "id 2's reason must name the orphan rental that was released; "
+        f"got {_quarantine_for(report, 2).reason!r}"
+    )
+
+    # Defect 1 — id 4 twice. The first keeps the id, the second is re-keyed above
+    # every id the seed uses, and carries the original as source_id.
+    original = _imported_by_name(report, "SAMSUNG Galaxy S21")
+    rekeyed = _imported_by_name(report, "Duplicate ID Test Laptop")
+    assert original.id == 4, f"the first occurrence keeps seed id 4; got {original.id}"
+    assert rekeyed.id == 12, (
+        f"the second occurrence re-keys to 12, above the seed's highest id; "
+        f"got {rekeyed.id}"
+    )
+    assert rekeyed.source_id == 4, (
+        f"a re-keyed item preserves its seed id; got {rekeyed.source_id!r}"
+    )
+    ids = sorted(item.id for item in report.imported)
+    assert len(set(ids)) == 11, f"imported ids must be unique; got {ids}"
+
+    # Defect 5 — the brand typo is the auditor's, not ingestion's (ADR-0002).
+    ipad = _imported_by_name(report, "iPad Pro 12.9")
+    assert ipad.brand == "Appel", (
+        f"'Appel' is preserved exactly as the seed wrote it (ADR-0002); "
+        f"got {ipad.brand!r}"
+    )
+
+    # Defects 7 and 8 — the two semantic contradictions. Structurally spotless, so
+    # ingestion imports them untouched; ADR-0003 keeps them unrentable later.
+    for name in ("Dell XPS 15 9510", "MacBook Air M2"):
+        item = _imported_by_name(report, name)
+        assert item.status is Status.AVAILABLE, (
+            f"{name} is structurally valid, so its status is imported as-is; "
+            f"got {item.status!r}"
+        )
+        assert item.needs_review is False, (
+            f"{name} contradicts itself in free text, which is the auditor's to "
+            "catch (ADR-0002). If ingestion ever grows a keyword scan this is what "
+            f"catches it; got review_reason={item.review_reason!r}"
+        )
