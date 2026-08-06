@@ -488,3 +488,21 @@ sit behind a login that does not exist — so login is the first green commit, a
 suite gets re-read there to confirm every test fails for its own reason.
 
 Commit: test(phase-1): failing specs for auth, admin guards and the dashboard (pending)
+
+---
+
+## [P1 · c4] Login, session cookie, admin guards, dashboard
+
+`/tdd` green pass over the eleven red specs. 41/41, `tests/` untouched, standard
+library only for the credential path — `hashlib.scrypt` with a per-account salt, an
+HMAC-signed cookie, no new dependency.
+
+Two decisions taken rather than asked. **The enforcement point** (`brainstorm.md` §7)
+is per-route dependencies, not middleware: a global refusal takes `/` down with it and
+`test_serves_built_bundle_at_root` is green, so the wrong shape fails a passing test
+rather than shipping. **The last-admin guard lives in `app/guards.py`**, not in a
+handler — ADR-0005 puts it in the same layer as the rental guards, and one `_enforce`
+helper turns a `GuardViolation` into `409` with its reason intact, so Phase 2's rent
+and return find a layer instead of a precedent of inline `if` statements.
+
+Commit: feat(phase-1): login, session cookie, admin guards and dashboard (pending)

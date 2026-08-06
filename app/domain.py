@@ -19,6 +19,33 @@ class Status(str, Enum):
     REPAIR = "Repair"
 
 
+class Role(str, Enum):
+    """What an account may do. Exactly two, and the difference is authorization.
+
+    ``ADMIN`` manages hardware and accounts; ``USER`` rents. There is no
+    self-registration and no self-promotion, so a role only ever changes because an
+    admin changed it — and never to a state with no admins left (ADR-0005).
+    """
+
+    ADMIN = "admin"
+    USER = "user"
+
+
+@dataclass(frozen=True)
+class Account:
+    """An employee who can sign in.
+
+    **The password hash is deliberately not a field.** Callers get an ``Account``
+    only after ``app.accounts`` has already verified a credential, so the digest has
+    no reason to travel: a type that cannot carry it cannot leak it into a response
+    body, a log line or a template.
+    """
+
+    id: int
+    email: str
+    role: Role
+
+
 @dataclass(frozen=True)
 class HardwareItem:
     """A single piece of company equipment.

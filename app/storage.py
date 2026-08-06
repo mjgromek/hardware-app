@@ -33,6 +33,7 @@ from sqlalchemy import (
     delete,
     insert,
     select,
+    update,
 )
 from sqlalchemy.orm import Session
 
@@ -49,6 +50,8 @@ __all__ = [
     "persist",
     "load_items",
     "load_quarantine",
+    "set_status",
+    "delete_item",
 ]
 
 metadata = MetaData()
@@ -161,14 +164,35 @@ def persist(report: IngestReport, session: Session) -> None:
         )
 
 
-def load_items(session: Session) -> tuple[HardwareItem, ...]:
-    """Read every hardware item back.
+def load_items(
+    session: Session,
+    *,
+    status: Status | None = None,
+    sort_by_purchase_date: bool = False,
+) -> tuple[HardwareItem, ...]:
+    """Read hardware items back, optionally filtered and ordered.
 
     Round-trips the fields ingestion worked to establish: ``status`` as a
     ``Status`` member, ``needs_review``, ``source_id`` for re-keyed rows, and the
     normalised ``purchase_date`` as a ``date``.
+
+    **Filtering and ordering happen in SQL, not in Python.** The reason is the one
+    row the seed put there to be awkward: id 10 has no purchase date, and
+    ``sorted(key=lambda item: item.purchase_date)`` raises ``TypeError`` on ``None``.
+    SQLite orders NULLs first and never raises, so the undated item stays in the
+    result instead of taking the endpoint down with it. Where it lands is
+    deliberately not promised — see ``BACKLOG.md``.
+
+    ``status`` is a ``Status`` member rather than a string, so an off-enum value
+    cannot reach this function to be silently ignored.
     """
-    rows = session.execute(select(hardware)).mappings().all()
+    query = select(hardware)
+    if status is not None:
+        query = query.where(hardware.c.status == status.value)
+    if sort_by_purchase_date:
+        query = query.order_by(hardware.c.purchase_date)
+
+    rows = session.execute(query).mappings().all()
     return tuple(
         HardwareItem(
             id=row["id"],
@@ -187,6 +211,32 @@ def load_items(session: Session) -> tuple[HardwareItem, ...]:
         )
         for row in rows
     )
+
+
+def set_status(session: Session, item_id: int, status: Status) -> bool:
+    """Move one item to ``status``. Returns whether a row was there to move.
+
+    Scoped to the id in the ``WHERE`` clause, and the row count is returned rather
+    than assumed — an update that matched nothing is a ``404``, not a silent success,
+    and an update that matched more than the named item is the bug
+    ``test_admin_can_toggle_repair_status`` looks for.
+    """
+    result = session.execute(
+        update(hardware).where(hardware.c.id == item_id).values(status=status.value)
+    )
+    return result.rowcount == 1
+
+
+def delete_item(session: Session, item_id: int) -> bool:
+    """Remove one item. Returns whether it existed.
+
+    This is the one place the codebase deletes hardware, and it is worth naming the
+    difference: a seed row that fails validation is quarantined rather than dropped
+    (ADR-0002), while an admin retiring a laptop is a deliberate act on live
+    inventory. Only the second is a delete.
+    """
+    result = session.execute(delete(hardware).where(hardware.c.id == item_id))
+    return result.rowcount == 1
 
 
 def load_quarantine(session: Session) -> tuple[QuarantineRecord, ...]:
