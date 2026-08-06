@@ -8,13 +8,15 @@ cross-origin request to configure.
 from __future__ import annotations
 
 import os
+from dataclasses import asdict
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.config import load_settings
+from app.storage import create_engine_for, create_schema, load_items, new_session
 
 #: The built Vue bundle. Absent until the frontend has been built, which is why
 #: the mount is conditional rather than assumed.
@@ -31,6 +33,17 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     app = FastAPI(title="Hardware Hub")
     app.state.settings = settings
+
+    # Once per process, not once per request (see app/storage.py).
+    engine = create_engine_for(settings.database_url)
+    create_schema(engine)
+    app.state.engine = engine
+
+    @app.get("/api/hardware")
+    def list_hardware() -> list[dict[str, Any]]:
+        """The whole inventory. Eleven rows does not need pagination."""
+        with new_session(engine) as session:
+            return [asdict(item) for item in load_items(session)]
 
     # Single origin (ADR-0001): the same app serves the API and the bundle, so
     # there is no CORS middleware to configure. Mounted last, at the root, so it

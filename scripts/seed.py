@@ -11,12 +11,21 @@ Nothing is deleted. A row that fails structural validation becomes a
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Iterable, Mapping, NamedTuple
 
+from app.config import load_settings
 from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
+from app.storage import create_engine_for, create_schema, new_session, persist
 
-__all__ = ["ingest", "normalise_purchase_date"]
+__all__ = ["ingest", "normalise_purchase_date", "main"]
+
+#: The brief's 11 records, committed verbatim. Never modified — every defect in it
+#: is intentional input.
+SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "seed.json"
 
 
 class _Divergence(NamedTuple):
@@ -194,3 +203,30 @@ def normalise_purchase_date(raw: str | None) -> date | None:
             continue
 
     raise ValueError(f"{raw!r} is not a recognised purchase date format")
+
+
+def main() -> None:
+    """Ingest ``data/seed.json`` into the configured database.
+
+    Wiring only — every step is covered by its own tests. Safe to re-run: ``persist``
+    has replace semantics, so a reseed leaves the database as one seed did.
+
+        python -m scripts.seed
+    """
+    settings = load_settings(os.environ)
+    report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
+
+    engine = create_engine_for(settings.database_url)
+    create_schema(engine)
+    with new_session(engine) as session:
+        persist(report, session)
+        session.commit()
+
+    print(
+        f"seeded {len(report.imported)} hardware items, "
+        f"{len(report.quarantined)} quarantine records -> {settings.database_url}"
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -63,3 +63,34 @@ builds the admin queue and has to decide where it reads the reason from.*
 - CI
 - Deploy v0 — §3 argues it "proves the pipeline before there is anything to lose",
   and there is now meaningfully more to lose than when the phase started
+
+---
+
+## Phase 0 final step (added while wiring the deploy)
+
+**`test_serves_built_bundle_at_root` requires `npm run build` before `pytest`.**
+It asserts against the real `frontend/dist`, which is gitignored. CI must build the
+frontend before running the Python suite or that test fails for the wrong reason.
+Deliberate — a test against a fixture directory would prove the mount works and not
+that the *built bundle* is served. *Urgent when: CI is set up.*
+
+**vitest is not set up.** `brainstorm.md` §3 lists "pytest + vitest" as Phase 0
+scope. The frontend has no tests at all. *Urgent when: the frontend grows logic
+worth testing — currently it is one fetch and a table.*
+
+**`scripts.seed.main()` is untested.** It is wiring only: every step it calls has
+its own coverage, and it has no branches. Worth a smoke test if it ever grows an
+argument. *Urgent when: it takes a flag.*
+
+**Admin bootstrap is not implemented.** ADR-0005 says the seed creates admin #1
+from `ADMIN_EMAIL` / `ADMIN_PASSWORD`. There is no users table until Phase 1, so
+`load_settings` currently validates those variables without anything consuming
+them. *Urgent when: Phase 1 builds auth.*
+
+**`/api/hardware` returns every field**, including `notes` and `history` — the free
+text the Phase 3 auditor reads. Harmless now with no auth, but it means the
+contradiction material is public on the deployed instance. *Urgent when: Phase 1
+adds roles.*
+
+**No health endpoint.** Phase 3 scope per `brainstorm.md`, but Railway healthchecks
+would use one now. *Urgent when: the deploy needs a healthcheck path.*

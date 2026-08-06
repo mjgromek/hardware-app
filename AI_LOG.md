@@ -340,3 +340,17 @@ pytest plugin, 1 failed / 5 passed — only `test_persist_does_not_commit`. The
 repo was not modified to run that check.
 
 Commit: feat(phase-0): SQLite persistence for items and quarantine (pending)
+
+---
+
+## [P0 · c9] Vue scaffold, API, and single-origin wiring
+
+Minimal frontend — one page, one fetch, a legible table, no router and no state
+library. Two new tests: the bundle mount, which had been structurally present and
+unexercised since c1, and `/api/hardware`, which is production code and so needed a
+red test first. 28/28.
+
+Also the Dockerfile and `python -m scripts.seed`, both needed before anything can
+deploy. Findings from the pass went to `BACKLOG.md` rather than becoming work.
+
+Commit: feat(phase-0): Vue scaffold, hardware API, single-origin wiring (pending)
