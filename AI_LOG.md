@@ -354,3 +354,24 @@ Also the Dockerfile and `python -m scripts.seed`, both needed before anything ca
 deploy. Findings from the pass went to `BACKLOG.md` rather than becoming work.
 
 Commit: feat(phase-0): Vue scaffold, hardware API, single-origin wiring (pending)
+
+---
+
+## [P0 · c10] Seed on boot when the database is empty
+
+`/tdd`. Two red specs first: an empty database seeds, a populated one is left
+untouched. 30/30.
+
+The second test is the one that matters. `persist` has replace semantics, so an
+unguarded boot seed would wipe the table on every restart — the emptiness check is
+what makes this safe rather than merely convenient, and once the rental engine
+exists the table is never empty, so the seeding branch can never reach live data.
+
+Chosen after `railway ssh` turned out to need an SSH key the machine did not have,
+following `preDeployCommand` silently not executing across two deploys and
+Railway's API exposing no exec. Recorded in `BACKLOG.md` as a deploy shim rather
+than a migration strategy, because that is what it is: boot logic that writes data
+couples "the process started" to "the data changed", and it will race itself the
+moment there is a second replica.
+
+Commit: feat(phase-0): seed on boot when the database is empty (pending)

@@ -39,6 +39,13 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     create_schema(engine)
     app.state.engine = engine
 
+    # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
+    # with anything in it is left alone. Imported here rather than at module level
+    # so `app` does not depend on `scripts` just to be importable. See BACKLOG.md.
+    from scripts.seed import seed_if_empty
+
+    seed_if_empty(engine)
+
     @app.get("/api/hardware")
     def list_hardware() -> list[dict[str, Any]]:
         """The whole inventory. Eleven rows does not need pagination."""

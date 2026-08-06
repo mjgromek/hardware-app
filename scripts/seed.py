@@ -12,6 +12,7 @@ Nothing is deleted. A row that fails structural validation becomes a
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import date, datetime
 from pathlib import Path
@@ -19,9 +20,18 @@ from typing import Any, Iterable, Mapping, NamedTuple
 
 from app.config import load_settings
 from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
-from app.storage import create_engine_for, create_schema, new_session, persist
+from app.storage import (
+    Engine,
+    create_engine_for,
+    create_schema,
+    load_items,
+    new_session,
+    persist,
+)
 
-__all__ = ["ingest", "normalise_purchase_date", "main"]
+__all__ = ["ingest", "normalise_purchase_date", "seed_if_empty", "main"]
+
+logger = logging.getLogger(__name__)
 
 #: The brief's 11 records, committed verbatim. Never modified — every defect in it
 #: is intentional input.
@@ -230,3 +240,36 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def seed_if_empty(engine: Engine) -> bool:
+    """Seed the database only if it holds no hardware items. Returns whether it did.
+
+    **A deploy shim, not a migration strategy** (see `BACKLOG.md`). The deploy
+    target offers no way to run a one-off command against the mounted volume, so
+    the only remaining place to seed a fresh instance is startup.
+
+    The emptiness check is what makes that safe rather than merely convenient.
+    ``persist`` has replace semantics, so an unguarded boot seed would wipe the
+    table on every restart. Once the rental engine exists the table is never empty,
+    so this can never reach a database with rentals in it.
+    """
+    with new_session(engine) as session:
+        existing = load_items(session)
+        if existing:
+            logger.info(
+                "boot seed skipped: %d hardware items already present", len(existing)
+            )
+            return False
+
+        report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
+        persist(report, session)
+        session.commit()
+
+    logger.info(
+        "boot seed ran on an empty database: seeded %d hardware items, "
+        "%d quarantine records",
+        len(report.imported),
+        len(report.quarantined),
+    )
+    return True

@@ -94,3 +94,27 @@ adds roles.*
 
 **No health endpoint.** Phase 3 scope per `brainstorm.md`, but Railway healthchecks
 would use one now. *Urgent when: the deploy needs a healthcheck path.*
+
+---
+
+## Seeding on boot is a deploy shim, not a migration strategy
+
+**Production seeding belongs in a migration or a one-off job, not in application
+startup.** Boot logic that writes data couples "the process started" to "the data
+changed", which is the wrong coupling: it runs on every replica, on every restart,
+and in every environment, and it puts a write path in the one code path that must
+be able to run when the database is in an unknown state.
+
+It is here because the deploy target gave no alternative. Railway's public API
+exposes no exec or SSH, `preDeployCommand` silently did not execute across two
+deploys, and `railway ssh` requires an SSH key the machine did not have — so there
+was no way to run `python -m scripts.seed` once against the mounted volume.
+
+The emptiness guard is what makes it safe rather than merely convenient: once the
+rental engine exists the hardware table is never empty, so the seeding branch can
+never run again and can never destroy a rental. That is a real invariant, pinned by
+`test_boot_leaves_a_populated_database_untouched` — but it is protecting a design
+that should not need protecting.
+
+*Urgent when:* the app gets a second replica (two processes racing to seed the same
+empty database), or a real migration story is needed — whichever comes first.
