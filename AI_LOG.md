@@ -1052,3 +1052,30 @@ Also corrected the phase table in the same file, which still described Phase 1 a
 progress two tags later.
 
 Commit: docs: migration tests are mandatory for schema changes (pending)
+
+---
+
+## [P2 · c11] `architecture-scout` at the gate, and an invariant that was never as strong as its ADR
+
+Verdict: sound enough to build Phase 3 on. Four findings, all filed, none fixed.
+
+**The one that matters was a correctness claim, so I reproduced it rather than relaying
+it.** `ensure_an_admin_remains` reads the admin count and writes in a separate statement;
+two concurrent demotions of the final two admins both returned `200` and left **zero live
+admins** — the state ADR-0005 exists to make unreachable.
+
+My first attempt to reproduce it was wrong and I nearly reported the invariant as holding:
+I demoted the bootstrap admin to get down to two, which turned the acting client into a
+`user`, and read the resulting `403`s as the guard working. They were authorization. The
+actor has to stay an admin through both requests for the race to be reachable at all.
+
+Not fixed. The trigger is simultaneous demotions on a two-admin internal tool, and the fix
+is already written down one ADR over — ADR-0008 settled that a read-then-decide guard
+cannot win a race, for `rent`. What is worth recording is that the rental engine met this
+exact problem three ADRs later, solved it properly, and nobody noticed the older guard
+shared it. A single-guard framing hid a class.
+
+ADR-0005 now says the invariant holds only under sequential access, which is what it always
+meant rather than what it claimed.
+
+Commit: docs(phase-2): file the architecture-scout findings (pending)

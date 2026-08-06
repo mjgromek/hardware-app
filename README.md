@@ -167,6 +167,11 @@ Each of these works, and each cost something. The full table with reasoning is i
 - Editing an item's name, brand or date — only status changes and deletion exist
 - Field-level authorization — every signed-in employee sees `notes` and `history`,
   which are admin- and auditor-facing
+- **The last-admin guard is not race-safe** — it reads the admin count and writes in a
+  separate statement, so two simultaneous demotions of the final two admins both pass and
+  reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
+  the trigger is concurrent demotions on a two-admin internal tool, and ADR-0008's
+  conditional-`UPDATE` pattern is the known fix when it matters
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
 - CI, vitest, a health endpoint

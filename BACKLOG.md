@@ -282,3 +282,44 @@ nothing anywhere records that a reset occurred. Defensible on a demo instance wh
 purpose is being restored, and indefensible on anything else. *Urgent when: this codebase
 is ever pointed at data somebody depends on — at which point the route should be gated on
 `ENVIRONMENT != production`, or should write its own event to a table it does not clear.*
+
+
+## Phase 2 — `architecture-scout` at the gate
+
+**The last-admin guard is check-then-act and a race defeats it.** `ensure_an_admin_remains`
+reads `count_admins()`; the `set_role` or `delete_account` that acts on the answer is a
+separate statement. Two concurrent demotions of the final two admins both read `2`, both
+pass, and both write — reproduced, `200` and `200`, zero live admins afterwards. ADR-0005
+is amended to say so.
+
+The fix is already in the codebase's vocabulary: ADR-0008 settles that a read-then-decide
+guard cannot win a race and puts the claim in a conditional `UPDATE` whose rowcount is the
+decision. Here that is
+`UPDATE users SET role='user' WHERE id=:id AND (SELECT count(*) FROM users WHERE role='admin' AND deleted_at IS NULL) > 1`,
+in `guards.py` and `accounts.py` and nowhere else. *Urgent when: more than one person
+administers the instance, or Phase 3's production-hardening pass — whichever comes first.
+Not before: the trigger is two simultaneous demotions on a two-admin internal tool.*
+
+**`rentals.rent`'s honest failure message is choreography, not interface.** `rent()` raises
+a generic "already in use" on any rowcount-0, and the route rolls back, re-reads the item
+and re-runs `ensure_item_is_rentable` to recover the real cause — Repair, needs review, or
+genuinely held. Deliberate (ADR-0008: reading first deadlocks six concurrent claimants),
+but it means "how to get a truthful rent-failure message" is a dance a caller must
+reproduce rather than something the module hands over. One caller today, so nothing is
+duplicated. *Urgent when: a second caller appears — Phase 3's semantic search returning
+rentable items is the likely one.*
+
+**`visible_to` and `ADMIN_ONLY_FIELDS` live in `app/main.py`.** They encode ADR-0012's rule
+about who may see `notes`, `history` and `review_reason` — a domain concern that the routes
+module currently owns, so any other caller has to import it from `app.main` and invert the
+dependency. ~15 lines to `app/domain.py`, one file. ***Urgent in Phase 3, and it is not a
+maybe:*** the Inventory Auditor reads exactly those three fields and semantic search
+returns items through a different path, so Phase 3 brings two second callers at once. Move
+it before either is written, not after both have copied it.
+
+**The boot sequence is ~90 lines inside `create_app`.** Schema creation, migration, seed,
+rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/main.py` at
+702 lines is otherwise legitimate composition — fifteen thin routes over deep modules, not
+a God object — and this is the one seam that is a real boundary rather than arbitrary
+file-splitting. *Urgent when: never, on payoff alone. Do it only if boot grows a step that
+needs its own test.*
