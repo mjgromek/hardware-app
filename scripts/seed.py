@@ -12,11 +12,28 @@ Nothing is deleted. A row that fails structural validation becomes a
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, NamedTuple
 
 from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
 
 __all__ = ["ingest", "normalise_purchase_date"]
+
+
+class _Divergence(NamedTuple):
+    """One way an imported row differs from the seed, and who has to act on it.
+
+    Recording a divergence and blocking rental are separate questions, and
+    collapsing them is a mistake: an orphan rental is *fully repaired* at import,
+    so it belongs in the audit trail but leaves nothing for a human to rule on.
+    An off-enum status leaves a real question open, so it does both.
+
+    ``needs_decision`` is what drives ``needs_review``, which under ADR-0003 is a
+    rentability guard. Flagging a repaired row would make a usable item
+    unrentable over paperwork.
+    """
+
+    reason: str
+    needs_decision: bool
 
 
 def ingest(
@@ -58,8 +75,8 @@ def ingest(
     quarantined: list[QuarantineRecord] = []
 
     for row in rows:
-        # One quarantine record per rejected row, however many defects it carries.
-        reasons: list[str] = []
+        # One quarantine record per diverging row, however many defects it carries.
+        divergences: list[_Divergence] = []
         source_id = row.get("id")
 
         item_id = source_id
@@ -74,14 +91,21 @@ def ingest(
             purchase_date = normalise_purchase_date(row.get("purchaseDate"))
         except ValueError:
             purchase_date = None
-            reasons.append(
-                f"purchase date {row.get('purchaseDate')!r} is not a recognised "
-                "date format"
+            divergences.append(
+                _Divergence(
+                    f"purchase date {row.get('purchaseDate')!r} is not a "
+                    "recognised date format",
+                    needs_decision=True,
+                )
             )
         else:
             if purchase_date is not None and purchase_date > today:
-                reasons.append(
-                    f"purchase date {purchase_date.isoformat()} is in the future"
+                divergences.append(
+                    _Divergence(
+                        f"purchase date {purchase_date.isoformat()} is in the "
+                        "future",
+                        needs_decision=True,
+                    )
                 )
 
         raw_status = row.get("status")
@@ -92,18 +116,33 @@ def ingest(
             # unidentifiable, not that the item is broken (ADR-0002). ADR-0003's
             # guard blocks it from rental either way.
             status = Status.AVAILABLE
-            reasons.append(
-                f"status {raw_status!r} is not a recognised status "
-                f"({', '.join(s.value for s in Status)})"
+            divergences.append(
+                _Divergence(
+                    f"status {raw_status!r} is not a recognised status "
+                    f"({', '.join(s.value for s in Status)})",
+                    needs_decision=True,
+                )
             )
 
         assigned_to = row.get("assignedTo")
         if status is Status.IN_USE and not assigned_to:
             # An orphan rental names nobody to return the item, so the rental
-            # cannot be reconstructed. Releasing it is the only repair available.
+            # cannot be reconstructed. Releasing it is the only repair available
+            # — and it is a complete repair, which is why nothing is left to
+            # decide and the item stays rentable.
             status = Status.AVAILABLE
+            divergences.append(
+                _Divergence(
+                    "seed claimed status 'In Use' but named no assignee; the "
+                    "renter could not be reconstructed, so the orphan rental was "
+                    "released and the item imported as Available",
+                    needs_decision=False,
+                )
+            )
 
-        review_reason = "; ".join(reasons) if reasons else None
+        # The two signals, kept apart: the record holds every divergence, the
+        # flag holds only those a human still has to rule on.
+        undecided = [d.reason for d in divergences if d.needs_decision]
         imported.append(
             HardwareItem(
                 id=item_id,
@@ -112,19 +151,19 @@ def ingest(
                 purchase_date=purchase_date,
                 status=status,
                 source_id=rekeyed_from,
-                needs_review=bool(reasons),
-                review_reason=review_reason,
+                needs_review=bool(undecided),
+                review_reason="; ".join(undecided) if undecided else None,
                 notes=row.get("notes"),
                 history=row.get("history"),
                 assigned_to=assigned_to,
             )
         )
 
-        if reasons:
+        if divergences:
             quarantined.append(
                 QuarantineRecord(
                     source_id=source_id,
-                    reason=review_reason or "",
+                    reason="; ".join(d.reason for d in divergences),
                     payload=row,
                 )
             )

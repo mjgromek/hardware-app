@@ -253,3 +253,26 @@ separation earned its keep here; the implementer could not have quietly widened 
 test to fit the code.
 
 Commit: test(phase-0): orphan rental audit trail and seed fidelity specs (pending)
+
+---
+
+## [P0 · c6] Separate quarantine audit trail from review flag
+
+Green pass over the two red specs from c5. 20/20, `tests/` and `data/seed.json`
+untouched. A `_Divergence(reason, needs_decision)` tuple splits the signal I had
+collapsed: every divergence reaches the quarantine record, only undecided ones
+reach `needs_review`. On the real seed that gives three quarantine records where
+one — the released orphan rental — stays rentable.
+
+**One instruction I did not carry out.** The brief said items should stop carrying
+`review_reason` entirely: the record holds the narrative, the flag holds the guard.
+But `test_seed_quarantines_unknown_status` was already green asserting a flagged
+item carries its reason, "or the admin queue is blind", and I am not permitted to
+edit `tests/`. I narrowed the field instead — `review_reason` is now populated only
+from undecided divergences, so it mirrors the flag rather than the record, and the
+repaired-row case behaves as asked. The duplication that remains is real and
+unresolved, and it is a design disagreement rather than an oversight: the queue
+either carries the reason on the item it renders, or joins back to quarantine to
+explain itself. Left for the human, because the test is the human's to change.
+
+Commit: feat(phase-0): separate quarantine audit trail from review flag (pending)
