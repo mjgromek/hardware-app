@@ -276,3 +276,17 @@ either carries the reason on the item it renders, or joins back to quarantine to
 explain itself. Left for the human, because the test is the human's to change.
 
 Commit: feat(phase-0): separate quarantine audit trail from review flag (pending)
+
+---
+
+## [P0 · c7] SQLite persistence specs
+
+`test-author` against the `app/storage.py` skeleton — six red specs for the seam
+between the pure importer and the database. The red state proves only that the
+module is unimplemented: all six error identically in the fixture on
+`create_engine_for`, so it cannot show any of them discriminates. Mutation testing
+against a scratchpad implementation is what confirmed it — a `persist_commits`
+mutant passes all five original tests and is caught only by
+`test_persist_does_not_commit`, which is why that sixth test exists.
+
+Commit: test(phase-0): SQLite persistence specs (pending)
