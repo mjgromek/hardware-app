@@ -34,10 +34,14 @@ def ingest(
     - **Duplicate primary key** — the second occurrence is re-keyed to a fresh
       id, with the original preserved as ``source_id``. Neither row is dropped.
     - **Off-enum status** (the seed's ``"Unknown"``) — quarantined, and the
-      imported item carries ``needs_review``.
+      imported item carries ``needs_review`` with status ``Available``. Not
+      ``Repair``: unidentifiable is not the same claim as broken, and ADR-0003's
+      guard blocks the item either way.
     - **Future purchase date** — quarantined, and the item carries
       ``needs_review``.
-    - **``DD-MM-YYYY`` dates** — normalised to ISO, not rejected.
+    - **``DD-MM-YYYY`` dates** — normalised to ISO, not rejected. Parsing a date
+      field is structural; correcting a value is not. ``brand: "Appel"`` is left
+      exactly as the seed wrote it — that typo is the auditor's (ADR-0002).
     - **Orphan rental** (``In Use`` with no ``assignedTo``) — resolved at import.
     - **Missing optional fields** — nullable, not an error.
     """

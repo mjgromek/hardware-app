@@ -31,6 +31,20 @@ uniqueness, date format, and date plausibility. Semantic judgment over free-text
 The boundary is deterministic-versus-judgment, and it is declared here rather than
 discovered later.
 
+**Parsing a field is structural; correcting a value is judgment.** Reading
+`"22-05-2023"` as a date is deterministic — the field has a defined type and two
+candidate formats, and normalising it loses nothing. Reading `brand: "Appel"` as
+`"Apple"` is a guess about intent, correct only because a human recognises the
+brand. Ingestion therefore normalises date formats and leaves `"Appel"` exactly as
+the seed wrote it. The typo is the auditor's to surface.
+
+**An off-enum status maps to `Available` + `needs_review`, not `Repair`.** The
+seed's `"Unknown"` tells us the record is unidentifiable, not that the item is
+broken; `Repair` would assert a physical fact ingestion has no evidence for.
+Rentability does not depend on the choice — the ADR-0003 guard blocks a flagged
+item under either status — so the status should carry the weakest claim the
+evidence supports.
+
 ## Consequences
 
 - The two contradictory records enter the `hardware` table, exactly as §7.2

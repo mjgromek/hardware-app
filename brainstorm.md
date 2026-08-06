@@ -123,7 +123,7 @@ Listed in the trade-offs table as a deliberate affordance on a public deployment
 | 2 | id `8` missing | Sequence gap | Noted, no action |
 | 3 | id `6` — `purchaseDate: 2027-10-10` | Future date | Quarantine + `needs_review` |
 | 4 | id `9` — `"22-05-2023"` | DD-MM-YYYY vs ISO | Normalise |
-| 5 | id `9` — `brand: "Appel"` | Typo | Normalise, log |
+| 5 | id `9` — `brand: "Appel"` | Typo | **Not ingestion's job** (ADR-0002) → auditor |
 | 6 | id `10` — `""`, `null`, `"Unknown"` | Empty + null + off-enum | Quarantine + `needs_review` |
 | 7 | id `5` Dell XPS — `Available` + "battery swelling" | **Semantic** | **Not ingestion's job** (ADR-0002) → auditor |
 | 8 | id `11` MacBook Air — `Available` + liquid damage | **Semantic** | Same |
@@ -153,7 +153,7 @@ Branch `phase-0-foundation`. Settled by the whole-project grilling; no separate 
 - **Deploy v0** — proves the pipeline before there is anything to lose
 
 ```
-test_seed_rejects_duplicate_id
+test_seed_rekeys_duplicate_id
 test_seed_normalises_date_formats
 test_seed_quarantines_unknown_status
 test_seed_flags_future_purchase_date

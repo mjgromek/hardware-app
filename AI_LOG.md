@@ -174,3 +174,23 @@ vitest and CI are Phase 0 scope but not needed by the five backend tests; they a
 deferred to a later Phase 0 commit.
 
 Commit: chore(phase-0): scaffold and module skeletons (pending)
+
+---
+
+## [P0 · c2] Failing specs for seed ingestion and admin bootstrap
+
+`test-author` against `brainstorm.md` §2/§3 and ADRs 0001, 0002, 0003, 0005.
+18 tests, all red on `NotImplementedError` from the skeletons — no import errors,
+which `CONTEXT.md` defines as broken rather than red.
+
+The run surfaced three spec gaps I had not seen, and resolving them changed the
+plan rather than the tests. §2 said the `"Appel"` typo was normalised at ingestion,
+which contradicts ADR-0002 in the plan's own words: parsing a date field is
+structural, correcting a spelling is judgement. ADR-0002 now draws that line
+explicitly and §2 hands the typo to the auditor. The off-enum status had no
+specified target — it maps to `Available` + `needs_review`, not `Repair`, because
+`"Unknown"` says unidentifiable and `Repair` would assert a physical fact nothing
+evidences. ADR-0005 now names `ENVIRONMENT` and states the permissive-local /
+strict-production asymmetry it had implied twice without ever writing down.
+
+Commit: test(phase-0): failing specs for seed ingestion and admin bootstrap (pending)

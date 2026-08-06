@@ -21,6 +21,18 @@ The seed creates admin #1 from `ADMIN_EMAIL` / `ADMIN_PASSWORD`. The app **refus
 to boot in production** if `ADMIN_PASSWORD` is unset — the same shape as the
 existing secret-key check.
 
+**`ENVIRONMENT` selects the regime**, and is the only variable read before the
+guards run. `ENVIRONMENT=production` is strict: `SECRET_KEY` and `ADMIN_PASSWORD`
+must both be present and non-empty, and an empty string is treated as absent —
+accepting it would bootstrap an admin nobody can log in as, which is the
+zero-admin state by another route. Any other value, including an unset
+`ENVIRONMENT`, is permissive: settings load with development defaults and the app
+runs with no environment configured at all.
+
+The asymmetry is deliberate. A guard that also blocks `git clone && pytest` gets
+switched off by whoever hits it first, and a guard that is off is worth nothing.
+The strictness belongs where the deployment is real.
+
 "At least one admin exists" is enforced as a **guard in the same layer as the
 rental guards**, returning `409`. It is the same class of invariant and must not
 live somewhere else.
