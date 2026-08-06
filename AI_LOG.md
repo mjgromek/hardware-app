@@ -1133,3 +1133,15 @@ seed-on-boot gets its Why/Future. BACKLOG drops three done/false entries; brains
 gets a dated status note instead of a rewrite.
 Commit: docs(phase-3): audit every doc against the brief (pending — the one entry the
 final-polish pass back-annotates, since a commit cannot contain its own sha)
+
+---
+
+## [P3 · c2] Phase 4 — wireframe fidelity — enters the plan
+
+New phase in `brainstorm.md` §3, after Phase 3, not started: close-copy UI fidelity,
+three schema columns with the mandatory migration test, an ADR-0012 amendment (renter
+hidden from non-admins) written rather than silently reversed, and two brief-mandated
+wireframe deviations (Purchase Date, filtering) pre-registered for
+`WIREFRAME_JUSTIFICATION.md`. §0, CLAUDE.md's phase table and the README (🔮 + a v4 row)
+now agree there are five gates.
+Commit: docs(phase-4): plan the wireframe-fidelity phase (pending)

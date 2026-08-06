@@ -58,6 +58,7 @@ P0  foundation, data audit, deploy v0     ✅ DONE — merged, tagged, live
 P1  auth, admin, dashboard                ✅ DONE — merged, tagged v1-admin, live
 P2  rental engine                         ◐ green, deployed v2, at the gate
 P3  AI layer + production hardening       /grill-me first
+P4  UI fidelity to the wireframes         planned — starts only after P3 ships
     final polish — one commit on main
 ```
 

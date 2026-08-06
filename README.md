@@ -16,6 +16,7 @@ Built as a recruitment task for the Early Careers Programme.
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
 | **v2** | Phase 2 — rental engine, review queue, audit trail | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 | v3 | Phase 3 — AI layer + hardening | — | 🔮 planned |
+| v4 | Phase 4 — wireframe fidelity | — | 🔮 planned, after v3 |
 
 ### Signing in
 
@@ -213,6 +214,13 @@ the table above. `/grill-me` first, per `CLAUDE.md`:
 3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
    states, favicon, and the remaining `(pending)` SHA back-annotations in
    `AI_LOG.md`.
+
+Then **Phase 4 — wireframe fidelity** (planned 2026-08-07, does not start until
+Phase 3 ships): the UI becomes a close copy of the supplied wireframes — heading and
+label changes, the review badge, exact type scale, the Add New Device modal, three
+new schema columns with their migration test, an ADR-0012 amendment hiding renter
+identity from non-admins, and muteable notification toasts. Scope in
+`brainstorm.md` §3 Phase 4.
 
 ---
 

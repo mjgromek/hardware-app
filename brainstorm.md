@@ -28,7 +28,7 @@
 |---|---|
 | **Grill before building** | One whole-project grilling (done) + one each for MVP 2 and MVP 3. Phase 0 and MVP 1 are settled by the first session. |
 | **Red → Green → Refactor** | `/tdd` drives implementation. No production code before a failing test. |
-| **One branch per phase** | Four branches, four gates. Merged to `main` only after your review. |
+| **One branch per phase** | Five branches, five gates (Phase 4 added 2026-08-07). Merged to `main` only after your review. |
 | **Deploy every phase** | Live URL after each, recorded in the README. |
 | **AI log per commit — two formats** | Three lines for routine commits; long-form only for genuine corrections. §4. |
 | **15–20 commits** | ~4 per phase. |
@@ -149,7 +149,7 @@ caught the two obvious ones; id 10 is the one it wouldn't.
 
 ---
 
-## 3. The Four Phases
+## 3. The Phases (four planned; Phase 4 added 2026-08-07)
 
 Each: branch → red → green → deploy → gate → merge → tag.
 
@@ -258,6 +258,64 @@ test_health_endpoint_returns_ok
 test_prod_config_requires_secret_key
 smoke_deployed_login_and_rent_flow
 ```
+
+### Phase 4 — Wireframe Fidelity *(added 2026-08-07 — does not start until Phase 3 ships)*
+
+Branch `phase-4-ui`. Goal: the app is a **close copy** of the supplied wireframes in
+`docs/wireframes/` (local, gitignored — they are confidential). Read every screenshot
+carefully before writing anything — layout, spacing, type scale, weights, control
+placement. **Fidelity is the objective, not inspiration.**
+
+**Cosmetic — no schema, no ADR:**
+
+- "Inventory" heading becomes "Hardware List". No subtitle.
+- Remove the review-status column. Replace with a yellow "!" badge before the device
+  name; hover or click reveals "Awaiting review". Must be keyboard-reachable and
+  screen-reader labelled, not hover-only.
+- Display `In Use` as "Rented". **Display label only** — the stored enum stays
+  `Available | In Use | Repair` per the brief and every ADR. Map at the view layer.
+- Match the prototype's font sizes and weights exactly.
+- Add New Device modal: match the wireframe — Name, Serial Number, Brand, Category
+  dropdown (Laptop / Mobile / Tablet / Monitor / Accessory).
+- Admin panel: match the wireframe exactly.
+
+**Schema — needs a migration test (CLAUDE.md, mandatory):**
+
+- `serial_number`, `category` (closed enum, the five values above), `date_added`
+  (defaults to now on create).
+- The seed's 11 records have none of these: `serial_number` and `category` `NULL`,
+  `date_added` backfilled from `purchase_date`. Update `docs/DATA_AUDIT.md`.
+- The migration test boots over the *Phase 3* table shape in raw SQL and asserts a
+  real request succeeds.
+
+**Kept because the brief requires them — wireframe deviations, recorded in
+`docs/WIREFRAME_JUSTIFICATION.md` as brief-mandated so a reviewer sees they were
+deliberate:**
+
+- **Purchase Date column stays.** The brief names it explicitly: "showing Name, Brand,
+  Purchase Date, and Status". Date Added is an additional column, not a replacement.
+- **Filtering stays.** The brief: "Must support sorting and filtering."
+
+**Renter identity hidden — amends ADR-0012.** The wireframe does not show who holds an
+item; ADR-0012 decided the opposite, with reasoning (knowing who to ask). Write the
+amendment rather than silently reversing: the item still shows Rented, the holder is
+admin-only.
+
+**Notifications with sound:**
+
+- Rent action: admin gets a toast plus a short sound. Item entering review: same.
+- Sound off by default or muteable, respects `prefers-reduced-motion`, and never the
+  only signal — the toast carries the information.
+- Delivery mechanism is a design decision: polling is acceptable for a demo, but say
+  so in an ADR rather than reaching for websockets.
+
+**Skills and agents:** `frontend-design` for every visual item — feed it the
+screenshots and the constraint that fidelity beats expressiveness here. `test-author`
+then `/tdd` for the schema slice, migration test included. `mvp-reviewer` at the gate.
+No `architecture-scout` — this phase adds no new seams.
+
+**Cut order if time runs out:** sounds first, then Date Added, then the notification
+toasts. The visual fidelity items are cheap and are what a reviewer sees.
 
 ### Final polish — one commit, not a phase
 
