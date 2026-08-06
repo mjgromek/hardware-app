@@ -93,10 +93,24 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **Admin panel** — add and delete hardware, toggle `Repair` both ways, create
   accounts, promote and demote
 - **Dashboard** — dense table, status filter and purchase-date sort, both server-side
-- **`needs_review` queue** — every flagged item with the reason ingestion recorded
-  (read-only; see below)
+- **The rental engine** — rent, return, and admin force-return. The claim is one
+  conditional `UPDATE` whose rowcount is the decision (ADR-0008), so two concurrent
+  claimants cannot both win; `Repair` and `needs_review` both block through the same
+  guard with a `409` (ADR-0003)
+- **`needs_review` queue, now with release** — every flagged item with the reason
+  ingestion recorded, and an admin action that clears the flag, `409` on an unflagged
+  item (ADR-0003)
+- **Audit trail** — force-return and clear-review each write an `audit_events` row
+  with a mandatory reason, in the same transaction as the change; the transition
+  itself writes it, so no caller can perform the override silently (ADR-0010)
+- **Field-level authorization** — `notes`, `history` and `review_reason` reach admins
+  only; a `user` session gets `null` (ADR-0012, closing the `/security-review`
+  finding Phase 1 carried)
+- **`?held_by=me`** — the dashboard's "My Rentals" view, server-side
+- **Demo reset** — one confirmed admin route restores the seed's fingerprints
+  (see "Restoring the demo" above)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 97 tests, all green
+- 98 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -119,15 +133,17 @@ Each of these works, and each cost something. The full table with reasoning is i
   access is what a reviewer needs and delete rights are what an attacker wants.
   **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
   shared credential.
-- **`needs_review` is surfaced but still cannot be cleared.** The queue now shows every
-  flagged item and the reason, and the flag still blocks rental (ADR-0003) — so
-  releasing an item is a database edit. The screen says so rather than offering a
-  button that would fail.
-  **Why:** clearing needs a decision nobody has made — what evidence releases an item,
-  and who records it. Inventing it to fill a screen is how an audit trail becomes
-  decoration.
-  **Future:** Phase 2 owns it — ADR-0003 assigns the mechanism there, because clearing a
-  rentability guard is a transition in the rental state machine rather than a field edit.
+- **41 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
+  double it, so it is acknowledged here rather than left for a reviewer to count.
+  **Why:** two security fixes (the demo account's role cut from `admin` to `user`, the
+  session-revocation gap ADR-0013 closed) and two production defects (the seed rental
+  never reconciling on an existing volume, the missing `users` migration) each needed
+  their own red/green cycle — a fix squashed into an unrelated commit is a fix the
+  history cannot explain. Every commit has its AI_LOG entry; the count is the cost of
+  keeping that true.
+  **Future:** nothing to fix retroactively — rewriting history to hit a number would
+  be worse than missing it. The target stands for Phase 3 as a pressure toward
+  batching, not a cap that outranks the audit trail.
 - **A soft-deleted account permanently reserves its email**, so an address can never be
   recreated — no re-hires, and no fixing a typo'd address. Recreating one answers `409`.
   **Why:** the audit trail names actors by email as well as by id (ADR-0010, ADR-0013),
@@ -155,18 +171,9 @@ Each of these works, and each cost something. The full table with reasoning is i
 
 ### ⚠️ Partial / Missing
 
-- **`needs_review` cannot yet be cleared** — the queue shows every flagged item and the
-  reason, and the flag still blocks rental, but nothing releases one. ADR-0003 assigns
-  the mechanism to **Phase 2**: an admin action with an audit trail, gated on the same
-  guard layer, because clearing a rentability guard is a state-machine transition rather
-  than a field edit
-- Rental engine — items have statuses but cannot be rented or returned. No `Rent`
-  action exists, which is why the wireframe's is absent
 - The AI layer — semantic search and the Inventory Auditor. The wireframe's "Ask AI…"
   bar is absent for the same reason
 - Editing an item's name, brand or date — only status changes and deletion exist
-- Field-level authorization — every signed-in employee sees `notes` and `history`,
-  which are admin- and auditor-facing
 - **The last-admin guard is not race-safe** — it reads the admin count and writes in a
   separate statement, so two simultaneous demotions of the final two admins both pass and
   reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
@@ -176,12 +183,10 @@ Each of these works, and each cost something. The full table with reasoning is i
   cookie has no server-side record to revoke
 - CI, vitest, a health endpoint
 
-Carried over from `/security-review` as accepted rather than fixed, each with the reason:
+Carried over from `/security-review` as accepted rather than fixed, each with the reason
+(the field-level authorization finding that used to lead this list is closed —
+ADR-0012 shipped role-aware serialisation in Phase 2):
 
-- **Field-level authorization** — every signed-in employee sees `notes`, `history` and
-  `review_reason`. Not fixed because this branch *narrowed* it (the endpoint was
-  anonymous before ADR-0006) and what remains is maintenance prose about laptops rather
-  than secrets or PII; role-aware serialisation is the real fix and is not a one-liner.
 - **`ENVIRONMENT` fails open, not closed** — any value other than `production` falls
   back to development defaults, including a `SECRET_KEY` that is public in this repo.
   Not fixed because the live service sets `ENVIRONMENT=production`, verified by the
@@ -193,15 +198,11 @@ Carried over from `/security-review` as accepted rather than fixed, each with th
 
 ### 🔮 Next Steps (24h Roadmap)
 
-In order, one branch and one deployed version each — the phases in the table above:
+One branch and one deployed version — the last phase in the table above:
 
-1. **Phase 2 — rental engine.** Rent and return, with `Repair` and `needs_review`
-   blocking through one guard — **and the action that clears that flag**, which ADR-0003
-   assigns here because releasing an item is a transition in the same state machine.
-   `/grill-me` first, per `CLAUDE.md`.
-2. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
+1. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
    which has to flag record 10 to prove it does anything a regex could not, plus CI
-   and the frontend test suite.
+   and the frontend test suite. `/grill-me` first, per `CLAUDE.md`.
 
 ---
 
@@ -248,14 +249,18 @@ cd frontend && npm run build && cd ..   # test_serves_built_bundle_at_root needs
 
 ### Reseeding
 
-`persist` has replace semantics: seeding twice leaves the database exactly as
-seeding once did, so this is safe to re-run against a live instance.
+`persist` has replace semantics — seeding twice leaves the database exactly as seeding
+once did — but since Phase 2 it **refuses to run while rentals exist** (ADR-0011),
+because replace semantics against a live rental table is how history gets erased by a
+maintenance command. On any instance that has been used, reseed through the demo reset
+route, which deletes rentals and audit events first and then passes the same guard:
+see [Restoring the demo](#restoring-the-demo).
+
+On a database with no rentals, the direct form still works locally:
 
 ```bash
-railway run --service hardware-hub python -m scripts.seed
+.venv/bin/python -m scripts.seed
 ```
-
-Locally, the same command without the `railway run` prefix.
 
 ---
 
@@ -296,8 +301,6 @@ the moment it was taken.
 | Shortcut | Why | Future refactor |
 | --- | --- | --- |
 | **Demo credentials are published on a public instance, on a `user` account** | ADR-0005 chose openly published demo credentials so a reviewer is in within ten seconds. `/security-review` cut the role from `admin` to `user`: read access is what a reviewer needs, delete rights are what an attacker wants, and the admin panel is described in prose instead. | Per-reviewer invite links, so access can be withdrawn without rotating a shared credential. |
-| **`notes` and `history` are visible to every signed-in employee** | The endpoint returns whole items, and ADR-0006 closed the public half of this — a stranger with the URL no longer sees them. Field-level authorization is a separate piece of work that Phase 1 did not do. | Role-aware serialisation, so auditor-facing free text reaches admins only. `/security-review` before the Phase 1 gate. |
-| **Nothing can clear `needs_review`** | The queue is surfaced and read-only. Clearing needs a decision nobody had made — what evidence releases an item, and who records it — and inventing one to fill a screen is how an audit trail becomes decoration. | **Phase 2**, by ADR-0003: an admin action with an audit trail, gated on the guard layer, pinned by `test_admin_can_clear_needs_review` and `test_cleared_item_becomes_rentable`. |
 | **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now — the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |
 | **`test_serves_built_bundle_at_root` needs `npm run build` first** | It asserts against the real `frontend/dist` on purpose — a fixture directory would prove the mount works, not that the built bundle is served. | CI builds the frontend before running pytest. |
 | **No CI** | Time. The tests exist and run locally; automating them was the cut. | A workflow running both build steps and both suites. |

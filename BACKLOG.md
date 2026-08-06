@@ -323,3 +323,30 @@ rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/mai
 a God object — and this is the one seam that is a real boundary rather than arbitrary
 file-splitting. *Urgent when: never, on payoff alone. Do it only if boot grows a step that
 needs its own test.*
+
+
+## Phase 2 — `mvp-reviewer` at the gate
+
+**Commit `a44f85f` (grilling 2, the six Phase 2 ADRs) has no `AI_LOG.md` entry.** The
+log's own rule, and the pre-commit hook that now enforces it landed two commits later —
+this is the one gap the hook postdates. The Phase 1 audit set the precedent: backfill it
+and *label it as backfilled*, because a reconstructed entry passed off as contemporaneous
+is worse than the gap. *Urgent when: before the final submission — a graded deliverable
+with a known hole and a known precedent for filling it honestly should use it.*
+
+**Every Phase 2 AI_LOG entry still reads `Commit: … (pending)`.** Phase 1 entries carry
+their SHAs; Phase 2's were written before committing (which is the point) and never
+back-annotated after. One pass over `git log` fixes all of them. *Urgent when: same as
+above — the final submission pass.*
+
+**`chore(phase-2): deploy v2` (`3bce364`) ships production code under a `chore` label.**
+The reconcile fix and the seed backfill ride a commit whose type says "no production
+change". The history cannot be rewritten honestly now; the rule going forward is that a
+deploy commit that needs a code change is two commits. *Urgent when: Phase 3's deploy
+commit — the moment the same temptation recurs.*
+
+**`clear-review` is only ever tested against an `Available` item.** The route allows
+clearing whatever the item's status (`app/main.py`), and ADR-0010 says so, but no test
+pins it — a regression that quietly restricted clearing to `Available` items would be
+green. One test clearing a flagged `Repair` item covers the claim. *Urgent when: anyone
+touches the clear-review route or the guard layer it deliberately bypasses.*

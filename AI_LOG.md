@@ -1096,3 +1096,13 @@ Commit: test(phase-2): pin the audit write inside force_return (pending)
 `audit.record` moves from the route into `rentals.force_return`, same transaction as
 the close; the route-level "exactly one event" test proves nothing double-writes. 98/98.
 Commit: fix(phase-2): force_return writes its own audit event (pending)
+
+---
+
+## [P2 · c14] The README stops describing Phase 1
+
+mvp-reviewer's blocker: the graded sections said the rental engine did not exist, on the
+branch that shipped it. Brought to v2 reality, Reseeding now points at the reset route
+(ADR-0011), the 41-vs-15–20 commit count is acknowledged in ⚡ with its why, and the
+four non-blocking findings are filed in BACKLOG.md.
+Commit: docs(phase-2): bring the README to Phase 2 reality (pending)
