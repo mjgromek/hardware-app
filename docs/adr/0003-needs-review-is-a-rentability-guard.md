@@ -52,6 +52,46 @@ item in `Repair`.
   clear-flag action, or the README states that flagged items require a database
   edit to release. This must not be left to be discovered at the Phase 2 gate.
 
+- **Resolved by assignment, at the Phase 1 gate: Phase 2 owns the clear-flag
+  mechanism.** Phase 1 took the second option above — the queue is surfaced read-only
+  and the README says a flagged item requires a database edit to release. That closes
+  the honesty requirement and leaves the product one intact: **nothing clears
+  `needs_review`, so a flagged item is unrentable indefinitely**, and today that is two
+  of eleven items in the seed. Phase 2 owns resolving it, and owns it for a structural
+  reason rather than a scheduling one — the flag is a *rentability* guard, so clearing
+  it is a transition in the same state machine as rent and return, and it belongs with
+  the phase that builds that machine rather than bolted onto an admin panel beside it.
+
+  What Phase 2 must deliver:
+
+  - **An admin action that clears the flag**, not an edit to an arbitrary field. Only
+    an admin, and never a side effect of any other operation.
+  - **An audit trail.** Clearing is the assertion "somebody inspected this equipment
+    and it is fit to issue", which is exactly the claim a later incident asks about.
+    A cleared flag that leaves no record of who cleared it and why turns the
+    quarantine trail Phase 0 built into decoration at the one moment it matters —
+    and ingestion already writes a reason for every divergence, so the release must
+    too. See `docs/DATA_AUDIT.md` for what the flag currently records.
+  - **Gated on the same guard layer** (`app/guards.py`), for the reason this ADR
+    already gives about `needs_review` itself: the rule that decides whether a
+    transition is legal must not be enforced in a route handler.
+
+  Pinned by `test_admin_can_clear_needs_review` and
+  `test_cleared_item_becomes_rentable` (§3 Phase 2). The second is the one that
+  matters — clearing a flag that does not change rentability is the decoration this
+  ADR exists to prevent, in a new place.
+
+- **Amended by grilling 2 (2026-08-06): the guard layer is not the sole decision point
+  for the rent transition.** This ADR says a guard "must not be enforced in a route
+  handler", and that stands. But a guard reads state and then decides, and a read
+  followed by a write cannot win a race — two users claiming one `Available` item would
+  both pass the same pre-check. So the *claim* is an atomic `UPDATE … WHERE
+  status='Available'` whose zero rowcount means the caller lost, and it lives in
+  `app/rentals.py` alongside the transition it belongs to, not in `app/storage.py`
+  (which makes no decisions) and not in `app/guards.py` (which cannot be atomic).
+  Guards keep the pre-checks that produce readable reasons; the transition owns its own
+  atomicity. See ADR-0008.
+
 - **Trade-off accepted:** ingestion can now make an item unrentable on structural
   grounds alone — record 6's future purchase date and record 10's missing fields
   are both quarantined and flagged (§2), so both are blocked from rental even

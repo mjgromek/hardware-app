@@ -75,16 +75,22 @@ export const api = {
   logIn: (email, password) =>
     request('POST', '/api/login', { email, password }, { ownsUnauthorized: true }),
 
-  hardware: ({ status, sort } = {}) => {
+  hardware: ({ status, sort, heldBy } = {}) => {
     const query = new URLSearchParams()
     if (status) query.set('status', status)
     if (sort) query.set('sort', sort)
+    if (heldBy) query.set('held_by', heldBy)
     const suffix = query.toString()
     return request('GET', suffix ? `/api/hardware?${suffix}` : '/api/hardware')
   },
   addHardware: (item) => request('POST', '/api/hardware', item),
   setHardwareStatus: (id, status) => request('PATCH', `/api/hardware/${id}`, { status }),
   deleteHardware: (id) => request('DELETE', `/api/hardware/${id}`),
+
+  rent: (id) => request('POST', `/api/hardware/${id}/rent`),
+  returnItem: (id) => request('POST', `/api/hardware/${id}/return`),
+  forceReturn: (id, reason) => request('POST', `/api/hardware/${id}/force-return`, { reason }),
+  clearReview: (id, reason) => request('POST', `/api/hardware/${id}/clear-review`, { reason }),
 
   users: () => request('GET', '/api/users'),
   addUser: (account) => request('POST', '/api/users', account),

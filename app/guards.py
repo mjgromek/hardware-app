@@ -17,10 +17,16 @@ a reviewer cannot see that it was ignored.
 from __future__ import annotations
 
 from app import accounts
-from app.domain import Role
+from app.domain import HardwareItem, Role, Status
 from app.storage import Session
 
-__all__ = ["GuardViolation", "ensure_an_admin_remains"]
+__all__ = [
+    "GuardViolation",
+    "ensure_an_admin_remains",
+    "ensure_item_is_rentable",
+    "ensure_no_active_rental",
+    "ensure_account_holds_nothing",
+]
 
 
 class GuardViolation(RuntimeError):
@@ -59,4 +65,73 @@ def ensure_an_admin_remains(
     raise GuardViolation(
         f"{account.email} is the last admin and cannot be {action}: with no admins "
         "left, no account could ever be created again. Promote another account first."
+    )
+
+
+def ensure_item_is_rentable(item: HardwareItem) -> None:
+    """Refuse a rental the domain forbids, with one reason per cause (ADR-0008).
+
+    A pure read, and deliberately *not* the decision — the atomic claim in
+    `app.rentals.rent` is. This exists for the message: "this item is in Repair" is
+    worth more to whoever asked than a bare refusal, and the three causes are
+    genuinely different facts about the world.
+
+    `needs_review` sits alongside `Repair` here because ADR-0003 makes the flag a
+    rentability guard rather than a badge — the Dell XPS keeps its swelling battery
+    whether or not anybody has written the note down as a status.
+    """
+    if item.status is Status.REPAIR:
+        raise GuardViolation(
+            f"{item.name} is in Repair and cannot be rented until it is released."
+        )
+    if item.needs_review:
+        raise GuardViolation(
+            f"{item.name} needs review before it can be rented: "
+            f"{item.review_reason or 'the record could not be verified at import'}. "
+            "An admin has to clear the flag first."
+        )
+    if item.status is Status.IN_USE:
+        raise GuardViolation(
+            f"{item.name} is already in use — somebody else has it."
+        )
+
+
+def ensure_no_active_rental(rental, item: HardwareItem, action: str) -> None:
+    """Refuse an admin action that would strand somebody's active rental.
+
+    Two callers, one rule (ADR-0009, ADR-0011): moving a held item to `Repair`, and
+    deleting one. `CONTEXT.md` names "a rented item in Repair" as an impossible state,
+    and a deleted item with a live rental leaves the rental pointing at nothing.
+
+    Both are refusals rather than silent force-returns. An admin who needs the item
+    back takes one deliberate extra action, and that action is the record.
+    """
+    if rental is None:
+        return
+    raise GuardViolation(
+        f"{item.name} is out with {rental.renter_email} and cannot be {action} while "
+        "it is held. Recall it first."
+    )
+
+
+def ensure_account_holds_nothing(held_item_ids, account) -> None:
+    """Refuse to delete an account that still has equipment out (ADR-0009, ADR-0011).
+
+    Deleting the holder used to leave the rental active and pointing at a row id SQLite
+    then reissued, so the next employee to be created inherited somebody else's laptop
+    and could close their rental — `/security-review` reproduced exactly that. The
+    session token fixes who a *cookie* names; it cannot fix `rentals.account_id`, which
+    is still a recyclable integer. This guard is what makes that unreachable: no active
+    rental outlives its owner, so there is nothing to inherit.
+
+    `409` rather than `403`, and for the same reason as the last-admin guard: an admin is
+    allowed to delete accounts, and this request would break an invariant rather than
+    exceed a permission.
+    """
+    if not held_item_ids:
+        return
+    raise GuardViolation(
+        f"{account.email} still has {len(held_item_ids)} item(s) out "
+        f"(ids {sorted(held_item_ids)}). Recall them first — an account cannot be "
+        "removed while equipment is signed out to it."
     )

@@ -25,16 +25,20 @@ Nothing in `brainstorm.md` or the ADRs fixes the request shapes, so this file do
 Recorded here rather than spread across four modules, because it is a decision and
 it should be reviewable in one place (see `BACKLOG.md`).
 
-| Route                        | Who     | Meaning                                    |
-| ---------------------------- | ------- | ------------------------------------------ |
-| ``POST   /api/login``        | anyone  | ``{email, password}`` → session cookie     |
-| ``GET    /api/users``        | admin   | accounts, as ``{id, email, role}``         |
-| ``POST   /api/users``        | admin   | ``{email, password, role}`` → new account  |
-| ``PATCH  /api/users/{id}``   | admin   | ``{role}`` → promote / demote              |
-| ``DELETE /api/users/{id}``   | admin   | remove an account                          |
-| ``GET    /api/hardware``     | session | ``?sort=purchase_date``, ``?status=…``     |
-| ``PATCH  /api/hardware/{id}``| admin   | ``{status}`` → toggle Repair               |
-| ``DELETE /api/hardware/{id}``| admin   | remove an item                             |
+| Route                                  | Who     | Meaning                              |
+| -------------------------------------- | ------- | ------------------------------------ |
+| ``POST   /api/login``                  | anyone  | ``{email, password}`` → session      |
+| ``GET    /api/users``                  | admin   | accounts, as ``{id, email, role}``   |
+| ``POST   /api/users``                  | admin   | ``{email, password, role}`` → account|
+| ``PATCH  /api/users/{id}``             | admin   | ``{role}`` → promote / demote        |
+| ``DELETE /api/users/{id}``             | admin   | remove an account                    |
+| ``GET    /api/hardware``               | session | ``?sort=purchase_date``, ``?status=…``|
+| ``PATCH  /api/hardware/{id}``          | admin   | ``{status}`` → toggle Repair         |
+| ``DELETE /api/hardware/{id}``          | admin   | remove an item                       |
+| ``POST /api/hardware/{id}/rent``       | session | claim it — ``Available`` → ``In Use``|
+| ``POST /api/hardware/{id}/return``     | renter  | close **your own** rental            |
+| ``POST /api/hardware/{id}/force-return``| admin  | ``{reason}`` → close anybody's       |
+| ``POST /api/hardware/{id}/clear-review``| admin  | ``{reason}`` → clear ``needs_review``|
 
 ``GET /api/hardware`` **requires a session** — any role, admin or user. Only
 admin-created accounts may use the Hub, so there is no anonymous read of the
@@ -42,18 +46,41 @@ inventory; the rule is pinned by ``test_auth.py::test_inventory_requires_a_sessi
 and three Phase 0 tests were amended to authenticate. ``GET /`` stays public, because
 the login page has to be reachable by someone who is not logged in.
 
+**Phase 2 makes that payload depend on the caller's role** (ADR-0012): ``notes``,
+``history`` and ``review_reason`` are serialised for admins only, while renter
+identity stays visible to every signed-in account. The four new routes above all take
+a JSON body where one is listed and answer ``409`` — not ``400`` — when a guard
+refuses them, because a refused rental is a well-formed permitted request that would
+break an invariant, exactly as ADR-0005's last-admin refusal is.
+
 Success codes are asserted permissively (``200`` or ``201``/``204``) because the
 exact success code carries no product meaning. **Refusals are asserted exactly** —
 ``401`` unauthenticated, ``403`` authenticated-but-forbidden, ``409`` invariant
 violated (ADR-0005) — because those distinctions are the behaviour under test.
+
+## Reading `rentals` and `audit_events` without an HTTP surface
+
+Slice A and B ship no read endpoint for either table — ``GET /api/hardware?held_by=me``
+is Slice C, and Slice C is the first thing cut. So the two tests whose subject *is* the
+recorded row (``test_rental_history_records_both_ends``,
+``test_force_return_writes_an_audit_event``) read SQLite directly, through
+``app.state.engine`` and raw SQL rather than through ``app.rentals``. Importing a module
+that does not exist yet would make those tests *broken* rather than *red* (CONTEXT.md),
+and every other Phase 2 test would go down with the import. The cost is that
+``rental_rows`` and ``audit_rows`` pin the column names in `docs/specs/phase-2.md`'s
+schema tables; that is the spec, and both helpers return ``[]`` for a table that is not
+there yet so the failure still lands on the assertion that wanted the row. See
+`BACKLOG.md` for retiring them once Slice C's filter exists.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect, text
 
 from app.main import create_app
 
@@ -65,6 +92,12 @@ ADMIN_PASSWORD = "bootstrap-admin-pw-9c41e7"
 
 USER_EMAIL = "j.doe@booksy.example"
 USER_PASSWORD = "regular-user-pw-4d17b2"
+
+# A second ordinary employee. The wrong-renter guard (ADR-0009) is only testable
+# with two of them, and it must be a `user` rather than the admin — an admin being
+# refused the *ordinary* return verb is a different claim, asserted separately.
+OTHER_USER_EMAIL = "s.novak@booksy.example"
+OTHER_USER_PASSWORD = "other-user-pw-6e83a1"
 
 LOGIN_PATH = "/api/login"
 USERS_PATH = "/api/users"
@@ -163,6 +196,45 @@ def user_client(app, admin_client: TestClient) -> TestClient:
     return client
 
 
+@pytest.fixture
+def other_user_client(app, admin_client: TestClient) -> TestClient:
+    """A second ``user``-role client, so one employee can be told off for touching
+    another employee's rental."""
+    response = admin_client.post(
+        USERS_PATH,
+        json={"email": OTHER_USER_EMAIL, "password": OTHER_USER_PASSWORD, "role": "user"},
+    )
+    assert response.status_code in CREATED, (
+        f"setup: an admin must be able to create a second `user` account; POST "
+        f"{USERS_PATH} returned {response.status_code}: {response.text}"
+    )
+
+    client = TestClient(app)
+    log_in(client, OTHER_USER_EMAIL, OTHER_USER_PASSWORD)
+    return client
+
+
+# --------------------------------------------------------------------------
+# Phase 2 route shapes, named once
+# --------------------------------------------------------------------------
+
+
+def rent_path(item_id: int) -> str:
+    return f"{HARDWARE_PATH}/{item_id}/rent"
+
+
+def return_path(item_id: int) -> str:
+    return f"{HARDWARE_PATH}/{item_id}/return"
+
+
+def force_return_path(item_id: int) -> str:
+    return f"{HARDWARE_PATH}/{item_id}/force-return"
+
+
+def clear_review_path(item_id: int) -> str:
+    return f"{HARDWARE_PATH}/{item_id}/clear-review"
+
+
 def accounts_by_email(admin_client: TestClient) -> dict[str, dict]:
     """The account list, keyed by email — nothing may depend on its order."""
     response = admin_client.get(USERS_PATH)
@@ -181,6 +253,65 @@ def statuses_by_id(client: TestClient) -> dict[int, str]:
         f"{response.status_code}: {response.text}"
     )
     return {item["id"]: item["status"] for item in response.json()}
+
+
+def items_by_id(client: TestClient) -> dict[int, dict]:
+    """Every hardware item as the caller is allowed to see it, keyed by id.
+
+    The whole payload rather than just the status, because ADR-0012 makes *which
+    fields come back* role-dependent and ``statuses_by_id`` cannot see that.
+    """
+    response = client.get(HARDWARE_PATH)
+    assert response.status_code == 200, (
+        f"setup: GET {HARDWARE_PATH} must serve the inventory; got "
+        f"{response.status_code}: {response.text}"
+    )
+    return {item["id"]: item for item in response.json()}
+
+
+def _table_rows(app, table: str) -> list[dict[str, Any]]:
+    """Every row of ``table``, or ``[]`` if the table does not exist yet.
+
+    Deliberately tolerant of the missing table: before Slice A lands there is no
+    ``rentals``, and a test that died of ``OperationalError`` would be broken rather
+    than red. Returning nothing lets the caller's own "there must be one row here"
+    assertion be what fails, which is the assertion the test exists to make.
+    """
+    engine = app.state.engine
+    if table not in inspect(engine).get_table_names():
+        return []
+    with engine.connect() as connection:
+        return [dict(row) for row in connection.execute(text(f"SELECT * FROM {table}")).mappings()]
+
+
+def rental_rows(app, item_id: int | None = None) -> list[dict[str, Any]]:
+    """The ``rentals`` table, optionally narrowed to one item.
+
+    Filtered in Python rather than in SQL so that a table missing the ``item_id``
+    column reports as "no rows for item N" instead of raising.
+    """
+    rows = _table_rows(app, "rentals")
+    if item_id is None:
+        return rows
+    return [row for row in rows if row.get("item_id") == item_id]
+
+
+def audit_rows(app, action: str | None = None) -> list[dict[str, Any]]:
+    """The ``audit_events`` table (ADR-0010), optionally narrowed to one action."""
+    rows = _table_rows(app, "audit_events")
+    if action is None:
+        return rows
+    return [row for row in rows if row.get("action") == action]
+
+
+def missing_columns(row: dict[str, Any], *expected: str) -> list[str]:
+    """Which of ``expected`` the row does not carry.
+
+    Asserted once, up front, before any value is read out of a row — so a schema that
+    is missing a column fails saying *that*, rather than raising ``KeyError`` two
+    lines later inside an assertion about something else.
+    """
+    return [name for name in expected if name not in row]
 
 
 def issued_cookies(response) -> list[str]:

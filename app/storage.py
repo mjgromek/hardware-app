@@ -32,9 +32,12 @@ from sqlalchemy import (
     Text,
     create_engine,
     delete,
+    event,
     func,
     insert,
+    inspect,
     select,
+    text,
     update,
 )
 from sqlalchemy.orm import Session
@@ -53,7 +56,9 @@ __all__ = [
     "load_items",
     "load_quarantine",
     "add_item",
+    "RentalsExist",
     "set_status",
+    "clear_review",
     "delete_item",
 ]
 
@@ -101,7 +106,19 @@ def create_engine_for(database_url: str) -> Engine:
     For the same reason, no locking pragmas: the onlooker's SELECT has to be able
     to run while a writer holds an open transaction.
     """
-    return create_engine(database_url)
+    engine = create_engine(database_url)
+
+    # SQLite leaves foreign keys unenforced unless asked, per connection. ADR-0011
+    # makes this the belt behind the two guards that actually stop rental data being
+    # orphaned — it is unrelated to the locking pragmas BACKLOG.md warns against and
+    # does not touch the isolation `test_persist_does_not_commit` pins.
+    @event.listens_for(engine, "connect")
+    def _enforce_foreign_keys(connection, _record):  # pragma: no cover - driver hook
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    return engine
 
 
 def create_schema(engine: Engine) -> None:
@@ -127,6 +144,8 @@ def persist(report: IngestReport, session: Session) -> None:
     A reseed is a documented operation on a deployed instance, so this behaviour
     is specified rather than incidental.
     """
+    _refuse_if_rentals_exist(session)
+
     session.execute(delete(hardware_quarantine))
     session.execute(delete(hardware))
 
@@ -165,6 +184,35 @@ def persist(report: IngestReport, session: Session) -> None:
                 for record in report.quarantined
             ],
         )
+
+
+class RentalsExist(RuntimeError):
+    """Raised when a reseed would truncate `hardware` under live rentals (ADR-0011)."""
+
+
+def _refuse_if_rentals_exist(session: Session) -> None:
+    """Refuse to replace the inventory once anybody has rented anything.
+
+    `seed_if_empty` guards the *boot* path, but the README documents
+    ``railway run … python -m scripts.seed`` as a live operation and nothing guarded
+    that one — so "a restart destroys every rental" was reachable through the
+    documented command rather than through a bug.
+
+    Tolerant of a database where `rentals` was never created, which is exactly the
+    engine every storage test builds: an unguarded ``SELECT … FROM rentals`` would turn
+    that whole module into `OperationalError`. This module still knows nothing about
+    what a rental *is* — only that rows in that table mean the inventory is not
+    replaceable.
+    """
+    if "rentals" not in inspect(session.get_bind()).get_table_names():
+        return
+    if session.execute(text("SELECT 1 FROM rentals LIMIT 1")).first() is None:
+        return
+    raise RentalsExist(
+        "refusing to reseed: this database holds rental records, and replacing the "
+        "inventory would destroy them. Close and remove the rentals first, or seed a "
+        "fresh database."
+    )
 
 
 def load_items(
@@ -280,6 +328,21 @@ def set_status(session: Session, item_id: int, status: Status) -> bool:
     """
     result = session.execute(
         update(hardware).where(hardware.c.id == item_id).values(status=status.value)
+    )
+    return result.rowcount == 1
+
+
+def clear_review(session: Session, item_id: int) -> bool:
+    """Drop the review flag and the reason together. Returns whether a row matched.
+
+    Both, not just the flag: `review_reason` explains a restriction, and an item that
+    is no longer restricted showing "purchase date 2027-10-10 is in the future" is
+    stale prose in the column Phase 3's auditor writes into.
+    """
+    result = session.execute(
+        update(hardware)
+        .where(hardware.c.id == item_id)
+        .values(needs_review=False, review_reason=None)
     )
     return result.rowcount == 1
 

@@ -10,21 +10,18 @@ changed lives in `AI_LOG.md` and `docs/adr/`; this file is only what is still ow
 
 ## Before the Phase 1 gate
 
-**No test covers the `needs_review` queue, and `brainstorm.md` §3 does not list one.**
-The queue is named Phase 1 scope; ADR-0003 also records, as an unresolved consequence,
-that nothing lets an admin *clear* the flag — so a flagged item is unrentable forever
-and the two seed contradictions can never return to service. Writing a test would have
-required inventing both the queue's shape and the clear-flag semantics, which is a
-product decision. *Urgent when: now — ADR-0003 says explicitly this must not be
-discovered at the Phase 2 gate.*
-
 **Logout, session expiry and login throttling are in no phase's scope.** There is no
-route that ends a session, the cookie has no lifetime, and the login endpoint can be
-hit without limit on a deployment that publishes demo credentials. The session is also
-**stateless by design** (`app/sessions.py`): an HMAC over the account id with no server
-side, so there is nothing to invalidate — a leaked cookie stays valid until
-`SECRET_KEY` changes, and logout can only clear the browser's copy. *Urgent when:
-`/security-review` before the Phase 1 gate.*
+route that ends a session, the cookie has no lifetime, and the login endpoint can be hit
+without limit on a deployment that publishes demo credentials. The cookie is an HMAC over
+a per-account token (ADR-0013) with no server-side session record, so a *leaked* cookie
+stays valid until the account is deleted or `SECRET_KEY` changes.
+
+**Narrowed by ADR-0013:** deleting an account now genuinely revokes its sessions —
+`deleted_at` is set, the token is cleared, and the id is never reissued, so the cookie
+matches nothing. Before that, `/security-review` showed a deleted account's cookie
+reviving as whoever inherited its recycled id. What remains is the weaker original
+property: no way to end *your own* session, and no expiry. *Urgent when: a per-session
+revocation is needed — logging out one device rather than retiring the account.*
 
 **`/api/hardware` returns every field**, including `notes` and `history` — the free
 text the Phase 3 auditor reads. **Narrowed, not closed:** ADR-0006 put the endpoint
@@ -41,6 +38,62 @@ catches the rainbow-table case. The direct statement, *two accounts with the sam
 password store different digests*, was unwritable while the table shape did not exist.
 It exists now (`app/accounts.py` salts per call), and nothing asserts it. *Urgent when:
 the next test commit — this is cheap and the claim is load-bearing.*
+
+---
+
+## Owned by Phase 2
+
+**Clearing `needs_review` — assigned, not outstanding.** Nothing clears the flag, so a
+flagged item is unrentable indefinitely (two of eleven in the seed). This sat here as
+"urgent before the Phase 1 gate" and was resolved *by assignment* at that gate instead:
+ADR-0003 now names Phase 2 as the owner, because clearing a rentability guard is a
+transition in the rental state machine rather than an admin-panel field edit. Phase 2
+delivers an admin-only action with an audit trail, gated on `app/guards.py`, pinned by
+`test_admin_can_clear_needs_review` and `test_cleared_item_becomes_rentable`.
+
+The Phase 1 queue also has no test at either layer — writing one would have meant
+inventing the clear-flag semantics, which is the product decision above. It arrives with
+the mechanism. *No longer overdue; it has an owner and two named tests.*
+
+---
+
+## Found while writing the Phase 2 tests
+
+**ADR-0003 names the wrong item.** It says `test_cannot_rent_flagged_hardware` asserts
+"the Dell XPS specifically remains unrentable", and the Dell XPS (seed id 5) is **not
+flagged** — ADR-0002 makes ingestion structural only, so "battery swelling" is left for
+the Phase 3 auditor and the item imports `Available` and unflagged. The rows ingestion
+actually flags are id 6 (2027 purchase date) and id 10 (off-enum status). The test as
+written derives the flagged set from the inventory instead of naming a row, so it covers
+both and stays correct if Phase 3's auditor starts setting the flag. Nothing is broken;
+the ADR's example sentence is just false and a reviewer reading it will look for a test
+that cannot exist. *Urgent when: ADR-0003 is next edited, or the Phase 2 gate — a
+one-line correction, not a decision.*
+
+**Slice A and B ship no read surface for `rentals` or `audit_events`.** Three tests
+(`test_rental_history_records_both_ends`, `test_seed_id_7_imports_as_an_accountless_rental`,
+the two in `test_audit_events.py`) therefore read SQLite with raw SQL through
+`app.state.engine`, which pins the column names from `docs/specs/phase-2.md` rather than
+an API contract. Deliberate — importing `app.rentals` would have made every Phase 2 test
+*broken* rather than *red* before the module existed — but it means a schema rename turns
+four tests red for a reason that is not about behaviour. *Urgent when: Slice C's
+`GET /api/hardware?held_by=me` lands, at which point the rental half can go through the
+boundary and only the audit reads need the helper.*
+
+**`audit_events` has no read surface at all, in any slice.** ADR-0010 builds the table
+because "cleared by admin, no reason given" would be indefensible at an incident — but
+nothing in the product displays it, so the answer to that incident is a `sqlite3` prompt.
+Honest and disclosable; worth naming in the README trade-offs table rather than leaving
+implied. *Urgent when: the audit trail is offered to anyone as a feature.*
+
+**`persist` refusing is a decision inside a module whose docstring says it makes none.**
+ADR-0011 puts the refusal in `app/storage.py` while `app/storage.py` and ADR-0008 both
+say that module decides nothing — which is why `rentals` SQL was kept out of it. The
+tests pin the ADR's behaviour, not the docstring's claim, so this is a wording conflict
+rather than a bug. The alternative placement (refuse in `scripts/seed.py`, next to where
+the seed id 7 rental is written) would leave a caller who imports `persist` directly
+unprotected, and the belt for that is `PRAGMA foreign_keys=ON`. *Urgent when: a third
+caller of `persist` appears, or `PROJECT_SPEC.md` is written.*
 
 ---
 
@@ -123,8 +176,18 @@ coverage and it has no branches. *Urgent when: it takes a flag.*
 
 **`test_persist_does_not_commit`'s docstring names Phase 2's
 `test_concurrent_rent_only_one_succeeds` directly.** Deliberate — it traces the
-constraint to the thing depending on it — but it drifts if that test is renamed.
-*Urgent when: Phase 2 writes its rental tests.*
+constraint to the thing depending on it — but it drifts if that test is renamed. The
+test now exists under that exact name, in `tests/test_rental_concurrency.py`, so the
+reference resolves. *No longer overdue; delete this entry if the name outlives the
+phase.*
+
+**`test_ordinary_rent_and_return_write_no_audit_event` is vacuously true until rent and
+return exist.** "These verbs wrote nothing" holds trivially of verbs that did not run,
+so what keeps it red today is its precondition and its control rather than its headline
+assertion. That is the correct shape for a negative claim, but it means the test is
+weaker evidence than its siblings until Slice A is green. *Urgent when: Slice A goes
+green — re-read the failure output once, and confirm the control is what would catch a
+regression.*
 
 **`review_reason` duplication is unresolved.** Items carry the reason for their own flag
 while the quarantine record carries the full narrative. Narrowed but not removed —
@@ -165,3 +228,125 @@ pagination, at which point counts belong in the API response.*
 **Toasts overlap the bottom of the admin panel.** They are fixed bottom-right, and the
 create-account row sits under them until they dismiss. *Urgent when: a toast covers a
 control somebody needs while it is showing — reserve the space or move the stack.*
+
+**Phase 1's admin verbs are not wired to `audit_events`.** ADR-0010 builds one table for
+admin overrides and Phase 2 writes only its own two actions into it — role changes and
+account deletions from Phase 1 stay unrecorded. Deliberately *not* backfilled: retro-writing
+events that were never observed would be fabricating an audit trail, which is worse than a
+disclosable gap. Wiring them going forward is a small change (two `_enforce`-adjacent call
+sites in `app/main.py`) and the table is already shaped for it — `item_id` and `rental_id`
+are both nullable, so an account-scoped event fits without a migration. *Urgent when: the
+audit trail is ever presented as complete, or Phase 3 needs an actor on a finding.*
+
+**`PRAGMA foreign_keys=ON` if Slice A slips.** ADR-0011 layers three protections over rental
+data and the pragma is the belt behind the other two, not the mechanism — `persist` refusing
+and the `delete_item` guard are what actually stop the loss. If Phase 2 runs short, the
+pragma is the one of the three that can be dropped without leaving a reachable path to
+orphaned rentals, because both reachable paths are guarded above it. Dropping it means the
+declared FKs stay documentation. *Urgent when: a fourth write path to `hardware` appears
+that nobody remembers to guard.*
+
+## Phase 2 UI — found while building slice C
+
+**The add-hardware dialog still has the focus bug that `ReasonDialog` just fixed.**
+`autofocus` is honoured on page load, not when an element is inserted later, so opening
+either dialog left focus on the button that opened it and typing went nowhere — found by
+driving the browser, not by reading the code. `ReasonDialog` now focuses explicitly on
+open and handles `Escape`; `AdminPanel`'s add-hardware dialog does neither. *Urgent when:
+the next time anybody uses the admin panel by keyboard, which is how an internal tool gets
+used all day.*
+
+**`close_kind` is recorded and never shown.** ADR-0007 added the column specifically so
+`My Rentals` could say "recalled by an admin" rather than showing an item silently gone,
+and slice C shows neither — a returned item just disappears from the list. The data is
+there; the surface is not. *Urgent when: the first time an admin recalls something and the
+employee asks where it went.*
+
+**Every action refetches the whole world.** `act()` reloads the inventory, My Rentals and
+the account list after each mutation — three requests per click, on eleven rows. Correct
+and wasteful, and it is why the UI has no optimistic state to get wrong. *Urgent when: the
+inventory outgrows one page, at which point the refetch and the pagination question arrive
+together.*
+
+**`?held_by=me` has no `held_by=someone-else` counterpart, deliberately.** An admin cannot
+ask "what is Novak holding" through the API; they can only read it off the dashboard's
+renter column. The parameter is a closed enum for that reason (see
+`tests/test_held_by_filter.py`). *Urgent when: offboarding needs "everything this person
+has", which is a real workflow and a different authorization question.*
+
+**The demo reset deletes the audit trail, which ADR-0010 exists to protect.** `POST
+/api/admin/reset-demo` clears `audit_events` along with `rentals`, and it has to — a trail
+referencing rental ids that no longer exist describes events that did not happen. But it
+means the one route that most needs an audit record is the one that erases them, and
+nothing anywhere records that a reset occurred. Defensible on a demo instance whose whole
+purpose is being restored, and indefensible on anything else. *Urgent when: this codebase
+is ever pointed at data somebody depends on — at which point the route should be gated on
+`ENVIRONMENT != production`, or should write its own event to a table it does not clear.*
+
+
+## Phase 2 — `architecture-scout` at the gate
+
+**The last-admin guard is check-then-act and a race defeats it.** `ensure_an_admin_remains`
+reads `count_admins()`; the `set_role` or `delete_account` that acts on the answer is a
+separate statement. Two concurrent demotions of the final two admins both read `2`, both
+pass, and both write — reproduced, `200` and `200`, zero live admins afterwards. ADR-0005
+is amended to say so.
+
+The fix is already in the codebase's vocabulary: ADR-0008 settles that a read-then-decide
+guard cannot win a race and puts the claim in a conditional `UPDATE` whose rowcount is the
+decision. Here that is
+`UPDATE users SET role='user' WHERE id=:id AND (SELECT count(*) FROM users WHERE role='admin' AND deleted_at IS NULL) > 1`,
+in `guards.py` and `accounts.py` and nowhere else. *Urgent when: more than one person
+administers the instance, or Phase 3's production-hardening pass — whichever comes first.
+Not before: the trigger is two simultaneous demotions on a two-admin internal tool.*
+
+**`rentals.rent`'s honest failure message is choreography, not interface.** `rent()` raises
+a generic "already in use" on any rowcount-0, and the route rolls back, re-reads the item
+and re-runs `ensure_item_is_rentable` to recover the real cause — Repair, needs review, or
+genuinely held. Deliberate (ADR-0008: reading first deadlocks six concurrent claimants),
+but it means "how to get a truthful rent-failure message" is a dance a caller must
+reproduce rather than something the module hands over. One caller today, so nothing is
+duplicated. *Urgent when: a second caller appears — Phase 3's semantic search returning
+rentable items is the likely one.*
+
+**`visible_to` and `ADMIN_ONLY_FIELDS` live in `app/main.py`.** They encode ADR-0012's rule
+about who may see `notes`, `history` and `review_reason` — a domain concern that the routes
+module currently owns, so any other caller has to import it from `app.main` and invert the
+dependency. ~15 lines to `app/domain.py`, one file. ***Urgent in Phase 3, and it is not a
+maybe:*** the Inventory Auditor reads exactly those three fields and semantic search
+returns items through a different path, so Phase 3 brings two second callers at once. Move
+it before either is written, not after both have copied it.
+
+**The boot sequence is ~90 lines inside `create_app`.** Schema creation, migration, seed,
+rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/main.py` at
+702 lines is otherwise legitimate composition — fifteen thin routes over deep modules, not
+a God object — and this is the one seam that is a real boundary rather than arbitrary
+file-splitting. *Urgent when: never, on payoff alone. Do it only if boot grows a step that
+needs its own test.*
+
+
+## Phase 2 — `mvp-reviewer` at the gate
+
+**Commit `a44f85f` (grilling 2, the six Phase 2 ADRs) has no `AI_LOG.md` entry.** The
+log's own rule, and the pre-commit hook that now enforces it landed two commits later —
+this is the one gap the hook postdates. The Phase 1 audit set the precedent: backfill it
+and *label it as backfilled*, because a reconstructed entry passed off as contemporaneous
+is worse than the gap. *Urgent when: before the final submission — a graded deliverable
+with a known hole and a known precedent for filling it honestly should use it.*
+
+**Every Phase 2 AI_LOG entry still reads `Commit: … (pending)`.** Phase 1 entries carry
+their SHAs; Phase 2's were written before committing (which is the point) and never
+back-annotated after. One pass over `git log` fixes all of them. *Urgent when: same as
+above — the final submission pass.*
+
+**`chore(phase-2): deploy v2` (`3bce364`) ships production code under a `chore` label.**
+The reconcile fix and the seed backfill ride a commit whose type says "no production
+change". The history cannot be rewritten honestly now; the rule going forward is that a
+deploy commit that needs a code change is two commits. *Urgent when: Phase 3's deploy
+commit — the moment the same temptation recurs.*
+
+**`clear-review` is only ever tested against an `Available` item.** The route allows
+clearing whatever the item's status (`app/main.py`), and ADR-0010 says so, but no test
+pins it — a regression that quietly restricted clearing to `Available` items would be
+green. One test clearing a flagged `Repair` item covers the claim. *Urgent when: anyone
+touches the clear-review route or the guard layer it deliberately bypasses.*

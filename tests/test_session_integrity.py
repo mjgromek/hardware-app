@@ -15,6 +15,7 @@ one was confirmed to fail against a mutant that removes the check it exercises.
 from __future__ import annotations
 
 import hmac
+import secrets
 from hashlib import sha256
 
 from fastapi.testclient import TestClient
@@ -34,21 +35,36 @@ def _sign(subject: str, secret: str) -> str:
 
 
 def test_tampered_session_cookie_is_refused(app, admin_client: TestClient) -> None:
-    """A cookie whose signature does not match its subject authenticates nobody.
+    """A cookie the server did not issue authenticates nobody, however it is built.
 
-    Four forgeries, because they fail for different reasons and an implementation can
+    The old construction derived its "different subject" as `str(int(subject) + 1)`,
+    which asserted the subject was an integer — the exact coupling the surrogate
+    `session_token` was introduced to remove. Against a `token_urlsafe` subject that
+    line raises `ValueError`, so the test was *broken* rather than failing. It is
+    rebuilt here with no assumption about the subject's type at all: every forgery is
+    string surgery on whatever the server handed out.
+
+    Six forgeries, because they fail for different reasons and an implementation can
     stop one without stopping the others:
 
-    1. **Signed with the wrong key** — the attacker knows the scheme and the account id
+    1. **Signed with the wrong key** — the attacker knows the scheme and the subject
        but not `SECRET_KEY`. This is the one a missing `compare_digest` lets through.
     2. **A real signature moved onto a different subject** — the admin's own valid
-       signature presented for a *different* account id. Catches an implementation that
-       checks the signature is well-formed, or present, rather than *for this subject*.
-       The subject has to be an id the admin does not hold, or the "forgery" is simply
-       the genuine cookie — which is how this test first failed, since the bootstrapped
-       admin is account 1.
-    3. **No signature at all.**
-    4. **Subject only, no separator.**
+       signature presented for an arbitrary subject string. Catches an implementation
+       that checks a signature is well-formed, or present, rather than *for this
+       subject*.
+    3. **An empty subject, correctly signed** — the signature is genuinely valid for
+       the empty string, so only an explicit refusal of an empty subject stops a bare
+       `.signature` from becoming a lookup for the token nobody holds.
+    4. **No signature at all.**
+    5. **Subject only, no separator.**
+    6. **A never-issued token, correctly signed with the real secret** — a fresh
+       `secrets.token_urlsafe(32)` bearing an honest signature. This is the sharpest
+       one and the one the old integer construction could not express: the signature
+       check passes, so the only thing that can refuse it is the server resolving the
+       subject against tokens it actually issued. An implementation that trusts a
+       valid signature to imply a valid session accepts a stranger who has read
+       `app/sessions.py` and knows `SECRET_KEY` is the only ingredient.
 
     The control is first: the same client with its real cookie reaches an admin route, so
     a server that refuses everyone cannot satisfy this test.
@@ -61,15 +77,23 @@ def test_tampered_session_cookie_is_refused(app, admin_client: TestClient) -> No
     assert genuine, "control: the admin client must be holding a session cookie"
     genuine_subject, _, genuine_signature = genuine.rpartition(".")
 
-    #: Some id the admin does not hold, so moving its signature is a real forgery.
-    other_subject = str(int(genuine_subject) + 1)
+    #: An arbitrary subject, not derived from the genuine one — the subject's type and
+    #: structure are the server's business and nothing here may depend on them. It only
+    #: has to be a subject the admin does not hold, or the "forgery" is the real cookie.
+    other_subject = "not-a-subject-this-server-ever-issued"
+    assert other_subject != genuine_subject, "the forged subject must differ from the real one"
+
+    #: Well-formed, correctly signed, and never in the database.
+    never_issued = secrets.token_urlsafe(32)
 
     forgeries = {
         "signed with a different key": f"{genuine_subject}.{_sign(genuine_subject, 'not-the-secret-key')}",
         "a real signature on another subject": f"{other_subject}.{genuine_signature}",
+        "an empty subject, correctly signed": f".{_sign('', TEST_SECRET)}",
         "no signature": f"{genuine_subject}.",
         "no separator": genuine_subject,
         "a signature that is not hex": f"{genuine_subject}.not-a-signature",
+        "a valid-format token that was never issued": f"{never_issued}.{_sign(never_issued, TEST_SECRET)}",
     }
 
     for description, forged in forgeries.items():
@@ -80,9 +104,9 @@ def test_tampered_session_cookie_is_refused(app, admin_client: TestClient) -> No
             response = client.get(path)
             assert response.status_code == 401, (
                 f"a cookie {description} must authenticate nobody: GET {path} answered "
-                f"{response.status_code} to {forged!r}. The account id is public — it is "
-                "in every admin listing — so the signature is the only thing standing "
-                f"between a stranger and this session. Body: {response.text[:200]}"
+                f"{response.status_code} to {forged!r}. A session is a subject the "
+                "server issued *and* a signature it computed — either half alone is a "
+                f"cookie a stranger can write. Body: {response.text[:200]}"
             )
 
 

@@ -60,9 +60,23 @@ that a human sees each boundary.
 
 Flag these regardless of stage, because they are the ones that silently rot:
 
-- **`AI_LOG.md` behind the commits.** Compare `git log --oneline | wc -l` against
-  the number of `## [` entries in `AI_LOG.md`. If commits outnumber entries, say so
-  immediately — this is a graded deliverable and it cannot be reconstructed later.
+- **`AI_LOG.md` behind the commits.** Now enforced by `hooks/pre-commit`, so check the
+  hook is *wired* rather than the count: `git config core.hooksPath` must print `hooks`.
+  A fresh clone has it unset and the gate silently does nothing.
+
+- **`docs/PROMPT_TRAIL.md` behind the ADRs.** Count `docs/adr/*.md` against the sessions
+  recorded in the trail. An ADR with no session behind it means an architectural decision
+  was taken in a prompt nobody wrote down — and the brief asks for the prompts that shaped
+  the architecture, not just grilling transcripts. This one rots silently because
+  `CLAUDE.md` triggers it on "after every grilling", and most decisions do not come from
+  grillings. It was 21 commits behind when it was first audited.
+
+- **README's four graded sections missing work that is in the diff.** Compare
+  `git diff main...HEAD --stat` against the ✅ / ⚡ / ⚠️ / 🔮 sections. Shipped behaviour
+  absent from ✅, a shortcut absent from ⚡, and a known gap absent from ⚠️ are all the
+  same failure: the README is what a reviewer reads first, and a claim it does not make is
+  a claim that was not graded. Check the specific factual assertions too — the test count
+  has been wrong twice.
 - **Uncommitted work sitting around.** Suggest a commit before moving stages.
 - **A shortcut taken but not in the README trade-offs table.**
 - **A UI change not recorded in `docs/WIREFRAME_JUSTIFICATION.md`.**

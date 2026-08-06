@@ -57,6 +57,26 @@ A **separate demo account** goes in the README, not the real admin credentials.
   seconds is worth more here than credential hygiene on a throwaway instance, and
   saying so openly is the point of the table.
 
+- **Amended after `architecture-scout`, Phase 2: the guard is check-then-act, and a
+  race defeats it.** `ensure_an_admin_remains` reads `count_admins()`, and the write
+  that acts on the answer is a separate statement. Two concurrent demotions of the
+  final two admins both read `2`, both pass, and both write — **reproduced: two
+  `PATCH /api/users/{id}` requests returned `200` and `200`, leaving zero live
+  admins.** That is precisely the state this ADR exists to make unreachable.
+
+  **Not fixed, deliberately.** The trigger is simultaneous demotions on an internal
+  tool with two admin accounts, and the fix is already written down one ADR over:
+  ADR-0008 settles that a read-then-decide guard cannot win a race and that the claim
+  belongs in a conditional `UPDATE` whose rowcount is the decision. The same shape
+  applies here — `UPDATE users SET role='user' WHERE id=:id AND (SELECT count(*) …) > 1`
+  — and it is `guards.py` plus `accounts.py`, no wider. In `BACKLOG.md` and the README's
+  `⚠️` section, with the condition that makes it worth doing.
+
+  Worth saying plainly: this ADR claimed an invariant the code enforces only under
+  sequential access. The claim was too strong from the day it was written, and the
+  single-guard framing is what hid it — the rental engine had the same problem and
+  solved it, three ADRs later, without anybody noticing the older guard shared it.
+
 - **Trade-off accepted:** env-var bootstrap means rotating the admin credential is
   a redeploy, and the initial password exists in the platform's environment
   configuration rather than only as a hash. In production this would be a

@@ -140,3 +140,53 @@ state and returns to the login screen — and says so in its confirmation.
 record (`app/sessions.py`), so there is nothing to invalidate; the honest thing is a
 control that describes what it did rather than one implying the session was revoked.
 In `BACKLOG.md`, pointed at `/security-review`.
+
+## Phase 2 — the rental verbs
+
+### Dashboard — a blocked row states its reason instead of showing a dead button
+
+**The wireframe showed:** a `Rent` button on every row, greyed out on `Rented` and
+`In Repair` ones.
+**What was built:** `Rent` on rentable rows, `Return` on rows you hold, and on the rest a
+short line of text — "In Repair", "Somebody else has it", "Needs review before it can be
+rented".
+**Why:** three different facts. A greyed button says "not now" and makes you hover to
+learn why; the row already knows the answer, so it says it. This is also the brief's own
+requirement that a `409` show its readable reason, applied one step earlier — the reason
+is visible before the click, and the server's own message still arrives in a toast when a
+row goes stale between paint and click.
+
+### Dashboard — who holds an item, beside the status
+
+**The wireframe showed:** a `Status` column with no holder.
+**What was built:** the renter's address beside the `In Use` chip, reading "you" when it is
+yours.
+**Why:** ADR-0012. The point of `In Use` on an internal tool is knowing who to ask, and
+without it the dashboard sends that question to Slack where the tool cannot see it.
+
+### Renting is immediate, so the confirmation says so
+
+**The wireframe showed:** a toast reading "Rental request submitted for MacBook Pro 16"".
+**What was built:** "Apple iPhone 13 Pro Max is yours".
+**Why:** "request submitted" describes an approval workflow, and there isn't one — the
+rental is a single atomic claim that has already succeeded by the time the toast appears
+(ADR-0008). Copy that implies a pending approval would have people waiting for an email.
+
+### My rentals — the empty state invites the action
+
+**The wireframe showed:** "You don't have any active rentals".
+**What was built:** "You have nothing out. Rent something from the inventory and it will
+appear here."
+**Why:** an empty screen is the one place a person is most likely to be stuck, and the
+wireframe's version reports a fact without saying what to do about it.
+
+### Added: force-return and clear-flag, both behind a reason
+
+**The wireframe showed:** neither. Its admin row actions are edit, repair, delete.
+**What was built:** a recall action on held rows and a clear-flag action on flagged rows,
+each opening the same dialog with a mandatory reason field.
+**Why:** ADR-0009 and ADR-0010 — an admin ending somebody else's rental or releasing a
+flagged item is an override, and the reason is what a later incident interrogates. One
+dialog rather than two because they are the same kind of event; the field is `required`
+client-side because the server rejects an empty reason and a client that lets you submit
+one just turns a considered refusal into a `422`.

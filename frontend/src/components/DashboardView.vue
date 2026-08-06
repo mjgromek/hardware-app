@@ -12,9 +12,11 @@ const props = defineProps({
   status: { type: String, default: null },
   sort: { type: String, default: null },
   counts: { type: Object, required: true },
+  currentEmail: { type: String, required: true },
+  busyId: { type: [Number, null], default: null },
 })
 
-const emit = defineEmits(['filter', 'sort'])
+const emit = defineEmits(['filter', 'sort', 'rent', 'return'])
 
 const STATUSES = ['Available', 'In Use', 'Repair']
 
@@ -55,6 +57,15 @@ const flagged = computed(() => props.items.filter((item) => item.needs_review).l
       </div>
     </div>
 
-    <HardwareTable :items="props.items" :sort="props.sort" @sort="emit('sort', $event)" />
+    <HardwareTable
+      :items="props.items"
+      :sort="props.sort"
+      rentable
+      :current-email="props.currentEmail"
+      :busy-id="props.busyId"
+      @sort="emit('sort', $event)"
+      @rent="emit('rent', $event)"
+      @return="emit('return', $event)"
+    />
   </div>
 </template>

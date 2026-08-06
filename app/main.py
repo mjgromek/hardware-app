@@ -7,23 +7,26 @@ cross-origin request to configure.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from dataclasses import asdict
 from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any, Mapping
+from typing import Annotated, Any, Literal, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StringConstraints
 
-from app import accounts, guards, sessions
+from app import accounts, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
 from app.domain import Account, Role, Status
 from app.storage import (
     add_item,
+    persist,
+    clear_review,
     create_engine_for,
     create_schema,
     delete_item,
@@ -79,6 +82,56 @@ class StatusChange(BaseModel):
     status: Status
 
 
+#: Typed in full so the request cannot be issued by accident. The route destroys rental
+#: history on a live instance, and a bare POST that fires on the first request is one
+#: mistyped URL away from wiping what ADR-0011 exists to protect.
+RESET_CONFIRMATION = "reset the demo data"
+
+
+class ResetConfirmation(BaseModel):
+    confirm: Literal["reset the demo data"]
+
+
+class Reason(BaseModel):
+    """The mandatory reason on every admin override (ADR-0010).
+
+    Trimmed before length is checked, for the same reason a hardware name is: a reason
+    of spaces satisfies `min_length` and records nothing.
+    """
+
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor —
+#: Phase 3 writes findings into the same columns. Renter identity is *not* here: who
+#: holds a laptop is operational, and hiding it moves the question to Slack.
+ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
+
+
+def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
+    """One item, as this caller is allowed to see it.
+
+    The restricted fields are set to `None` rather than dropped, so the payload keeps
+    one shape and the client does not have to branch on which role it is.
+    """
+    if account.role is Role.ADMIN:
+        return item
+    return {
+        key: (None if key in ADMIN_ONLY_FIELDS else value) for key, value in item.items()
+    }
+
+
+class HeldBy(str, Enum):
+    """The only accepted value of `?held_by`. Closed, like `Status` and `SortKey`.
+
+    An open parameter taking an email would let any signed-in employee enumerate what a
+    named colleague is holding. That is a different feature with a different
+    authorization question, and Phase 2 has not asked it.
+    """
+
+    ME = "me"
+
+
 class SortKey(str, Enum):
     """The columns the dashboard may sort on. Closed, so an unknown key is a `422`.
 
@@ -89,6 +142,22 @@ class SortKey(str, Enum):
     """
 
     PURCHASE_DATE = "purchase_date"
+
+
+#: Named once, because Phase 2 adds four routes under it.
+HARDWARE = "/api/hardware"
+
+
+def _claim(transition):
+    """Run a transition, turning its `GuardViolation` into `409` with the reason kept.
+
+    Same translation as `_enforce`, for the case where the refusal comes out of the
+    atomic write rather than a pre-check (ADR-0008).
+    """
+    try:
+        return transition()
+    except guards.GuardViolation as violation:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(violation))
 
 
 def _enforce(guard, *args, **kwargs) -> None:
@@ -131,9 +200,26 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
     # with anything in it is left alone. Imported here rather than at module level
     # so `app` does not depend on `scripts` just to be importable. See BACKLOG.md.
+    # Before the seed: `seed_if_empty` opens the rentals ADR-0007 describes, and DDL
+    # cannot run on a second connection while that session holds a write transaction.
+    rentals.create_schema(engine)
+    audit.create_schema(engine)
+
     from scripts.seed import seed_if_empty
 
     seed_if_empty(engine)
+
+    # Every boot, not only an empty one. A volume seeded before Phase 2 has items that
+    # are `In Use` with a holder and no rental row — unreturnable and unrecallable —
+    # and `seed_if_empty` will never run again to fix them. Idempotent, so a restart
+    # over a reconciled database does nothing.
+    with new_session(engine) as session:
+        reconciled = rentals.reconcile_held_items(session, load_items(session))
+        session.commit()
+    if reconciled:
+        logging.getLogger(__name__).info(
+            "reconciled %d held item(s) that had no rental record", reconciled
+        )
 
     # Admin #1 comes from the environment, not from a migration (ADR-0005). Done at
     # boot for the same reason the seed is: the deploy target offers no way to run a
@@ -157,6 +243,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             if fresh
             else None
         )
+        # Additive and idempotent: accounts created before the column existed get a
+        # token here. Their existing cookies stop working, which is the intended cost —
+        # there is no logout route, so an old-scheme cookie has no other way to end.
+        backfilled = accounts.backfill_session_tokens(session)
         session.commit()
 
     log = logging.getLogger(__name__)
@@ -164,6 +254,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         log.info("bootstrapped admin #1 from the environment: %s", created.email)
     if demo is not None:
         log.info("created the published read-only demo account: %s", demo.email)
+    if backfilled:
+        log.info("issued session tokens to %d pre-existing account(s)", backfilled)
 
     # ------------------------------------------------------------------
     # The enforcement point (brainstorm.md §7, settled here)
@@ -185,16 +277,23 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         the login screen and an error page. A `403` there is a dead end for someone
         who only needs to log in.
 
-        The cookie is verified *and* the account re-read, so a session naming an
-        account that has since been deleted is refused rather than trusted — the
-        signature proves the id was not tampered with, not that it still exists.
+        The cookie carries a per-account token, not the row id, and the account is
+        re-read on every request — so a session whose account has been deleted is
+        refused, and stays refused. That claim used to be false: the subject was
+        `users.id`, SQLite recycles the highest rowid, and the next account created
+        inherited both the id and every cookie naming it. `/security-review` turned a
+        deleted `user`'s untouched cookie into a live admin that way. Tokens are issued
+        once and never reissued, so there is nothing for a stale cookie to land on.
+
+        The signature proves the subject was not tampered with; the lookup proves it
+        still refers to somebody.
         """
-        account_id = sessions.subject_of(
+        token = sessions.subject_of(
             request.cookies.get(sessions.COOKIE_NAME), settings.secret_key
         )
-        if account_id is not None:
+        if token is not None:
             with new_session(engine) as session:
-                account = accounts.find_by_id(session, account_id)
+                account = accounts.find_by_token(session, token)
             if account is not None:
                 return account
         raise HTTPException(
@@ -240,9 +339,12 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_CREDENTIALS
             )
 
+        with new_session(engine) as session:
+            token = accounts.session_token_for(session, account.id)
+
         response.set_cookie(
             sessions.COOKIE_NAME,
-            sessions.issue(account.id, settings.secret_key),
+            sessions.issue(token, settings.secret_key),
             **sessions.cookie_kwargs(production=settings.environment == PRODUCTION),
         )
         return {"email": account.email, "role": account.role.value}
@@ -321,9 +423,18 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def delete_user(account_id: int, _: Account = Depends(current_admin)) -> Response:
         """Remove an account, unless it is the last admin (ADR-0005)."""
         with new_session(engine) as session:
-            if accounts.find_by_id(session, account_id) is None:
+            target = accounts.find_by_id(session, account_id)
+            if target is None:
                 raise HTTPException(status_code=404, detail="No such account")
             _enforce(guards.ensure_an_admin_remains, session, account_id)
+            # No active rental may outlive its owner: `rentals.account_id` is a
+            # recyclable rowid, so a rental left behind is one an unrelated future
+            # employee inherits (`/security-review`).
+            _enforce(
+                guards.ensure_account_holds_nothing,
+                rentals.item_ids_held_by(session, account_id),
+                target,
+            )
             accounts.delete_account(session, account_id)
             session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -334,9 +445,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.get("/api/hardware")
     def list_hardware(
-        _: Account = Depends(current_account),
+        account: Account = Depends(current_account),
         status: Status | None = None,
         sort: SortKey | None = None,
+        held_by: HeldBy | None = None,
     ) -> list[dict[str, Any]]:
         """The inventory, for a signed-in caller. Eleven rows needs no paging.
 
@@ -356,7 +468,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 status=status,
                 sort_by_purchase_date=sort is SortKey.PURCHASE_DATE,
             )
-        return [asdict(item) for item in items]
+            if held_by is HeldBy.ME:
+                # Scoped by *account*, not by "is it In Use" — the second renter is
+                # what makes that difference visible, and getting it wrong hands one
+                # employee's rentals to another. Seed id 7 has no account and so
+                # belongs to nobody's list (ADR-0007).
+                mine = rentals.item_ids_held_by(session, account.id)
+                items = tuple(item for item in items if item.id in mine)
+        return [visible_to(asdict(item), account) for item in items]
 
     @app.post("/api/hardware", status_code=status.HTTP_201_CREATED)
     def add_hardware(
@@ -389,8 +508,17 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         that pattern-matches on the three (CONTEXT.md).
         """
         with new_session(engine) as session:
-            if not set_status(session, item_id, change.status):
-                raise HTTPException(status_code=404, detail="No such hardware item")
+            item = _item_or_404(session, item_id)
+            if change.status is Status.REPAIR:
+                # CONTEXT.md names "a rented item in Repair" an impossible state, and
+                # Phase 1 shipped the route that reached it (ADR-0009).
+                _enforce(
+                    guards.ensure_no_active_rental,
+                    rentals.active_rental(session, item_id),
+                    item,
+                    "sent to Repair",
+                )
+            set_status(session, item_id, change.status)
             session.commit()
         return {"id": item_id, "status": change.status.value}
 
@@ -398,10 +526,162 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def remove_hardware(item_id: int, _: Account = Depends(current_admin)) -> Response:
         """Retire an item from the inventory. Admin-only."""
         with new_session(engine) as session:
-            if not delete_item(session, item_id):
-                raise HTTPException(status_code=404, detail="No such hardware item")
+            item = _item_or_404(session, item_id)
+            _enforce(
+                guards.ensure_no_active_rental,
+                rentals.active_rental(session, item_id),
+                item,
+                "deleted",
+            )
+            delete_item(session, item_id)
             session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # ------------------------------------------------------------------
+    # Rentals — the transitions live in app/rentals.py (ADR-0008)
+    # ------------------------------------------------------------------
+
+    def _item_or_404(session, item_id: int):
+        for item in load_items(session):
+            if item.id == item_id:
+                return item
+        raise HTTPException(status_code=404, detail="No such hardware item")
+
+    @app.post(f"{HARDWARE}/{{item_id}}/rent")
+    def rent_hardware(
+        item_id: int, account: Account = Depends(current_account)
+    ) -> dict[str, Any]:
+        """Claim an item. Any signed-in account may rent; the guards decide which item.
+
+        The pre-check runs for the message and the atomic `UPDATE` makes the decision
+        (ADR-0008), so a caller who passes the first and loses the second is told the
+        item is in use — which by then it is.
+        """
+        with new_session(engine) as session:
+            try:
+                rental = rentals.rent(session, item_id, account)
+            except guards.GuardViolation:
+                # The claim failed. Only *now* read the row, to say why — reading first
+                # would open a transaction the UPDATE then has to upgrade, and six
+                # concurrent claimants upgrading one SQLite read lock deadlock rather
+                # than serialise. Attempting the write first is both faster and the
+                # honest ordering: the atomic statement is the decision (ADR-0008), and
+                # the guards exist for the message.
+                session.rollback()
+                item = _item_or_404(session, item_id)
+                _enforce(guards.ensure_item_is_rentable, item)
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is already in use — somebody else has it.",
+                )
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "renter": account.email}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/return")
+    def return_hardware(
+        item_id: int, account: Account = Depends(current_account)
+    ) -> dict[str, Any]:
+        """Close your own rental. Somebody else's is a `409` (ADR-0009)."""
+        with new_session(engine) as session:
+            _item_or_404(session, item_id)
+            rental = _claim(lambda: rentals.return_(session, item_id, account))
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "return"}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/force-return")
+    def force_return_hardware(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Recall an item from whoever holds it. Admin-only, reason mandatory.
+
+        The `audit_events` row is written by `rentals.force_return` itself, in the
+        same transaction as the close — the transition owns its record (ADR-0010), so
+        no future caller of it can end a rental and leave no trace.
+        """
+        with new_session(engine) as session:
+            _item_or_404(session, item_id)
+            rental = _claim(
+                lambda: rentals.force_return(session, item_id, admin, body.reason)
+            )
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "force_return"}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/clear-review")
+    def clear_review_flag(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Release an item from `needs_review`. Admin-only, reason mandatory.
+
+        Allowed whatever the item's status — the flag and the status are orthogonal,
+        which is why the dashboard gives the flag its own column rather than a fourth
+        chip. `409` when nothing is flagged, because idempotency would hide a UI bug
+        *and* file a mandatory reason against a non-event (ADR-0010).
+
+        The reason goes with the flag: a cleared item still showing "purchase date is
+        in the future" explains a restriction that no longer applies.
+        """
+        with new_session(engine) as session:
+            item = _item_or_404(session, item_id)
+            if not item.needs_review:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is not flagged for review, so there is "
+                    "nothing to clear.",
+                )
+            clear_review(session, item_id)
+            audit.record(
+                session,
+                actor=admin,
+                action=audit.Action.CLEAR_REVIEW_FLAG,
+                reason=body.reason,
+                item_id=item_id,
+            )
+            session.commit()
+        return {"item_id": item_id, "needs_review": False}
+
+    @app.post("/api/admin/reset-demo")
+    def reset_demo(
+        _body: ResetConfirmation, _: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Put the seed's defects back: clear rentals and audit events, then reseed.
+
+        The live instance is a demonstration, and demonstrating it consumes it — item 7
+        gets recalled, flags get cleared, items get rented. `docs/DATA_AUDIT.md` is
+        written about those rows and Phase 3's auditor needs the contradictions intact,
+        so restoring them has to be one repeatable action rather than a story about a
+        database somebody edited.
+
+        **An HTTP route because nothing else can reach the data.** Railway exposes no
+        exec and no SSH — the same constraint that put seeding on the boot path — so a
+        CLI reset would be documented for a deployment that cannot run it.
+
+        **Clears the blocker rather than bypassing it.** ADR-0011's refusal is correct
+        and stays: this deletes the rentals first, so the reseed passes the guard
+        instead of being exempted from it.
+        """
+        from scripts.seed import SEED_PATH, ingest
+
+        report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
+        with new_session(engine) as session:
+            cleared_rentals = rentals.clear_all(session)
+            cleared_events = audit.clear_all(session)
+            persist(report, session)
+            restored = rentals.reconcile_held_items(session, report.imported)
+            session.commit()
+
+        logging.getLogger(__name__).info(
+            "demo reset: cleared %d rental(s) and %d audit event(s), reseeded %d items",
+            cleared_rentals,
+            cleared_events,
+            len(report.imported),
+        )
+        return {
+            "items": len(report.imported),
+            "quarantined": len(report.quarantined),
+            "rentals_cleared": cleared_rentals,
+            "audit_events_cleared": cleared_events,
+            "seed_rentals_restored": restored,
+        }
 
     # Single origin (ADR-0001): the same app serves the API and the bundle, so
     # there is no CORS middleware to configure. Mounted last, at the root, so it

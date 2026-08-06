@@ -682,3 +682,427 @@ bad commit with a note is worth more than an invisible one.
 All 25 entries now carry their commit sha instead of `(pending)`.
 
 Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (pending)
+
+---
+
+## [P2 · c1] Phase 2 owns clearing `needs_review`
+
+Phase 1 merged (PR #2, tagged `v1-admin`) with one piece of its own scope unresolved: the
+queue is surfaced and nothing clears the flag. ADR-0003 had said that must not reach the
+Phase 2 gate, which it now has — so it is resolved *by assignment* rather than left to
+read as overdue.
+
+The reason Phase 2 owns it is structural, not scheduling. `needs_review` is a rentability
+guard, so clearing it is a transition in the same state machine as rent and return.
+Bolting a clear-flag button onto the Phase 1 admin panel would have put transition logic
+in a route handler, which is the exact failure ADR-0003's last consequence warns about
+and which `brainstorm.md` §3 calls the load-bearing risk for the Phase 2 architecture
+pass.
+
+ADR-0003 gains a Consequences entry naming three requirements — admin-only action, audit
+trail, gated on `app/guards.py` — and two tests, `test_admin_can_clear_needs_review` and
+`test_cleared_item_becomes_rentable`. The second is the one that matters: a flag that
+clears but still blocks rental is the same decoration this ADR was written to remove, in a
+new place. `brainstorm.md` §3 Phase 2 carries both in its test list; `BACKLOG.md` moves the
+entry from "urgent before the Phase 1 gate" to an *Owned by Phase 2* section; the README
+says it in `⚠️ Partial`, and three other places that still said "due before the Phase 2
+gate" now agree with the ADR.
+
+Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (pending)
+
+---
+
+## [P2 · c2] Phase 2 red — slices A and B
+
+`test-author` against `docs/specs/phase-2.md` and ADRs 0003 (amended), 0007–0012.
+28 red, 55 still green, nothing failing for the wrong reason — no `ImportError`, because
+the tests drive HTTP rather than importing an `app/rentals.py` that does not exist. Two
+retrofit tests fail by *demonstrating the defect*: `PATCH /api/hardware/7 {"status":
+"Repair"}` returns `200` on a held item today, and `DELETE /api/hardware/7` returns `204`.
+
+**A gap the grilling missed, closed here.** ADR-0011 says `persist` refuses when rentals
+exist; ADR-0007 says seed id 7 is imported as a rental; `test_reseed_is_idempotent` calls
+`persist` twice and is green. All three hold only if the seed rental is written by
+`scripts/seed.py` *above* `persist`, which keeps `persist` a pure row-mover and is what the
+spec's own "replace semantics must never reach it" already implied. Pinned in the new
+test's docstring so the constraint is discoverable from the test rather than inferred.
+
+**No existing test needed changing.** I had expected three; the answer was none. The two
+retrofit guards cannot fire against seed item 1, which is `Available` with no rental, so
+`test_admin_can_toggle_repair_status` and `test_non_admin_cannot_delete_hardware` stay
+true — ADR-0009 says as much itself ("needs a companion, not a change"). The companions
+are new tests.
+
+**And ADR-0003 contains a false sentence**, found by writing the test it describes: it says
+`test_cannot_rent_flagged_hardware` asserts "the Dell XPS specifically remains unrentable",
+but ADR-0002 makes ingestion structural-only, so the Dell XPS imports `Available` and
+**unflagged**. The flagged rows are ids 6 and 10. The test derives the flagged set from the
+inventory instead, which covers both and survives Phase 3 flagging more. Filed rather than
+escalated — it changes no behaviour, only a claim.
+
+Commit: test(phase-2): failing specs for the rental engine and the review flag (pending)
+
+---
+
+## [P2 · c3] The AI log becomes a commit gate
+
+`hooks/pre-commit` refuses any commit that does not stage `AI_LOG.md`, and prints the two
+formats rather than just failing. Wired with `git config core.hooksPath hooks` and
+committed to the repo, because `.git/hooks/` is not versioned and does not survive a
+clone — the README carries the one-line setup.
+
+The reason it is a gate and not a convention: the convention held for 24 commits because I
+remembered it, and the Phase 1 audit found the two places I had not. Merges and
+`--no-verify` still pass, the second deliberately.
+
+`conductor`'s standing checks now cover the two things a per-commit hook cannot see —
+`docs/PROMPT_TRAIL.md` drifting behind the ADRs (count one against the other; it was 21
+commits behind when first audited), and work visible in the diff that never reached the
+README's four graded sections.
+
+Commit: chore: enforce AI log as a commit gate (pending)
+
+---
+
+## Correction #3 — I wrote the brief that made the agent slow
+
+**What I observed.** `test-author` was taking about twenty minutes a phase and producing
+far more than I asked for: 18 tests in Phase 0, and 11 in Phase 1 against a named list of
+nine. The suite is now at 55 tests — 83 with Phase 2's red pass — for a brief that asked
+for three critical ones. None of the extra tests are bad. Several are the best tests in the
+project. That is what took me so long to see the problem.
+
+**What I diagnosed.** The agent brief was the cause, not the agent. Two lines did it. The
+first was *"the named test list is your floor, not your ceiling"* — which is not a
+permission to expand, it is an instruction to. The second was the input list: the phase
+spec, `brainstorm.md`, the relevant ADRs, and every existing test file, all read before
+writing a line. I specified thoroughness in the inputs and again in the scope, and
+thoroughness is exactly what I got, on time, every time.
+
+**What I changed.** One input file instead of four. *"Write exactly the named list"* in
+place of the floor-and-ceiling line. A hard cap of twelve tests. Mutation testing banned
+outright — it earned its keep once, on `persist`, and became a tax everywhere else. A
+five-line cap on the report.
+
+**Why it is the right trade here.** Coverage is already well past what the brief asks for,
+and the binding constraint on this project is time, not rigor. Cutting the agent's reading
+list costs me tests I would probably never have missed, and buys back the minutes that
+Phase 2's three slices need. If I were building this to run in production rather than to be
+read in a review, I would revert every one of these changes.
+
+**What I am taking from it.** This is the same lesson as Correction #2, which is the part
+worth writing down. There, every finding the pipeline surfaced was correct and I acted on
+all of them, and the aggregate was wrong. Here, every test the agent wrote was justified by
+the brief I gave it, and the aggregate was wrong. Both times the agent did exactly what I
+told it to. Both times I looked at the output first and the instruction second. Second time
+in one project — the reflex I need is to read my own brief before I read the agent's work,
+because if the output is consistently off in one direction, the instruction is where the
+direction came from.
+
+Commit: chore: tighten test-author brief for pace (pending)
+
+---
+
+## [P2 · c4] Phase 2 green — the rental engine and the review flag
+
+`/tdd` over the 28 red specs. 83/83, `tests/` untouched. `app/rentals.py` owns the
+transitions and their SQL (ADR-0008), `app/audit.py` owns the one override table
+(ADR-0010), and both keep their own `MetaData` so `persist`'s replace semantics can never
+reach them.
+
+**Two SQLite lessons, both found by the suite hanging rather than failing.** The rent
+route read the item to run guards and *then* issued the atomic `UPDATE` — six concurrent
+claimants each holding a read lock and trying to upgrade it deadlock instead of
+serialising, and the suite sat there until I killed it. Inverting it fixed the hang and is
+the better design anyway: attempt the claim, and read the row only to explain a failure.
+That is what ADR-0008 already says — the statement is the decision, the guards are the
+message — so the deadlock was the code disagreeing with its own ADR.
+
+The second: `_open_seed_rentals` ran `CREATE TABLE rentals` on a second connection while
+the seeding session held a write transaction. SQLite refuses, and the error surfaced as a
+fixture error in an unrelated test. DDL now runs on the engine before any session opens.
+
+The `persist` refusal is deliberately ignorant: it checks `sqlite_master` for the table and
+then for a row, so it survives the engine every storage test builds, where `rentals` has
+never existed. `app/storage.py` still knows nothing about what a rental *is* — only that
+rows in that table mean the inventory is not replaceable.
+
+Commit: feat(phase-2): rental engine, clear-flag and audit trail (pending)
+
+---
+
+## [P2 · c5] Slice C — the rental verbs on the dashboard
+
+`frontend-design`, against the Phase 1 aesthetic rather than a new one: same tokens, same
+table, one reused dialog. 86/86 — `?held_by=me` needed a route, so it got three red tests
+first in a new file before any UI existed.
+
+The one design decision worth naming: **a row that cannot be rented says why, instead of
+showing a greyed-out button.** The wireframe greys the button; the row already knows
+whether it is `Repair`, held, or flagged, and those are three different facts. The brief
+asked for a `409` to show its readable reason — this is that requirement moved one step
+earlier, and the server's own message still arrives in a toast when a row goes stale
+between paint and click.
+
+**A keyboard bug the browser found and the code review would not have.** `autofocus` is
+honoured on page load, not when an element is inserted later, so opening the reason dialog
+left focus on the button that opened it and everything I typed went nowhere. Fixed with an
+explicit focus on open plus `Escape` to cancel. The Phase 1 add-hardware dialog has the
+same defect and is now in `BACKLOG.md` — worth noticing that a bug shipped in Phase 1,
+survived a review gate, and was only caught by driving the thing.
+
+Commit: feat(phase-2): rent, return and the admin overrides in the UI (pending)
+
+---
+
+## [P2 · c6] Deploy v2, and the bug only the deploy could find
+
+v2 live on the Phase 0 URL. 88/88.
+
+**Two of the four flows I set out to verify could not be run, and that was the finding.**
+Item 7 reported `In Use` and force-return answered "not currently rented": the ADR-0007
+seed rental is opened inside `seed_if_empty`, which returns early on a database that
+already has hardware — true of every volume that existed before Phase 2. So on the
+upgraded instance the headphones were held by an address with no account *and* no rental
+row. Unreturnable, because there was no rental to close. Unrecallable, for the same
+reason. `CONTEXT.md`'s "In Use with no renter" impossible state, arrived at through a
+deploy rather than through the seed.
+
+Boot now reconciles held items on **every** start rather than only an empty one — the
+opposite of how the seed is guarded, and deliberately: seeding writes inventory and must
+never repeat, while this reconciles a row that already exists. Idempotent, so a restart
+over a healthy database does nothing.
+
+**My own test then caught a footgun in my own code.** It asserted that an account-scoped
+query finds nothing for the accountless rental, and it failed — SQLAlchemy renders
+`column == None` as `IS NULL`, so `item_ids_held_by(None)` matched seed id 7 and would
+have handed it to whoever asked. Not reachable through the API, one line to close, and
+exactly the shape of bug that becomes reachable later.
+
+Worth stating plainly: this class of defect is invisible to a fresh-database test suite.
+88 tests passed against a database that had never been upgraded, and the item was stranded
+the moment the code met a real volume.
+
+Commit: chore(phase-2): deploy v2 (pending)
+
+---
+
+## [P2 · c7] A repeatable demo reset, and a model change
+
+**The reset.** Verifying v2 consumed the state the project is about — item 7 recalled,
+both flags cleared. `POST /api/admin/reset-demo` clears rentals and audit events, then
+reseeds. Three tests, 91/91.
+
+Two decisions inside it. It is an **HTTP route rather than a CLI** because Railway exposes
+no exec or SSH — the same constraint that put seeding on the boot path — so
+`python -m scripts.reset` would have been documented for a deployment that cannot run it.
+And it **clears the blocker rather than bypassing it**: ADR-0011's refusal is right and
+stays, so the reset deletes rentals first and then reseeds through the same guard every
+other caller meets. A `force=True` parameter on `persist` would have been three characters
+shorter and would have removed the protection for everyone.
+
+The confirmation phrase is a `Literal`, so a wrong one is a `422` from the model rather
+than a branch somebody can forget.
+
+**The tension it creates, filed rather than hidden:** this route erases the audit trail
+ADR-0010 was written to protect, and nothing records that a reset happened. It has to
+clear the events — a trail pointing at rental ids that no longer exist describes events
+that did not occur — but "the most destructive route leaves no trace" is fine only because
+this instance exists to be restored. In `BACKLOG.md`, with the condition that makes it
+urgent.
+
+Verified against the live instance and run twice: 7 rentals and 3 audit events cleared, 11
+items and 3 quarantine records reseeded, 1 seed rental restored. Every fingerprint back —
+ids 6 and 10 flagged, item 7 held by `j.doe@booksy.com`, id 12 carrying `source_id` 4, the
+`Appel` typo intact, and the Dell XPS `Available` with its swelling-battery note.
+
+**The model change.** `mvp-reviewer` now runs on Fable 5, and grillings use Fable 5 from
+here. The reason is where reasoning depth actually pays: implementation is constrained by
+a spec and a red test that either passes or does not, and a cheaper model reaching the
+same green is the same result. Adversarial self-review and grilling have no such
+backstop — nothing fails loudly when a reviewer misses the finding or a grilling asks the
+comfortable question instead of the sharp one, and both are exactly where this project has
+been saved twice already: the whole-project grilling caught the rentable-swelling-battery
+hole, and `mvp-reviewer` caught a session signature that no test defended.
+
+Put plainly: I am spending the deeper model at the two gates where a miss is silent, and
+not on the loop where a miss is loud.
+
+Commit: feat(phase-2): repeatable demo reset (pending)
+
+---
+
+## [P2 · c8] Give ADR-0002's deferred typo an owner
+
+`"Appel"` on seed id 9 is the one defect ADR-0002 explicitly declined to fix, on the
+grounds that parsing a date is structural and correcting a spelling is judgement. That
+argument only holds if something *does* eventually catch it — an unfixed typo that nothing
+ever finds is indistinguishable from an oversight, which is the reading ADR-0002 was
+written to prevent.
+
+So Phase 3's auditor scope now names it, and `test_auditor_flags_misspelled_brand` pins
+it. ADR-0002 points forward at both, so the deferral is traceable from the decision to the
+test rather than living only in a sentence somebody has to remember.
+
+Worth noting what it does *not* do: the auditor flags the brand as a probable misspelling.
+It does not correct it. Correcting is still judgement, and the item still belongs to a
+human.
+
+Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (pending)
+
+---
+
+## [P2 · c9] Soft-delete accounts, and stop signing a row id
+
+`/security-review` at the Phase 2 gate, both findings reproduced end to end. 95/95.
+
+**The defect underneath both was that `users.id` is a SQLite rowid alias.** No
+`AUTOINCREMENT` keyword, so deleting the highest-id account frees its number and the next
+account created is handed it. Three things were keyed on that number and all three broke:
+a deleted `user`'s untouched cookie came back as the *replacement admin*; a departed
+employee's active rental appeared in their successor's `?held_by=me` and could be closed
+through the renter verb ADR-0009 calls absolute; and an `audit_events` actor became
+whoever inherited the id.
+
+The third is what chose the fix. ADR-0010 exists so "somebody inspected this and it is fit
+to issue" can be interrogated later, and that is only truthful while actor identity is
+stable. **An id that can be reissued is not an identity.**
+
+So: sessions name a per-account token issued once and never reissued, and accounts are
+soft-deleted — the row stays, `deleted_at` is set, the token is cleared, and every
+authentication and listing read filters on it. Both columns are additive and backfilled on
+boot, which is the reason this and not `sqlite_autoincrement=True`: that only affects
+`CREATE TABLE`, so it would have left the deployed database exactly as vulnerable while
+looking like a fix.
+
+**Two consequences worth stating rather than discovering.** Existing live sessions
+invalidate on this deploy — accepted, since there is no logout route and they had no other
+way to end. And a deleted address cannot be reissued (`409`), which is correct rather than
+incidental: the trail names actors by email as well as id, and reusing an address rebuilds
+the same ambiguity one field over.
+
+The FKs ADR-0011 claimed also now exist. They needed `ForeignKey(hardware.c.id)` rather
+than the string — `rentals` and `audit_events` keep their own `MetaData` so `persist`
+cannot reach them (ADR-0007), and a string target cannot resolve across that boundary.
+That is why the belt was missing: declaring it required reconciling two ADRs, not adding a
+keyword. And `current_account`'s docstring, which claimed a deleted account's session was
+refused, is now true instead of aspirational.
+
+Commit: fix(phase-2): soft-delete accounts and sign a session token (pending)
+
+---
+
+## Correction #4 — "additive column" was a property of the column, not of the code
+
+**What I shipped.** ADR-0013 adds `session_token` and `deleted_at` to `users`, and I
+described them — in the ADR, the commit message and my report — as "additive columns,
+backfilled on boot, no destructive migration on the live volume". Every word of that was
+true about the *columns*. None of it was true about the *code*: `metadata.create_all()`
+skips a table that already exists, columns and all, so nothing ever added them to the live
+`users` table.
+
+**What happened.** The deploy came up. The first request touched `users.deleted_at`, and
+the instance answered `502` to everything for as long as it took me to notice — which was
+the verification step immediately afterwards, because I was checking the fingerprints and
+got JSON decode errors instead. It was down for roughly eight minutes.
+
+**How I caught it.** The verification I was already running. That is the only part of this
+I would repeat: the check was "log in fresh and confirm the seed fingerprints", not "did
+the build succeed", so it exercised a request path rather than a deploy status. A smoke
+test that asserts `200` on `/` would have passed — the static bundle serves fine, and the
+failure was in the first query behind it.
+
+**Why the tests did not catch it.** 95 of them passed, and every one built its database
+from scratch, where `create_all` does create the columns. The entire suite was blind to
+the only case that mattered: an *existing* table. This is the second time in two phases
+that a fresh-database suite has been green against a defect that only exists on an
+upgraded volume — the first was the seed rental that `seed_if_empty` never reconciled.
+Two of the same shape is a pattern, not bad luck.
+
+**The correction.** `create_schema` now inspects `PRAGMA table_info` and `ALTER TABLE …
+ADD COLUMN`s what is missing, idempotently — checked by inspection rather than by
+catching the exception, because `ADD COLUMN` fails if the column is present and a
+migration that works exactly once is worse than none. `tests/test_schema_migration.py`
+builds a `users` table in raw SQL in the shape Phase 1 shipped and boots over it, and it
+asserts a *login* rather than that `create_app` returned — the production failure was at
+first request, so a test that only booted would have been green while the instance was
+still `502`.
+
+**What I am taking from it.** I wrote "no destructive migration needed" and stopped
+thinking, because the sentence was reassuring and I had chosen the design specifically to
+earn it. The claim I should have checked was the adjacent one nobody had made: *is any
+migration happening at all?* When a design decision is justified by what it avoids, the
+thing to verify is that the alternative is actually being done.
+
+Commit: fix(phase-2): migrate the users table on boot (pending)
+
+---
+
+## [P2 · c10] Migration tests become a non-negotiable
+
+`CLAUDE.md` gains one rule: a schema change ships with a test that boots over the
+*previous* table shape and asserts a real request, not that `create_app` returned.
+
+It earns its place by having been paid for twice — the seed rental `seed_if_empty` never
+reconciled on an existing volume, and Correction #4's missing `ALTER TABLE`. Both were
+green across the whole suite, because every test in it builds its database from scratch,
+which is the one condition under which `create_all` does the migration for you.
+
+Also corrected the phase table in the same file, which still described Phase 1 as in
+progress two tags later.
+
+Commit: docs: migration tests are mandatory for schema changes (pending)
+
+---
+
+## [P2 · c11] `architecture-scout` at the gate, and an invariant that was never as strong as its ADR
+
+Verdict: sound enough to build Phase 3 on. Four findings, all filed, none fixed.
+
+**The one that matters was a correctness claim, so I reproduced it rather than relaying
+it.** `ensure_an_admin_remains` reads the admin count and writes in a separate statement;
+two concurrent demotions of the final two admins both returned `200` and left **zero live
+admins** — the state ADR-0005 exists to make unreachable.
+
+My first attempt to reproduce it was wrong and I nearly reported the invariant as holding:
+I demoted the bootstrap admin to get down to two, which turned the acting client into a
+`user`, and read the resulting `403`s as the guard working. They were authorization. The
+actor has to stay an admin through both requests for the race to be reachable at all.
+
+Not fixed. The trigger is simultaneous demotions on a two-admin internal tool, and the fix
+is already written down one ADR over — ADR-0008 settled that a read-then-decide guard
+cannot win a race, for `rent`. What is worth recording is that the rental engine met this
+exact problem three ADRs later, solved it properly, and nobody noticed the older guard
+shared it. A single-guard framing hid a class.
+
+ADR-0005 now says the invariant holds only under sequential access, which is what it always
+meant rather than what it claimed.
+
+Commit: docs(phase-2): file the architecture-scout findings (pending)
+
+---
+
+## [P2 · c12] mvp-reviewer red: the transition trusts its caller with its own record
+
+`rentals.force_return` demands a mandatory `reason` (ADR-0010) and ignores it — the
+audit write lives in the route, so any second caller ends a rental unrecorded. Red at
+the direct call: 0 audit events.
+Commit: test(phase-2): pin the audit write inside force_return (pending)
+
+---
+
+## [P2 · c13] The audit write moves into the transition
+
+`audit.record` moves from the route into `rentals.force_return`, same transaction as
+the close; the route-level "exactly one event" test proves nothing double-writes. 98/98.
+Commit: fix(phase-2): force_return writes its own audit event (pending)
+
+---
+
+## [P2 · c14] The README stops describing Phase 1
+
+mvp-reviewer's blocker: the graded sections said the rental engine did not exist, on the
+branch that shipped it. Brought to v2 reality, Reseeding now points at the reset route
+(ADR-0011), the 41-vs-15–20 commit count is acknowledged in ⚡ with its why, and the
+four non-blocking findings are filed in BACKLOG.md.
+Commit: docs(phase-2): bring the README to Phase 2 reality (pending)
