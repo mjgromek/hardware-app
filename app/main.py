@@ -19,11 +19,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StringConstraints
 
-from app import accounts, guards, sessions
+from app import accounts, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
 from app.domain import Account, Role, Status
 from app.storage import (
     add_item,
+    clear_review,
     create_engine_for,
     create_schema,
     delete_item,
@@ -79,6 +80,35 @@ class StatusChange(BaseModel):
     status: Status
 
 
+class Reason(BaseModel):
+    """The mandatory reason on every admin override (ADR-0010).
+
+    Trimmed before length is checked, for the same reason a hardware name is: a reason
+    of spaces satisfies `min_length` and records nothing.
+    """
+
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor —
+#: Phase 3 writes findings into the same columns. Renter identity is *not* here: who
+#: holds a laptop is operational, and hiding it moves the question to Slack.
+ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
+
+
+def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
+    """One item, as this caller is allowed to see it.
+
+    The restricted fields are set to `None` rather than dropped, so the payload keeps
+    one shape and the client does not have to branch on which role it is.
+    """
+    if account.role is Role.ADMIN:
+        return item
+    return {
+        key: (None if key in ADMIN_ONLY_FIELDS else value) for key, value in item.items()
+    }
+
+
 class SortKey(str, Enum):
     """The columns the dashboard may sort on. Closed, so an unknown key is a `422`.
 
@@ -89,6 +119,22 @@ class SortKey(str, Enum):
     """
 
     PURCHASE_DATE = "purchase_date"
+
+
+#: Named once, because Phase 2 adds four routes under it.
+HARDWARE = "/api/hardware"
+
+
+def _claim(transition):
+    """Run a transition, turning its `GuardViolation` into `409` with the reason kept.
+
+    Same translation as `_enforce`, for the case where the refusal comes out of the
+    atomic write rather than a pre-check (ADR-0008).
+    """
+    try:
+        return transition()
+    except guards.GuardViolation as violation:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(violation))
 
 
 def _enforce(guard, *args, **kwargs) -> None:
@@ -131,6 +177,11 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
     # with anything in it is left alone. Imported here rather than at module level
     # so `app` does not depend on `scripts` just to be importable. See BACKLOG.md.
+    # Before the seed: `seed_if_empty` opens the rentals ADR-0007 describes, and DDL
+    # cannot run on a second connection while that session holds a write transaction.
+    rentals.create_schema(engine)
+    audit.create_schema(engine)
+
     from scripts.seed import seed_if_empty
 
     seed_if_empty(engine)
@@ -334,7 +385,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.get("/api/hardware")
     def list_hardware(
-        _: Account = Depends(current_account),
+        account: Account = Depends(current_account),
         status: Status | None = None,
         sort: SortKey | None = None,
     ) -> list[dict[str, Any]]:
@@ -356,7 +407,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 status=status,
                 sort_by_purchase_date=sort is SortKey.PURCHASE_DATE,
             )
-        return [asdict(item) for item in items]
+        return [visible_to(asdict(item), account) for item in items]
 
     @app.post("/api/hardware", status_code=status.HTTP_201_CREATED)
     def add_hardware(
@@ -389,8 +440,17 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         that pattern-matches on the three (CONTEXT.md).
         """
         with new_session(engine) as session:
-            if not set_status(session, item_id, change.status):
-                raise HTTPException(status_code=404, detail="No such hardware item")
+            item = _item_or_404(session, item_id)
+            if change.status is Status.REPAIR:
+                # CONTEXT.md names "a rented item in Repair" an impossible state, and
+                # Phase 1 shipped the route that reached it (ADR-0009).
+                _enforce(
+                    guards.ensure_no_active_rental,
+                    rentals.active_rental(session, item_id),
+                    item,
+                    "sent to Repair",
+                )
+            set_status(session, item_id, change.status)
             session.commit()
         return {"id": item_id, "status": change.status.value}
 
@@ -398,10 +458,126 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def remove_hardware(item_id: int, _: Account = Depends(current_admin)) -> Response:
         """Retire an item from the inventory. Admin-only."""
         with new_session(engine) as session:
-            if not delete_item(session, item_id):
-                raise HTTPException(status_code=404, detail="No such hardware item")
+            item = _item_or_404(session, item_id)
+            _enforce(
+                guards.ensure_no_active_rental,
+                rentals.active_rental(session, item_id),
+                item,
+                "deleted",
+            )
+            delete_item(session, item_id)
             session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # ------------------------------------------------------------------
+    # Rentals — the transitions live in app/rentals.py (ADR-0008)
+    # ------------------------------------------------------------------
+
+    def _item_or_404(session, item_id: int):
+        for item in load_items(session):
+            if item.id == item_id:
+                return item
+        raise HTTPException(status_code=404, detail="No such hardware item")
+
+    @app.post(f"{HARDWARE}/{{item_id}}/rent")
+    def rent_hardware(
+        item_id: int, account: Account = Depends(current_account)
+    ) -> dict[str, Any]:
+        """Claim an item. Any signed-in account may rent; the guards decide which item.
+
+        The pre-check runs for the message and the atomic `UPDATE` makes the decision
+        (ADR-0008), so a caller who passes the first and loses the second is told the
+        item is in use — which by then it is.
+        """
+        with new_session(engine) as session:
+            try:
+                rental = rentals.rent(session, item_id, account)
+            except guards.GuardViolation:
+                # The claim failed. Only *now* read the row, to say why — reading first
+                # would open a transaction the UPDATE then has to upgrade, and six
+                # concurrent claimants upgrading one SQLite read lock deadlock rather
+                # than serialise. Attempting the write first is both faster and the
+                # honest ordering: the atomic statement is the decision (ADR-0008), and
+                # the guards exist for the message.
+                session.rollback()
+                item = _item_or_404(session, item_id)
+                _enforce(guards.ensure_item_is_rentable, item)
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is already in use — somebody else has it.",
+                )
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "renter": account.email}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/return")
+    def return_hardware(
+        item_id: int, account: Account = Depends(current_account)
+    ) -> dict[str, Any]:
+        """Close your own rental. Somebody else's is a `409` (ADR-0009)."""
+        with new_session(engine) as session:
+            _item_or_404(session, item_id)
+            rental = _claim(lambda: rentals.return_(session, item_id, account))
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "return"}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/force-return")
+    def force_return_hardware(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Recall an item from whoever holds it. Admin-only, reason mandatory.
+
+        Writes an `audit_events` row in the same transaction as the close: a rental
+        that ends without a record of who ended it is the audit trail becoming fiction
+        (ADR-0010).
+        """
+        with new_session(engine) as session:
+            _item_or_404(session, item_id)
+            rental = _claim(
+                lambda: rentals.force_return(session, item_id, admin, body.reason)
+            )
+            audit.record(
+                session,
+                actor=admin,
+                action=audit.Action.FORCE_RETURN,
+                reason=body.reason,
+                item_id=item_id,
+                rental_id=rental.id,
+            )
+            session.commit()
+        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "force_return"}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/clear-review")
+    def clear_review_flag(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Release an item from `needs_review`. Admin-only, reason mandatory.
+
+        Allowed whatever the item's status — the flag and the status are orthogonal,
+        which is why the dashboard gives the flag its own column rather than a fourth
+        chip. `409` when nothing is flagged, because idempotency would hide a UI bug
+        *and* file a mandatory reason against a non-event (ADR-0010).
+
+        The reason goes with the flag: a cleared item still showing "purchase date is
+        in the future" explains a restriction that no longer applies.
+        """
+        with new_session(engine) as session:
+            item = _item_or_404(session, item_id)
+            if not item.needs_review:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is not flagged for review, so there is "
+                    "nothing to clear.",
+                )
+            clear_review(session, item_id)
+            audit.record(
+                session,
+                actor=admin,
+                action=audit.Action.CLEAR_REVIEW_FLAG,
+                reason=body.reason,
+                item_id=item_id,
+            )
+            session.commit()
+        return {"item_id": item_id, "needs_review": False}
 
     # Single origin (ADR-0001): the same app serves the API and the bundle, so
     # there is no CORS middleware to configure. Mounted last, at the root, so it

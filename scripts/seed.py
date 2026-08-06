@@ -228,8 +228,10 @@ def main() -> None:
 
     engine = create_engine_for(settings.database_url)
     create_schema(engine)
+    _create_rentals_schema(engine)
     with new_session(engine) as session:
         persist(report, session)
+        _open_seed_rentals(report, session)
         session.commit()
 
     print(
@@ -240,6 +242,43 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _create_rentals_schema(engine: Engine) -> None:
+    """DDL before the session, never inside it.
+
+    SQLite will not run `CREATE TABLE` on a second connection while another holds a
+    write transaction — the fixture that seeds and then opens rentals in one session
+    deadlocks itself otherwise.
+    """
+    from app.rentals import create_schema as create_rentals_schema
+
+    create_rentals_schema(engine)
+
+
+def _open_seed_rentals(report: IngestReport, session) -> int:
+    """Record the rentals the seed already describes, above `persist`.
+
+    **This lives here and not in `persist`, deliberately** — the placement is what makes
+    ADR-0007 and ADR-0011 simultaneously true. `persist` refuses once rentals exist, and
+    `test_reseed_is_idempotent` requires a second `persist` on a fresh database to
+    succeed; both hold only if `persist` never writes a rental itself. `app/storage.py`
+    also says it makes no decisions, and "an `In Use` row with an assignee is a rental"
+    is one.
+
+    Seed id 7 is `In Use` and assigned to an address with no account, so its rental gets
+    `account_id = NULL` (ADR-0007). Releasing it instead — which is what Phase 0 did to
+    id 2's orphan rental — would destroy the only evidence of who holds the headphones;
+    id 2 was released precisely *because* it named nobody.
+    """
+    from app.rentals import open_seed_rental
+
+    opened = 0
+    for item in report.imported:
+        if item.status is Status.IN_USE and item.assigned_to:
+            if open_seed_rental(session, item.id, item.assigned_to) is not None:
+                opened += 1
+    return opened
 
 
 def seed_if_empty(engine: Engine) -> bool:
@@ -264,6 +303,7 @@ def seed_if_empty(engine: Engine) -> bool:
 
         report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
         persist(report, session)
+        _open_seed_rentals(report, session)
         session.commit()
 
     logger.info(

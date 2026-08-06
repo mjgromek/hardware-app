@@ -800,3 +800,31 @@ because if the output is consistently off in one direction, the instruction is w
 direction came from.
 
 Commit: chore: tighten test-author brief for pace (pending)
+
+---
+
+## [P2 · c4] Phase 2 green — the rental engine and the review flag
+
+`/tdd` over the 28 red specs. 83/83, `tests/` untouched. `app/rentals.py` owns the
+transitions and their SQL (ADR-0008), `app/audit.py` owns the one override table
+(ADR-0010), and both keep their own `MetaData` so `persist`'s replace semantics can never
+reach them.
+
+**Two SQLite lessons, both found by the suite hanging rather than failing.** The rent
+route read the item to run guards and *then* issued the atomic `UPDATE` — six concurrent
+claimants each holding a read lock and trying to upgrade it deadlock instead of
+serialising, and the suite sat there until I killed it. Inverting it fixed the hang and is
+the better design anyway: attempt the claim, and read the row only to explain a failure.
+That is what ADR-0008 already says — the statement is the decision, the guards are the
+message — so the deadlock was the code disagreeing with its own ADR.
+
+The second: `_open_seed_rentals` ran `CREATE TABLE rentals` on a second connection while
+the seeding session held a write transaction. SQLite refuses, and the error surfaced as a
+fixture error in an unrelated test. DDL now runs on the engine before any session opens.
+
+The `persist` refusal is deliberately ignorant: it checks `sqlite_master` for the table and
+then for a row, so it survives the engine every storage test builds, where `rentals` has
+never existed. `app/storage.py` still knows nothing about what a rental *is* — only that
+rows in that table mean the inventory is not replaceable.
+
+Commit: feat(phase-2): rental engine, clear-flag and audit trail (pending)
