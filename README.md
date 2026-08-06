@@ -96,8 +96,8 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Why:** clearing needs a decision nobody has made — what evidence releases an item,
   and who records it. Inventing it to fill a screen is how an audit trail becomes
   decoration.
-  **Future:** a clear-flag action with the decision recorded, due before the Phase 2
-  gate.
+  **Future:** Phase 2 owns it — ADR-0003 assigns the mechanism there, because clearing a
+  rentability guard is a transition in the rental state machine rather than a field edit.
 - **Sign out is client-side only.** It drops the app's state and returns to the login
   screen; the cookie is not revoked server-side, because the session is a signed cookie
   with no server record and there is no logout route.
@@ -116,6 +116,11 @@ Each of these works, and each cost something. The full table with reasoning is i
 
 ### ⚠️ Partial / Missing
 
+- **`needs_review` cannot yet be cleared** — the queue shows every flagged item and the
+  reason, and the flag still blocks rental, but nothing releases one. ADR-0003 assigns
+  the mechanism to **Phase 2**: an admin action with an audit trail, gated on the same
+  guard layer, because clearing a rentability guard is a state-machine transition rather
+  than a field edit
 - Rental engine — items have statuses but cannot be rented or returned. No `Rent`
   action exists, which is why the wireframe's is absent
 - The AI layer — semantic search and the Inventory Auditor. The wireframe's "Ask AI…"
@@ -146,13 +151,11 @@ Carried over from `/security-review` as accepted rather than fixed, each with th
 
 In order, one branch and one deployed version each — the phases in the table above:
 
-1. **Clear a `needs_review` flag.** The one piece of Phase 1's own scope that shipped
-   read-only, and ADR-0003 says it must not reach the Phase 2 gate unresolved.
-   `/security-review` runs alongside it, against the three items waiting in
-   [`BACKLOG.md`](BACKLOG.md).
-2. **Phase 2 — rental engine.** Rent and return, with `Repair` and `needs_review`
-   blocking through one guard (ADR-0003).
-3. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
+1. **Phase 2 — rental engine.** Rent and return, with `Repair` and `needs_review`
+   blocking through one guard — **and the action that clears that flag**, which ADR-0003
+   assigns here because releasing an item is a transition in the same state machine.
+   `/grill-me` first, per `CLAUDE.md`.
+2. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
    which has to flag record 10 to prove it does anything a regex could not, plus CI
    and the frontend test suite.
 
@@ -233,7 +236,7 @@ the moment it was taken.
 | --- | --- | --- |
 | **Demo credentials are published on a public instance, on a `user` account** | ADR-0005 chose openly published demo credentials so a reviewer is in within ten seconds. `/security-review` cut the role from `admin` to `user`: read access is what a reviewer needs, delete rights are what an attacker wants, and the admin panel is described in prose instead. | Per-reviewer invite links, so access can be withdrawn without rotating a shared credential. |
 | **`notes` and `history` are visible to every signed-in employee** | The endpoint returns whole items, and ADR-0006 closed the public half of this — a stranger with the URL no longer sees them. Field-level authorization is a separate piece of work that Phase 1 did not do. | Role-aware serialisation, so auditor-facing free text reaches admins only. `/security-review` before the Phase 1 gate. |
-| **Nothing can clear `needs_review`** | The queue is surfaced and read-only. Clearing needs a decision nobody has made — what evidence releases an item, and who records it — and inventing one to fill a screen is how an audit trail becomes decoration. | A clear-flag action with the decision recorded. ADR-0003 says this must not reach the Phase 2 gate. |
+| **Nothing can clear `needs_review`** | The queue is surfaced and read-only. Clearing needs a decision nobody had made — what evidence releases an item, and who records it — and inventing one to fill a screen is how an audit trail becomes decoration. | **Phase 2**, by ADR-0003: an admin action with an audit trail, gated on the guard layer, pinned by `test_admin_can_clear_needs_review` and `test_cleared_item_becomes_rentable`. |
 | **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now — the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |
 | **`test_serves_built_bundle_at_root` needs `npm run build` first** | It asserts against the real `frontend/dist` on purpose — a fixture directory would prove the mount works, not that the built bundle is served. | CI builds the frontend before running pytest. |
 | **No CI** | Time. The tests exist and run locally; automating them was the cut. | A workflow running both build steps and both suites. |

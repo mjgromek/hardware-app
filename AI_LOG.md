@@ -682,3 +682,30 @@ bad commit with a note is worth more than an invisible one.
 All 25 entries now carry their commit sha instead of `(pending)`.
 
 Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (pending)
+
+---
+
+## [P2 · c1] Phase 2 owns clearing `needs_review`
+
+Phase 1 merged (PR #2, tagged `v1-admin`) with one piece of its own scope unresolved: the
+queue is surfaced and nothing clears the flag. ADR-0003 had said that must not reach the
+Phase 2 gate, which it now has — so it is resolved *by assignment* rather than left to
+read as overdue.
+
+The reason Phase 2 owns it is structural, not scheduling. `needs_review` is a rentability
+guard, so clearing it is a transition in the same state machine as rent and return.
+Bolting a clear-flag button onto the Phase 1 admin panel would have put transition logic
+in a route handler, which is the exact failure ADR-0003's last consequence warns about
+and which `brainstorm.md` §3 calls the load-bearing risk for the Phase 2 architecture
+pass.
+
+ADR-0003 gains a Consequences entry naming three requirements — admin-only action, audit
+trail, gated on `app/guards.py` — and two tests, `test_admin_can_clear_needs_review` and
+`test_cleared_item_becomes_rentable`. The second is the one that matters: a flag that
+clears but still blocks rental is the same decoration this ADR was written to remove, in a
+new place. `brainstorm.md` §3 Phase 2 carries both in its test list; `BACKLOG.md` moves the
+entry from "urgent before the Phase 1 gate" to an *Owned by Phase 2* section; the README
+says it in `⚠️ Partial`, and three other places that still said "due before the Phase 2
+gate" now agree with the ADR.
+
+Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (pending)

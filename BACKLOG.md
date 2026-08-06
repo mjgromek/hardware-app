@@ -10,14 +10,6 @@ changed lives in `AI_LOG.md` and `docs/adr/`; this file is only what is still ow
 
 ## Before the Phase 1 gate
 
-**No test covers the `needs_review` queue, and `brainstorm.md` §3 does not list one.**
-The queue is named Phase 1 scope; ADR-0003 also records, as an unresolved consequence,
-that nothing lets an admin *clear* the flag — so a flagged item is unrentable forever
-and the two seed contradictions can never return to service. Writing a test would have
-required inventing both the queue's shape and the clear-flag semantics, which is a
-product decision. *Urgent when: now — ADR-0003 says explicitly this must not be
-discovered at the Phase 2 gate.*
-
 **Logout, session expiry and login throttling are in no phase's scope.** There is no
 route that ends a session, the cookie has no lifetime, and the login endpoint can be
 hit without limit on a deployment that publishes demo credentials. The session is also
@@ -41,6 +33,22 @@ catches the rainbow-table case. The direct statement, *two accounts with the sam
 password store different digests*, was unwritable while the table shape did not exist.
 It exists now (`app/accounts.py` salts per call), and nothing asserts it. *Urgent when:
 the next test commit — this is cheap and the claim is load-bearing.*
+
+---
+
+## Owned by Phase 2
+
+**Clearing `needs_review` — assigned, not outstanding.** Nothing clears the flag, so a
+flagged item is unrentable indefinitely (two of eleven in the seed). This sat here as
+"urgent before the Phase 1 gate" and was resolved *by assignment* at that gate instead:
+ADR-0003 now names Phase 2 as the owner, because clearing a rentability guard is a
+transition in the rental state machine rather than an admin-panel field edit. Phase 2
+delivers an admin-only action with an audit trail, gated on `app/guards.py`, pinned by
+`test_admin_can_clear_needs_review` and `test_cleared_item_becomes_rentable`.
+
+The Phase 1 queue also has no test at either layer — writing one would have meant
+inventing the clear-flag semantics, which is the product decision above. It arrives with
+the mechanism. *No longer overdue; it has an owner and two named tests.*
 
 ---
 

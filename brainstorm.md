@@ -190,6 +190,10 @@ Branch `phase-2-rental`. **`/grill-me` first.** Then `/tdd`, then `/improve-code
 - Rent / Return, state machine as single source of truth
 - Rental history table (MVP 3 feeds on it)
 - Guards: Repair, already-rented, wrong-user, **`needs_review`**, last-admin
+- **Clearing `needs_review`** — an admin action, with an audit trail, gated on the same
+  guard layer. Inherited from Phase 1, which surfaced the queue read-only; ADR-0003
+  assigns the mechanism here because clearing the flag is a transition in this state
+  machine, not an admin-panel field edit
 
 ```
 Available ──rent──▶ In Use ──return──▶ Available
@@ -208,6 +212,8 @@ test_cannot_return_someone_elses_rental
 test_rent_then_return_restores_available
 test_concurrent_rent_only_one_succeeds      # atomic conditional UPDATE
 test_rental_history_records_both_ends
+test_admin_can_clear_needs_review          # ADR-0003 — admin only, leaves an audit trail
+test_cleared_item_becomes_rentable         # ADR-0003 — a flag that clears but still blocks is decoration
 ```
 
 **The architecture pass here is load-bearing.** Transition logic must not leak into
