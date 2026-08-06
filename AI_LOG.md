@@ -1165,3 +1165,14 @@ caller appears" — Phase 3 adds two (search, auditor). Pure move, `app/main.py`
 `app/domain.py`, plus one stale comment fixed (findings are never written into these
 columns, ADR-0014). 98/98 before and after.
 Commit: refactor(phase-3): move field visibility to the domain (pending)
+
+---
+
+## [P3 · c5] Phase 3 red — slices A and B
+
+`test-author` against `docs/specs/phase-3.md` and ADR-0014–0017. 12 red on their own
+assertions, 99 green, 0 broken — the bundle leak guard is green before the feature
+exists, by design. Cut under the 12-cap: `test_auditor_flags_misspelled_brand`
+(plumbing-identical to id 10's), filed in BACKLOG with the cost named — ADR-0002's
+typo loop has no test until green adds it back.
+Commit: test(phase-3): failing specs for semantic search and the inventory auditor (pending)

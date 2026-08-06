@@ -322,3 +322,28 @@ clearing whatever the item's status (`app/main.py`), and ADR-0010 says so, but n
 pins it — a regression that quietly restricted clearing to `Available` items would be
 green. One test clearing a flagged `Repair` item covers the claim. *Urgent when: anyone
 touches the clear-review route or the guard layer it deliberately bypasses.*
+
+
+## Phase 3 — the red pass (test-author)
+
+**"Off-enum kinds are dropped *and counted*" has no surface in the spec.**
+`docs/specs/phase-3.md` says the count exists but names no field, so
+`test_auditor_drops_off_enum_finding_kinds` pins the drop and not the count — an
+implementation that discards silently is green. *Urgent when: the audit response shape is
+settled; add `{"dropped": n}` to the spec table and one assertion.*
+
+**The LLM seam is fixed by a test module, not by an ADR.** `tests/llm_seam.py` decides
+that the key is read from `os.environ` at request time and that the client lives at
+`app.state.llm` — the spec fixes only "server-side, read at request time". Same shape as
+`conftest.py` fixing the HTTP contract in Phase 1, and recorded here for the same reason.
+*Urgent when: a second consumer of the model appears, or the seam moves into `Settings`.*
+
+**`test_auditor_flags_misspelled_brand` (id 9, `"Appel"`) was cut at the 12-test cap.**
+ADR-0002's deferred typo therefore still has no test closing the loop; the
+`probable_misspelling` member of the enum is exercised by nothing. Plumbing-identical to
+`test_auditor_flags_unidentifiable_item`. *Urgent when: the cap lifts, or before the phase
+gate if ADR-0002's closure is claimed in the README.*
+
+**Slice C has no tests.** The six named in the spec (`flag-review`) were out of the
+red pass's scope. If Slice C ships, it ships untested unless a second red pass runs
+first. *Urgent when: Slice C is not cut.*
