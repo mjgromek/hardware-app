@@ -126,6 +126,62 @@ def test_force_return_writes_an_audit_event(
     )
 
 
+def test_force_return_itself_writes_the_event_not_its_caller(
+    app, user_client: TestClient
+) -> None:
+    """The transition records the reason it demands; the route is not its keeper.
+
+    `rentals.force_return` takes a mandatory `reason` (ADR-0010) and, until this test,
+    ignored it — the audit write lived in the HTTP route. That passes every route test
+    and still defeats the table: the *next* caller of the transition (the mvp-reviewer
+    named Phase 3's auditor as the likely one) closes a rental and leaves no record,
+    which is exactly the "audit trail becoming fiction" the function's own docstring
+    warns about. An override the domain layer can perform silently is not audited, it
+    is merely usually narrated.
+
+    So this calls the transition directly, no route in sight, and asks the table.
+    `test_force_return_writes_an_audit_event` holds the other side of the line: the
+    route path still writes exactly one row, so moving the write down cannot leave it
+    duplicated.
+    """
+    from app import rentals
+    from app.accounts import verify_credentials
+    from app.storage import new_session
+
+    from tests.conftest import ADMIN_PASSWORD
+
+    rented = user_client.post(rent_path(FREE_ITEM))
+    assert rented.status_code in ACCEPTED, (
+        f"setup: the item must be rented before it can be recalled; got "
+        f"{rented.status_code}: {rented.text}"
+    )
+
+    with new_session(app.state.engine) as session:
+        admin = verify_credentials(session, ADMIN_EMAIL, ADMIN_PASSWORD)
+        assert admin is not None, "setup: the bootstrap admin must be retrievable"
+        rental = rentals.force_return(session, FREE_ITEM, admin, RECALL_REASON)
+        session.commit()
+
+    events = audit_rows(app, action="force_return")
+    assert len(events) == 1, (
+        "`rentals.force_return` must write the audit event itself — a direct caller "
+        "that closes a rental and records nothing is the override going unrecorded "
+        f"(ADR-0010). Got {len(events)} events: {events}"
+    )
+    event = events[0]
+    assert event["reason"] == RECALL_REASON, (
+        "the reason the transition demanded is the reason it must store, verbatim; "
+        f"got {event['reason']!r}"
+    )
+    assert event["rental_id"] == rental.id, (
+        "the event points at the rental the transition closed; got "
+        f"rental_id={event['rental_id']!r} against rental id {rental.id!r}"
+    )
+    assert event["actor_email"] == ADMIN_EMAIL, (
+        f"the actor is the admin who recalled it; got {event['actor_email']!r}"
+    )
+
+
 def test_clearing_the_review_flag_writes_an_audit_event(
     app, admin_client: TestClient
 ) -> None:

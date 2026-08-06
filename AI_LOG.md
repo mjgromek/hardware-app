@@ -1079,3 +1079,12 @@ ADR-0005 now says the invariant holds only under sequential access, which is wha
 meant rather than what it claimed.
 
 Commit: docs(phase-2): file the architecture-scout findings (pending)
+
+---
+
+## [P2 · c12] mvp-reviewer red: the transition trusts its caller with its own record
+
+`rentals.force_return` demands a mandatory `reason` (ADR-0010) and ignores it — the
+audit write lives in the route, so any second caller ends a rental unrecorded. Red at
+the direct call: 0 audit events.
+Commit: test(phase-2): pin the audit write inside force_return (pending)
