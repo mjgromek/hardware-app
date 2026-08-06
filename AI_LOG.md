@@ -375,3 +375,21 @@ couples "the process started" to "the data changed", and it will race itself the
 moment there is a second replica.
 
 Commit: feat(phase-0): seed on boot when the database is empty (pending)
+
+---
+
+## [P0 · c11] README, live-versions table, and visible boot logging
+
+v0 is live at https://hardware-hub-production-24b7.up.railway.app with all 11
+items and every seed fingerprint intact — id 12 re-keyed from the duplicate,
+ids 6 and 10 flagged, `"Appel"` preserved, id 2's orphan rental released.
+
+**A gap the tests could not have caught.** The boot-seed log line was emitted and
+asserted, and never appeared in production: under uvicorn the root logger has no
+handler, and `caplog` captures propagated records regardless of handlers, so the
+test passed while the real deployment was silent. Found by reading the deploy logs
+for a line that should have been there and was not. `create_app` now calls
+`basicConfig`. The lesson is narrow and worth keeping: a passing assertion that a
+log was *emitted* says nothing about whether anyone will ever *see* it.
+
+Commit: docs(phase-0): README with live v0, and make boot logging visible (pending)

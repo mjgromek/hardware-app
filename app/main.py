@@ -7,6 +7,7 @@ cross-origin request to configure.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -30,6 +31,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     fails here rather than at first request (ADR-0005).
     """
     settings = load_settings(os.environ if env is None else env)
+
+    # Under uvicorn the root logger has no handler, so application logs vanish
+    # even though they are emitted. `caplog` captures propagated records, so tests
+    # pass either way — this is what makes the boot-seed line visible in a real
+    # deployment. `force=False` leaves an already-configured host alone.
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s"
+    )
 
     app = FastAPI(title="Hardware Hub")
     app.state.settings = settings
