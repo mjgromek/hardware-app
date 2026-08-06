@@ -1,0 +1,739 @@
+/* Hardware Hub — an internal tool where a dense table is the product.
+ *
+ * The palette comes from the supplied wireframes: near-white ground, white surfaces,
+ * near-black for the one primary action, red reserved for destruction. One colour is
+ * added — amber — because the wireframes have three statuses and the domain has four
+ * states to show (see `--flag-*` and `docs/WIREFRAME_JUSTIFICATION.md`).
+ *
+ * Type is the system UI stack. Not a default by omission: the bundle is served by the
+ * Python process on one origin (ADR-0001), and a webfont would be the only
+ * cross-origin request in the app — or 90 kB self-hosted to say nothing the system
+ * face does not. Numbers and dates are set in the system mono face so columns of
+ * them align, which is the whole reason a table is the right shape here.
+ */
+
+:root {
+  --ground: #f7f8fa;
+  --surface: #ffffff;
+  --ink: #0b0c10;
+  --ink-muted: #5b6270;
+  --ink-faint: #8a91a0;
+  --line: #e4e6ec;
+  --line-strong: #cfd3dc;
+
+  /* Available: the default, so it carries the strongest fill — an admin scanning for
+   * what can be issued should find it without reading. */
+  --ok-fill: #0b0c10;
+  --ok-ink: #ffffff;
+  /* In Use: not a problem, so it recedes. */
+  --busy-fill: #eceef2;
+  --busy-ink: #454b58;
+  /* Repair: a fact about the device, and it blocks rental. */
+  --stop-fill: #dc2626;
+  --stop-ink: #ffffff;
+  /* Needs review: a fact about the *record*, not the device. Amber, and it never
+   * occupies the status slot — see the row marker. */
+  --flag-fill: #fef3c7;
+  --flag-ink: #7c4a02;
+  --flag-edge: #d97706;
+
+  --danger: #dc2626;
+  --focus: #2563eb;
+
+  --sidebar: 248px;
+  --radius: 8px;
+  --row: 44px;
+
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+h1 {
+  font-size: 22px;
+}
+h2 {
+  font-size: 15px;
+}
+
+/* Every interactive element shows focus, and shows it the same way. An internal tool
+ * gets driven by keyboard by the people who use it all day. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar) 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 16px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 0 8px 18px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  background: var(--ground);
+  color: var(--ink-muted);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: var(--ground);
+}
+
+.nav-item[aria-current='page'] {
+  background: var(--ground);
+  font-weight: 600;
+}
+
+.nav-count {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.sign-out {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  color: var(--danger);
+  font-weight: 550;
+}
+
+.whoami {
+  padding: 4px 10px 12px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.main {
+  min-width: 0;
+  padding: 26px 30px 60px;
+}
+
+.main-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.main-head h1 {
+  margin-right: auto;
+}
+
+.lede {
+  max-width: 68ch;
+  margin: 0 0 18px;
+  color: var(--ink-muted);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel + .panel {
+  margin-top: 22px;
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-head h2 {
+  margin-right: auto;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 550;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.button-quiet {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button-quiet:hover:not(:disabled) {
+  background: var(--ground);
+}
+
+.button-danger {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.button-danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: #fef2f2;
+}
+
+/* `inline-grid`, not `grid`: a row of these must stay a row. As block-level grids they
+ * stack and double the height of every row in the densest table in the app. */
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-muted);
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.icon-button.is-danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: #fef2f2;
+  color: var(--danger);
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field > span,
+.field-label {
+  font-weight: 550;
+  font-size: 12.5px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+input::placeholder {
+  color: var(--ink-faint);
+}
+
+.hint {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------- table */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th .th-label,
+th .sort-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sort-button:hover {
+  color: var(--ink);
+}
+
+.sort-arrow {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+th[aria-sort] .sort-button {
+  color: var(--ink);
+}
+
+th[aria-sort] .sort-arrow {
+  color: var(--focus);
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--line);
+}
+
+tbody tr:last-child {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: #fafbfc;
+}
+
+/* The keyboard-focused row, not the hovered one. Arrow keys move this. */
+tbody tr:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  background: #f4f7ff;
+}
+
+td {
+  height: var(--row);
+  padding: 8px 14px;
+  vertical-align: middle;
+}
+
+.cell-name {
+  font-weight: 550;
+}
+
+.cell-mono {
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.cell-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.cell-actions > * + * {
+  margin-left: 2px;
+}
+
+.missing {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.empty {
+  padding: 30px 16px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* The row marker. `needs_review` is a property of the *record*, so it marks the whole
+ * row from the edge rather than competing with the status chip for one cell. It is
+ * never the only signal — the Review column says so in words. */
+tr.is-flagged td:first-child {
+  box-shadow: inset 3px 0 0 var(--flag-edge);
+}
+
+/* ---------------------------------------------------------------- chips */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.chip-ok {
+  background: var(--ok-fill);
+  color: var(--ok-ink);
+}
+
+.chip-busy {
+  background: var(--busy-fill);
+  color: var(--busy-ink);
+}
+
+.chip-stop {
+  background: var(--stop-fill);
+  color: var(--stop-ink);
+}
+
+.chip-flag {
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+
+.chip-role {
+  background: var(--ground);
+  color: var(--ink-muted);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* ---------------------------------------------------------------- filters */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.filter-chip {
+  padding: 6px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.filter-chip:hover {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.filter-chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.filter-count {
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------- login */
+
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 396px;
+  padding: 26px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.login-card form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.login-title {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.login-title p {
+  margin: 3px 0 0;
+  color: var(--ink-muted);
+}
+
+.login .button {
+  justify-content: center;
+  padding: 10px;
+}
+
+.login-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- dialog */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(11, 12, 16, 0.4);
+  z-index: 20;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 460px;
+  padding: 22px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.dialog-head h2 {
+  font-size: 17px;
+}
+
+.dialog-head p {
+  margin: 3px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.dialog form {
+  display: grid;
+  gap: 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ---------------------------------------------------------------- toasts */
+
+.toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: grid;
+  gap: 8px;
+  max-width: min(400px, calc(100vw - 40px));
+  z-index: 30;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(11, 12, 16, 0.1);
+}
+
+.toast-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11px;
+}
+
+.toast.is-error .toast-mark {
+  background: var(--danger);
+}
+
+.toast-close {
+  margin: -4px -4px 0 auto;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-in 160ms ease-out;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------------------------------------------------------------- narrow */
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    width: 100%;
+    padding-bottom: 12px;
+  }
+
+  .nav-spacer {
+    display: none;
+  }
+
+  .sign-out {
+    border-top: 0;
+  }
+
+  .whoami {
+    width: 100%;
+    padding-bottom: 0;
+  }
+
+  .main {
+    padding: 20px 16px 48px;
+  }
+}

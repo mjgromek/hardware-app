@@ -111,9 +111,12 @@ asserts against the real gitignored `frontend/dist`, deliberately — a fixture 
 would prove the mount works, not that the *built bundle* is served. CI must build the
 frontend before the Python suite. *Urgent when: CI is set up.*
 
-**vitest is not set up.** `brainstorm.md` §3 lists "pytest + vitest" as Phase 0 scope
-and the frontend has no tests. *Urgent when: the frontend grows logic worth testing —
-Phase 1's dashboard is the first candidate.*
+**vitest is not set up, and the condition it was waiting for has arrived.** `brainstorm.md`
+§3 lists "pytest + vitest" as Phase 0 scope. This entry used to say "urgent when the
+frontend grows logic worth testing" — it has: `HardwareTable`'s roving tabindex, the api
+client turning a `401` into the login screen while a refused login stays on it, and the
+filter counts computed from a second fetch. Three pieces of real logic, none asserted.
+*Urgent when: now. It is the largest untested surface in the project.*
 
 **`scripts.seed.main()` is untested.** Wiring only: every step it calls has its own
 coverage and it has no branches. *Urgent when: it takes a flag.*
@@ -128,3 +131,37 @@ while the quarantine record carries the full narrative. Narrowed but not removed
 removing it would turn `test_seed_quarantines_unknown_status` red, and that test is the
 human's to change. See `AI_LOG.md` [P0 · c6]. *Urgent when: the admin queue is built
 and has to decide where it reads the reason from.*
+
+---
+
+## Phase 1 UI — found while building it
+
+**`POST /api/hardware` does not apply the checks ingestion applies.** Ingestion flags a
+future purchase date (`needs_review`, seed id 6), but an admin adding an item by hand
+can enter one and it lands unflagged. Two paths into the same table with two different
+standards for what is suspicious — and the admin path is the one a human uses. The
+route deliberately does not accept `status` or `needs_review`, so the fix is a shared
+validator rather than a wider request body. *Urgent when: the auditor runs in Phase 3
+and disagrees with what the admin panel allowed.*
+
+**No `Serial Number` or `Category` field exists**, and the wireframes have both — a
+column in the admin table and a select in the add-device form. Adding them means a
+schema change, a migration on the mounted volume, and eleven rows where both are empty.
+See `docs/WIREFRAME_JUSTIFICATION.md`. *Urgent when: the domain actually gains them —
+serial numbers matter the first time two identical laptops need telling apart.*
+
+**Nothing can edit an item's name, brand or date.** Only status and deletion. The
+wireframe has an edit action; the app does not, because there is no endpoint. So a typo
+like the seed's `Appel` can only be fixed in the database — and ADR-0002 deliberately
+left that typo for the auditor to *find*, with no way to then act on the finding.
+*Urgent when: Phase 3's auditor produces a correction somebody wants to apply.*
+
+**A filtered dashboard fetches the inventory twice.** The filter chips show counts for
+every status, so with a filter active the app fetches the filtered list and the whole
+list — otherwise the counts would describe only what is already on screen. Eleven rows
+makes this free. *Urgent when: the inventory outgrows one page and needs real
+pagination, at which point counts belong in the API response.*
+
+**Toasts overlap the bottom of the admin panel.** They are fixed bottom-right, and the
+create-account row sits under them until they dismiss. *Urgent when: a toast covers a
+control somebody needs while it is showing — reserve the space or move the stack.*

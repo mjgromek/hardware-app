@@ -12,10 +12,26 @@ Built as a recruitment task for the Early Careers Programme.
 
 | Version | Phase | URL | Status |
 | --- | --- | --- | --- |
-| **v0** | Phase 0 — foundation, data audit, first deploy | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v1 | Phase 1 — auth, admin, dashboard | — | 🔮 planned |
+| v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
+| **v1** | Phase 1 — auth, admin, dashboard | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 | v2 | Phase 2 — rental engine | — | 🔮 planned |
 | v3 | Phase 3 — AI layer + hardening | — | 🔮 planned |
+
+### Signing in
+
+The Hub admits only admin-created accounts — there is no public read surface and no
+self-registration (ADR-0006). A demo account is published so the live version can be
+opened in ten seconds:
+
+| | |
+| --- | --- |
+| **Email** | `demo@booksy.com` |
+| **Password** | `hardware-hub-demo` |
+| **Role** | `admin` — so every screen, including the admin panel, is reachable |
+
+This is a separate account from the deployment's own bootstrap admin, whose credential
+stays in Railway's environment and is not published (ADR-0005). Publishing a demo
+credential on a public instance is a deliberate trade-off, recorded below.
 
 ---
 
@@ -25,10 +41,21 @@ Built as a recruitment task for the Early Careers Programme.
 
 - Seed ingestion: structural validation, quarantine with reasons, nothing deleted
 - SQLite persistence with caller-owned transactions and replace-semantics reseed
-- `GET /api/hardware` — the full inventory
-- Vue page listing every item with its status and review flag
+- **Session-cookie auth** — `scrypt` with a per-account salt, `HttpOnly`,
+  `SameSite=Lax`, `Secure` in production; the password digest cannot leave
+  `app/accounts.py` because `Account` has no field for it
+- **`admin` / `user` roles**, enforced by per-route dependencies — `401` without a
+  session, `403` with one that is not enough
+- **No public read surface** — every data route needs a session (ADR-0006)
+- **The zero-admin guard** (ADR-0005), covering deletion *and* demotion, `409` with a
+  readable reason, in `app/guards.py` alongside where Phase 2's rental guards go
+- **Admin panel** — add and delete hardware, toggle `Repair` both ways, create
+  accounts, promote and demote
+- **Dashboard** — dense table, status filter and purchase-date sort, both server-side
+- **`needs_review` queue** — every flagged item with the reason ingestion recorded
+  (read-only; see below)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 30 tests, all green
+- 47 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -44,29 +71,58 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Future:** in a private or internal repo the images would be committed alongside
   the justification doc. The prose-only form exists solely because this one is
   public.
-- **The frontend is one unstyled page**, no router and no state management. Enough
-  to prove the pipeline end to end; Phase 1 is where it becomes a UI.
-- **`needs_review` is set and displayed but nothing can clear it yet.** The flag
-  blocks rental (ADR-0003), so until Phase 1 ships the admin queue, releasing a
-  flagged item takes a database edit.
+- **Demo credentials are published, on an admin account, on a public instance.**
+  Anyone reading this can sign in and delete inventory.
+  **Why:** a reviewer opening the live version in ten seconds is worth more than
+  credential hygiene on a throwaway instance, and ADR-0005 chose that openly. The
+  deployment's own bootstrap admin is a separate account and its credential is not
+  published.
+  **Future:** a read-only demo role, or a per-reviewer invite link.
+- **`needs_review` is surfaced but still cannot be cleared.** The queue now shows every
+  flagged item and the reason, and the flag still blocks rental (ADR-0003) — so
+  releasing an item is a database edit. The screen says so rather than offering a
+  button that would fail.
+  **Why:** clearing needs a decision nobody has made — what evidence releases an item,
+  and who records it. Inventing it to fill a screen is how an audit trail becomes
+  decoration.
+  **Future:** a clear-flag action with the decision recorded, due before the Phase 2
+  gate.
+- **Sign out is client-side only.** It drops the app's state and returns to the login
+  screen; the cookie is not revoked server-side, because the session is a signed cookie
+  with no server record and there is no logout route.
+  **Why:** stateless sessions were the cheap correct thing for one process, and expiry
+  and revocation were out of Phase 1's scope.
+  **Future:** a logout route plus session expiry — pointed at `/security-review`.
+- **The frontend has no tests.** vitest is still not set up, and the UI now carries
+  real logic: a roving-tabindex table, the `401`-to-login-screen path, filter counts.
+  **Why:** time, and the Python suite covers the contract the UI consumes.
+  **Future:** vitest over the table's keyboard behaviour and the api client's `401`
+  handling, both of which are logic rather than markup.
 - **The app seeds itself on boot when the database is empty.** A deploy shim, not a
   migration strategy — Railway offered no way to run a one-off command against the
-  mounted volume. The emptiness guard is what makes it safe.
+  mounted volume. The emptiness guard is what makes it safe. Admin bootstrap now rides
+  the same path, though it is idempotent and additive rather than destructive.
 
 ### ⚠️ Partial / Missing
 
-- Authentication and roles — no login exists, so the API is fully public
-- Rental engine — items have statuses but cannot be rented or returned
-- The AI layer — semantic search and the Inventory Auditor
+- Rental engine — items have statuses but cannot be rented or returned. No `Rent`
+  action exists, which is why the wireframe's is absent
+- The AI layer — semantic search and the Inventory Auditor. The wireframe's "Ask AI…"
+  bar is absent for the same reason
+- Editing an item's name, brand or date — only status changes and deletion exist
+- Field-level authorization — every signed-in employee sees `notes` and `history`,
+  which are admin- and auditor-facing
+- Logout, session expiry, login throttling
 - CI, vitest, a health endpoint
 
 ### 🔮 Next Steps (24h Roadmap)
 
 In order, one branch and one deployed version each — the phases in the table above:
 
-1. **Phase 1 — auth, admin, dashboard.** Session-cookie login and role guards over
-   the public API, admin CRUD, and the review queue that can finally clear
-   `needs_review`.
+1. **Clear a `needs_review` flag.** The one piece of Phase 1's own scope that shipped
+   read-only, and ADR-0003 says it must not reach the Phase 2 gate unresolved.
+   `/security-review` runs alongside it, against the three items waiting in
+   [`BACKLOG.md`](BACKLOG.md).
 2. **Phase 2 — rental engine.** Rent and return, with `Repair` and `needs_review`
    blocking through one guard (ADR-0003).
 3. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
@@ -148,15 +204,15 @@ the moment it was taken.
 
 | Shortcut | Why | Future refactor |
 | --- | --- | --- |
-| **The API is entirely public** | Phase 0 exists to prove the pipeline end to end. Auth is Phase 1's whole subject, and stubbing it here would have meant building it twice. | Phase 1 adds session-cookie auth and role guards. |
-| **`notes` and `history` are exposed by `/api/hardware`** | They are the free text the auditor reads, and the endpoint returns whole items. | Phase 1's roles decide who sees them. |
-| **Nothing can clear `needs_review`** | The flag blocks rental (ADR-0003); the clearing UI is admin work, which is Phase 1. Until then a flagged item requires a database edit to release. | Phase 1 surfaces the queue with a clear-flag action. |
-| **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. The page is one fetch and a table; a test would assert little. | vitest arrives when the frontend grows logic. |
+| **Demo credentials are published on a public instance, on an admin account** | A reviewer signing in within ten seconds is worth more than credential hygiene on a throwaway instance, and ADR-0005 chose that openly rather than quietly. The deployment's own bootstrap admin is a separate account whose credential is not published. | A read-only demo role, or per-reviewer invite links. Anyone with this README can currently delete inventory. |
+| **`notes` and `history` are visible to every signed-in employee** | The endpoint returns whole items, and ADR-0006 closed the public half of this — a stranger with the URL no longer sees them. Field-level authorization is a separate piece of work that Phase 1 did not do. | Role-aware serialisation, so auditor-facing free text reaches admins only. `/security-review` before the Phase 1 gate. |
+| **Nothing can clear `needs_review`** | The queue is surfaced and read-only. Clearing needs a decision nobody has made — what evidence releases an item, and who records it — and inventing one to fill a screen is how an audit trail becomes decoration. | A clear-flag action with the decision recorded. ADR-0003 says this must not reach the Phase 2 gate. |
+| **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now — the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |
 | **`test_serves_built_bundle_at_root` needs `npm run build` first** | It asserts against the real `frontend/dist` on purpose — a fixture directory would prove the mount works, not that the built bundle is served. | CI builds the frontend before running pytest. |
 | **No CI** | Time. The tests exist and run locally; automating them was the cut. | A workflow running both build steps and both suites. |
 | **The app seeds itself on boot when the database is empty** | The deploy target offers no way to run a one-off command against the mounted volume: Railway's API has no exec or SSH, `preDeployCommand` silently did not run, and `railway ssh` needs an SSH key. Seeding at startup was the only mechanism left. An emptiness guard makes it safe — once rentals exist the table is never empty, so it can never wipe them. | A migration step or a one-off job. Boot logic should not write data. See [`BACKLOG.md`](BACKLOG.md). |
 | **Deploying needed three human-in-the-loop steps** | Browser OAuth for the Railway MCP, a *second* browser authorization for the Railway CLI, and an SSH key — none of which any tooling removes. Seed-on-boot-if-empty was chosen partly to delete the manual seeding step for whoever redeploys next. | Nothing to fix in this codebase; recorded because the deploy story is otherwise easy to tell as smoother than it was. |
-| **Admin bootstrap validated but unused** | `ADMIN_PASSWORD` is required in production and nothing consumes it yet — there is no users table until Phase 1. | Phase 1's seed creates admin #1 from it. |
+| **Sign out does not revoke the session** | The session is a signed cookie with no server-side record, which was the cheap correct thing for one process. There is no logout route, so the control clears the client and says so. | A logout route and session expiry. A leaked cookie is valid until `SECRET_KEY` changes. |
 
 Deferred findings that are not shortcuts — interface concerns, spec gaps, things
 noticed and consciously not acted on — are in [`BACKLOG.md`](BACKLOG.md), each with
@@ -172,6 +228,7 @@ a note on when it becomes urgent.
 | [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
 | [`docs/adr/`](docs/adr/) | Architectural decisions, with the reasoning that produced them. |
 | [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
+| [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |
 | [`BACKLOG.md`](BACKLOG.md) | Findings deferred rather than acted on. |

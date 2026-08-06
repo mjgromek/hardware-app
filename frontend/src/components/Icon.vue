@@ -1,0 +1,40 @@
+<script setup>
+// Inline SVG rather than an icon package: nine glyphs do not justify a dependency,
+// and the bundle is served from the same Python process as the API (ADR-0001) — a
+// CDN icon font would be the only cross-origin request in the app.
+const paths = {
+  box: 'M21 8v8l-9 5-9-5V8l9-5 9 5Zm-9 5 9-5m-9 5-9-5m9 5v9',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2-1.2L14.5 2h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z',
+  flag: 'M4 21V4m0 0h11l-1.5 4L15 12H4',
+  wrench: 'M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-2-2-6 2-2-2 2-6-2-2 8-8 1.7 1.3Z',
+  trash: 'M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14',
+  plus: 'M12 5v14M5 12h14',
+  out: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h11',
+  check: 'M20 6 9 17l-5-5',
+  info: 'M12 8h.01M11 12h1v5h1',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v5l3.5 2',
+}
+
+const props = defineProps({
+  name: { type: String, required: true },
+  size: { type: [Number, String], default: 16 },
+})
+</script>
+
+<template>
+  <svg
+    :width="props.size"
+    :height="props.size"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path :d="paths[props.name]" />
+  </svg>
+</template>

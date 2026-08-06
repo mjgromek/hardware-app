@@ -18,6 +18,7 @@ give it one.
 from __future__ import annotations
 
 import json
+from datetime import date
 
 from sqlalchemy import (
     Boolean,
@@ -31,6 +32,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     delete,
+    func,
     insert,
     select,
     update,
@@ -50,6 +52,7 @@ __all__ = [
     "persist",
     "load_items",
     "load_quarantine",
+    "add_item",
     "set_status",
     "delete_item",
 ]
@@ -211,6 +214,52 @@ def load_items(
         )
         for row in rows
     )
+
+
+def add_item(
+    session: Session,
+    *,
+    name: str,
+    brand: str | None,
+    purchase_date: date | None,
+) -> HardwareItem:
+    """Insert one new item as ``Available`` and unflagged, and return it.
+
+    **The id is chosen here, not by SQLite.** ``hardware.id`` is
+    ``autoincrement=False`` because ingestion carries the seed's own ids, and the seed
+    already re-keyed a duplicate to 12 — so ``max(id) + 1`` is the only value certain to
+    be free. Letting the database pick would hand out an id the seed already used and
+    overwrite a real item.
+
+    ``Available`` and ``needs_review=False`` are not caller-supplied. An item an admin
+    is holding is in hand and not under review; accepting a status here would let the
+    UI create something already flagged, which under ADR-0003 is an item nobody can
+    rent and nobody can clear.
+    """
+    highest = session.execute(select(func.max(hardware.c.id))).scalar_one()
+    item = HardwareItem(
+        id=(highest or 0) + 1,
+        name=name,
+        brand=brand,
+        purchase_date=purchase_date,
+        status=Status.AVAILABLE,
+    )
+    session.execute(
+        insert(hardware).values(
+            id=item.id,
+            name=item.name,
+            brand=item.brand,
+            purchase_date=item.purchase_date,
+            status=item.status.value,
+            source_id=None,
+            needs_review=False,
+            review_reason=None,
+            notes=None,
+            history=None,
+            assigned_to=None,
+        )
+    )
+    return item
 
 
 def set_status(session: Session, item_id: int, status: Status) -> bool:

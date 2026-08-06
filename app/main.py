@@ -10,18 +10,20 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import asdict
+from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import accounts, guards, sessions
 from app.config import PRODUCTION, load_settings
 from app.domain import Account, Role, Status
 from app.storage import (
+    add_item,
     create_engine_for,
     create_schema,
     delete_item,
@@ -54,6 +56,19 @@ class NewAccount(BaseModel):
 
 class RoleChange(BaseModel):
     role: Role
+
+
+class NewHardware(BaseModel):
+    """What an admin can tell us about a device they are holding.
+
+    `name` is required and the rest are not, which mirrors the seed: real rows arrive
+    with a missing brand or no purchase date (id 10 has neither), and refusing those
+    fields here would make the API stricter than the data it already stores.
+    """
+
+    name: str = Field(min_length=1)
+    brand: str | None = None
+    purchase_date: date | None = None
 
 
 class StatusChange(BaseModel):
@@ -213,6 +228,18 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         )
         return {"email": account.email, "role": account.role.value}
 
+    @app.get("/api/session")
+    def read_session(account: Account = Depends(current_account)) -> dict[str, Any]:
+        """Who the caller is, for a client that holds an `HttpOnly` cookie.
+
+        The cookie is unreadable from JavaScript by design, so after a reload the app
+        knows it has *a* session and nothing about whose. This is the route it asks,
+        and the `401` for an absent session is what turns into the login screen.
+
+        Returns the `Account`, which has no field for a password digest.
+        """
+        return asdict(account)
+
     # ------------------------------------------------------------------
     # Accounts
     # ------------------------------------------------------------------
@@ -311,6 +338,26 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 sort_by_purchase_date=sort is SortKey.PURCHASE_DATE,
             )
         return [asdict(item) for item in items]
+
+    @app.post("/api/hardware", status_code=status.HTTP_201_CREATED)
+    def add_hardware(
+        new_item: NewHardware, _: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Add an item to the inventory. Admin-only.
+
+        `status` and `needs_review` are not accepted from the caller — see
+        `storage.add_item`. The only fields an admin supplies are the ones they can
+        read off the device in their hands.
+        """
+        with new_session(engine) as session:
+            item = add_item(
+                session,
+                name=new_item.name,
+                brand=new_item.brand,
+                purchase_date=new_item.purchase_date,
+            )
+            session.commit()
+        return asdict(item)
 
     @app.patch("/api/hardware/{item_id}")
     def change_status(

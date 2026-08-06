@@ -520,3 +520,44 @@ deleted when done rather than annotated; the reversal record lives in `AI_LOG.md
 `docs/adr/`, not here.
 
 Commit: docs: trim CLAUDE.md, CONTEXT.md, agents and backlog for pace (pending)
+
+---
+
+## [P1 · c6] The Phase 1 UI, and v1 live
+
+Four screens against the supplied wireframes: login, the dashboard, the admin panel and
+a `needs_review` queue. 47/47 green. Thirteen deviations recorded in
+`docs/WIREFRAME_JUSTIFICATION.md` as they were made — the load-bearing ones being the
+status labels (the enum's words, not the wireframe's "Rented / In Repair"), the dropped
+Serial Number and Category fields (no such columns exist), and the dropped edit action
+(no endpoint, and the wireframe's own button only raises a toast admitting it does
+nothing).
+
+**Two routes the wireframes required and §3 never specified.** "Add New Device" had no
+`POST /api/hardware` behind it, and the `HttpOnly` cookie means a reloaded page knows it
+has a session but not whose — so `GET /api/session`. Both got failing tests first, in new
+files rather than by touching `test-author`'s green ones. Six new tests.
+
+**The design decision worth naming:** `needs_review` is not a fourth status chip. A
+flagged item still has a status — both flagged seed rows are `Available` — so two
+orthogonal facts cannot share one cell. The flag gets its own column and an amber edge
+marker on the row, which is what makes it scannable down a dense table without reading
+every line.
+
+**A correction, and it was mine.** Verifying the live deployment I sent
+`DELETE /api/users/1` at production expecting the ADR-0005 guard to refuse it. It did not
+refuse, correctly — I had just created a second admin for the demo account, so the guard
+had nothing to protect — and I deleted the deployment's real bootstrap admin. Restored it
+immediately from `ADMIN_PASSWORD` (it is id 3 now), and the inventory was never touched:
+11 items, 2 flagged, seed ids intact. The lesson is not "be careful with DELETE". It is
+that I ran a *destructive* probe to observe a *refusal*, against production, when
+`test_cannot_remove_last_admin` already proves that behaviour locally and its control
+covers exactly the two-admin case I had accidentally created. A test that passes is not a
+reason to re-run the experiment by hand on live data.
+
+v1 is live on the Phase 0 URL, verified signed in as the published demo account. The
+cookie comes back `HttpOnly; SameSite=lax; Secure`, anonymous requests to
+`/api/hardware` and `/api/session` both get `401`, and the guard's `409` reason renders
+verbatim in the UI for both the delete and the demote path.
+
+Commit: chore(phase-1): deploy v1 (pending)
