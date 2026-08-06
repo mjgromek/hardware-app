@@ -56,6 +56,7 @@ whole-project session — see `docs/PROMPT_TRAIL.md`.
 
 ```markdown
 ## [P1 · c2] Admin CRUD + role guards
+
 /tdd against the phase-1 spec. Clean run, no corrections needed.
 Commit: feat(phase-1): admin hardware and account management (a1b2c3d)
 ```
@@ -66,16 +67,25 @@ twenty uniform long entries is itself the texture that reads as batch-written.
 
 ## Documentation that must stay current
 
-| File | When |
-|---|---|
-| `AI_LOG.md` | Every commit |
-| `docs/adr/` | Every architectural decision |
-| `docs/DATA_AUDIT.md` | Phase 0 |
-| `docs/PROMPT_TRAIL.md` | After every grilling session |
-| `docs/WIREFRAME_JUSTIFICATION.md` | Every UI deviation, as it is made |
-| `README.md` | Live-versions table + ✅/⚡/⚠️/🔮 status summary |
+| File                              | When                                             |
+| --------------------------------- | ------------------------------------------------ |
+| `AI_LOG.md`                       | Every commit                                     |
+| `docs/adr/`                       | Every architectural decision                     |
+| `docs/DATA_AUDIT.md`              | Phase 0                                          |
+| `docs/PROMPT_TRAIL.md`            | After every grilling session                     |
+| `docs/WIREFRAME_JUSTIFICATION.md` | Every UI deviation, as it is made                |
+| `README.md`                       | Live-versions table + ✅/⚡/⚠️/🔮 status summary |
 
 ## Honesty is a feature
 
 Shortcuts go in the README trade-offs table **the moment they are taken**, each with
 the Why and the Future refactor. A documented hack scores better than a hidden one.
+
+## Findings discipline
+
+When you surface an improvement, interface concern, or spec gap that is not
+blocking the current test, write it to BACKLOG.md and continue. Do not stop to
+ask. Only interrupt for something that makes the current work wrong.
+
+Time is the binding constraint, not correctness. A working deployed app with
+solid tests beats a perfect data layer with no UI.

@@ -290,3 +290,38 @@ mutant passes all five original tests and is caught only by
 `test_persist_does_not_commit`, which is why that sixth test exists.
 
 Commit: test(phase-0): SQLite persistence specs (pending)
+
+---
+
+## Correction #2 — I acted on every finding, and every finding was correct
+
+**What happened:** the agent pipeline worked. `test-author` kept surfacing spec
+gaps, interface friction and design consequences at a rate I did not anticipate —
+the collapsed `needs_review` signal, the unpinned transaction boundary, the
+`review_reason` duplication, the table-name constants that nothing could pin. Not
+one of them was noise. I checked each before acting, and each held up.
+
+**Why that was wrong:** I acted on all of them. Every decision was individually
+defensible and the aggregate was not. Phase 0 now has a persistence layer with
+caller-owned transactions, replace semantics specified rather than inferred, and 26
+tests including a mutation-verified check that `persist` does not commit — and
+visible product is still zero. No UI, no deploy, no `DATA_AUDIT.md`. Against a
+four-to-five hour budget I spent the margin on a data layer that is better than the
+brief requires, and the brief asks for a working application.
+
+**How I caught it:** I asked what a reviewer would see if I ran out of time at that
+moment, and the answer was a rigorous test suite attached to nothing they could
+open. The suite is not the deliverable.
+
+**The correction:** a standing rule in `CLAUDE.md` — non-blocking findings go to
+`BACKLOG.md` and work continues. Only something that makes the current work *wrong*
+interrupts. `BACKLOG.md` is now seeded with the ten-odd items I would otherwise
+have stopped for, each with a note on when it actually becomes urgent.
+
+**What I'm taking from it:** the thoroughness was never the problem. The missing
+piece was a filter on which correct observations deserved action *now*. Engineering
+judgement is not only spotting the gap — it is knowing which gaps to write down and
+walk past. I had no mechanism for deferring a legitimate finding, so every
+legitimate finding became work.
+
+Commit: docs: findings discipline rule after Phase 0 scope drift (pending)
