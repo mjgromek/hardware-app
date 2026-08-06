@@ -194,3 +194,14 @@ evidences. ADR-0005 now names `ENVIRONMENT` and states the permissive-local /
 strict-production asymmetry it had implied twice without ever writing down.
 
 Commit: test(phase-0): failing specs for seed ingestion and admin bootstrap (pending)
+
+---
+
+## [P0 · c3] Seed data, verbatim from the brief
+
+`data/seed.json` copied byte-for-byte — verified by sha256 against the source, not
+re-typed. Every defect is intentional test input and the file is treated as
+read-only from here: 11 records, 10 unique ids, `4` twice, no `8`, matching all ten
+rows of `brainstorm.md` §2.
+
+Commit: chore(phase-0): add seed data verbatim from brief (pending)
