@@ -33,6 +33,11 @@ that ships.
 ## Non-negotiables
 
 - **TDD.** No production code before a failing test. Use `/tdd`.
+- **Every schema change ships with a migration test.** Boot over the *previous*
+  table shape built in raw SQL, then assert a real request succeeds — not that
+  `create_app` returned. The suite builds every database from scratch, where
+  `create_all` creates everything, so it is structurally blind to upgraded volumes.
+  Two production defects have now come from exactly that blind spot.
 - **Never commit to `main`.** Branch per phase, merge by PR after human review.
 - **Conventional Commits.** Every commit updates `AI_LOG.md` — 3 lines, in the
   moment. Long-form only for genuine corrections; 3–4 exist already, that's enough.
@@ -50,8 +55,8 @@ that ships.
 
 ```
 P0  foundation, data audit, deploy v0     ✅ DONE — merged, tagged, live
-P1  auth, admin, dashboard                ◐ in progress
-P2  rental engine                         /grill-me first
+P1  auth, admin, dashboard                ✅ DONE — merged, tagged v1-admin, live
+P2  rental engine                         ◐ green, deployed v2, at the gate
 P3  AI layer + production hardening       /grill-me first
     final polish — one commit on main
 ```

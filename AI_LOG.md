@@ -1035,3 +1035,20 @@ migration happening at all?* When a design decision is justified by what it avoi
 thing to verify is that the alternative is actually being done.
 
 Commit: fix(phase-2): migrate the users table on boot (pending)
+
+---
+
+## [P2 · c10] Migration tests become a non-negotiable
+
+`CLAUDE.md` gains one rule: a schema change ships with a test that boots over the
+*previous* table shape and asserts a real request, not that `create_app` returned.
+
+It earns its place by having been paid for twice — the seed rental `seed_if_empty` never
+reconciled on an existing volume, and Correction #4's missing `ALTER TABLE`. Both were
+green across the whole suite, because every test in it builds its database from scratch,
+which is the one condition under which `create_all` does the migration for you.
+
+Also corrected the phase table in the same file, which still described Phase 1 as in
+progress two tags later.
+
+Commit: docs: migration tests are mandatory for schema changes (pending)
