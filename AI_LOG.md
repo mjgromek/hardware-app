@@ -161,3 +161,251 @@ whole-project scope before any code exists, not per feature.
 
 **Commit:** `docs: ADRs 0001–0005 from whole-project grilling` (pending)
 
+
+---
+
+## [P0 · c1] Scaffold and module skeletons
+
+Backend scaffold plus signature-only skeletons: `app/config.py`, `app/domain.py`,
+`app/main.py`, `scripts/seed.py`. Every function body raises `NotImplementedError`
+— no logic, so the Phase 0 tests can fail on a real assertion rather than on
+`ImportError`, which `CONTEXT.md` defines as broken rather than red. Vue/Vite,
+vitest and CI are Phase 0 scope but not needed by the five backend tests; they are
+deferred to a later Phase 0 commit.
+
+Commit: chore(phase-0): scaffold and module skeletons (pending)
+
+---
+
+## [P0 · c2] Failing specs for seed ingestion and admin bootstrap
+
+`test-author` against `brainstorm.md` §2/§3 and ADRs 0001, 0002, 0003, 0005.
+18 tests, all red on `NotImplementedError` from the skeletons — no import errors,
+which `CONTEXT.md` defines as broken rather than red.
+
+The run surfaced three spec gaps I had not seen, and resolving them changed the
+plan rather than the tests. §2 said the `"Appel"` typo was normalised at ingestion,
+which contradicts ADR-0002 in the plan's own words: parsing a date field is
+structural, correcting a spelling is judgement. ADR-0002 now draws that line
+explicitly and §2 hands the typo to the auditor. The off-enum status had no
+specified target — it maps to `Available` + `needs_review`, not `Repair`, because
+`"Unknown"` says unidentifiable and `Repair` would assert a physical fact nothing
+evidences. ADR-0005 now names `ENVIRONMENT` and states the permissive-local /
+strict-production asymmetry it had implied twice without ever writing down.
+
+Commit: test(phase-0): failing specs for seed ingestion and admin bootstrap (pending)
+
+---
+
+## [P0 · c3] Seed data, verbatim from the brief
+
+`data/seed.json` copied byte-for-byte — verified by sha256 against the source, not
+re-typed. Every defect is intentional test input and the file is treated as
+read-only from here: 11 records, 10 unique ids, `4` twice, no `8`, matching all ten
+rows of `brainstorm.md` §2.
+
+Commit: chore(phase-0): add seed data verbatim from brief (pending)
+
+---
+
+## [P0 · c4] Quarantine importer and admin bootstrap
+
+`/tdd` green pass against the 18 red specs. 18/18 pass, `tests/` untouched, no
+corrections needed. Ingestion stayed structural: no keyword scan, `"Appel"`
+preserved, the Dell XPS and MacBook Air imported `Available` and unflagged.
+
+Run against the real `data/seed.json` it reproduces §2's audit exactly — 11
+imported, 2 quarantined, and the duplicate re-keyed to 12 with `source_id: 4`,
+which is the id §2 predicted before the code existed.
+
+One gap the green pass exposed rather than closed: resolving the orphan rental
+(id 2, `In Use` with nobody assigned) releases it to `Available` and leaves no
+record of the change. Every other divergence from the seed is written to
+quarantine with a reason; this one is not, so the database silently disagrees with
+the brief about one row. §2 row 9 says only "resolved at import", so the
+implementation matches the spec and the spec is what is thin. Flagged, not fixed.
+
+Commit: feat(phase-0): quarantine importer and admin bootstrap (pending)
+
+---
+
+## [P0 · c5] Orphan rental audit trail and seed fidelity specs
+
+Two red specs from `test-author`, closing the gap the green pass exposed. Committed
+red, deliberately: the second one changes an interface decision and I wanted the
+failure in the history rather than only its fix.
+
+`test_seed_records_orphan_rental_in_quarantine` settles the spec thinness in §2
+row 9 — releasing id 2 is a divergence from the brief, so it leaves a quarantine
+record, but no `needs_review`. The item is usable; we simply cannot say who held
+it, and flagging it would make a working MacBook unrentable over missing paperwork.
+
+`test_importer_reproduces_documented_audit` runs the real `data/seed.json` rather
+than a fixture, so `docs/DATA_AUDIT.md` becomes falsifiable. Every other test in
+the file builds its own row, which keeps failures legible but means none of them
+would notice the seed and the importer drifting apart.
+
+The finding is mine to own: I made quarantine emission and `needs_review` the same
+signal in c4 — one `reasons` list driving both. The orphan rental is the first case
+where they must diverge, so the cheap fix turns the audit test green and leaves the
+orphan test red on exactly the assertion written to catch it. The test-author
+separation earned its keep here; the implementer could not have quietly widened the
+test to fit the code.
+
+Commit: test(phase-0): orphan rental audit trail and seed fidelity specs (pending)
+
+---
+
+## [P0 · c6] Separate quarantine audit trail from review flag
+
+Green pass over the two red specs from c5. 20/20, `tests/` and `data/seed.json`
+untouched. A `_Divergence(reason, needs_decision)` tuple splits the signal I had
+collapsed: every divergence reaches the quarantine record, only undecided ones
+reach `needs_review`. On the real seed that gives three quarantine records where
+one — the released orphan rental — stays rentable.
+
+**One instruction I did not carry out.** The brief said items should stop carrying
+`review_reason` entirely: the record holds the narrative, the flag holds the guard.
+But `test_seed_quarantines_unknown_status` was already green asserting a flagged
+item carries its reason, "or the admin queue is blind", and I am not permitted to
+edit `tests/`. I narrowed the field instead — `review_reason` is now populated only
+from undecided divergences, so it mirrors the flag rather than the record, and the
+repaired-row case behaves as asked. The duplication that remains is real and
+unresolved, and it is a design disagreement rather than an oversight: the queue
+either carries the reason on the item it renders, or joins back to quarantine to
+explain itself. Left for the human, because the test is the human's to change.
+
+Commit: feat(phase-0): separate quarantine audit trail from review flag (pending)
+
+---
+
+## [P0 · c7] SQLite persistence specs
+
+`test-author` against the `app/storage.py` skeleton — six red specs for the seam
+between the pure importer and the database. The red state proves only that the
+module is unimplemented: all six error identically in the fixture on
+`create_engine_for`, so it cannot show any of them discriminates. Mutation testing
+against a scratchpad implementation is what confirmed it — a `persist_commits`
+mutant passes all five original tests and is caught only by
+`test_persist_does_not_commit`, which is why that sixth test exists.
+
+Commit: test(phase-0): SQLite persistence specs (pending)
+
+---
+
+## Correction #2 — I acted on every finding, and every finding was correct
+
+**What happened:** the agent pipeline worked. `test-author` kept surfacing spec
+gaps, interface friction and design consequences at a rate I did not anticipate —
+the collapsed `needs_review` signal, the unpinned transaction boundary, the
+`review_reason` duplication, the table-name constants that nothing could pin. Not
+one of them was noise. I checked each before acting, and each held up.
+
+**Why that was wrong:** I acted on all of them. Every decision was individually
+defensible and the aggregate was not. Phase 0 now has a persistence layer with
+caller-owned transactions, replace semantics specified rather than inferred, and 26
+tests including a mutation-verified check that `persist` does not commit — and
+visible product is still zero. No UI, no deploy, no `DATA_AUDIT.md`. Against a
+four-to-five hour budget I spent the margin on a data layer that is better than the
+brief requires, and the brief asks for a working application.
+
+**How I caught it:** I asked what a reviewer would see if I ran out of time at that
+moment, and the answer was a rigorous test suite attached to nothing they could
+open. The suite is not the deliverable.
+
+**The correction:** a standing rule in `CLAUDE.md` — non-blocking findings go to
+`BACKLOG.md` and work continues. Only something that makes the current work *wrong*
+interrupts. `BACKLOG.md` is now seeded with the ten-odd items I would otherwise
+have stopped for, each with a note on when it actually becomes urgent.
+
+**What I'm taking from it:** the thoroughness was never the problem. The missing
+piece was a filter on which correct observations deserved action *now*. Engineering
+judgement is not only spotting the gap — it is knowing which gaps to write down and
+walk past. I had no mechanism for deferring a legitimate finding, so every
+legitimate finding became work.
+
+Commit: docs: findings discipline rule after Phase 0 scope drift (pending)
+
+---
+
+## [P0 · c8] SQLite persistence for items and quarantine
+
+`/tdd` green pass over the six storage specs. 26/26, `tests/` untouched. SQLAlchemy
+Core rather than the ORM — the domain objects are frozen dataclasses and mapping
+them would add a layer that buys nothing at this size.
+
+Verified the suite discriminates against *this* implementation and not only the
+scratchpad reference it was written against: with `persist` patched to commit via a
+pytest plugin, 1 failed / 5 passed — only `test_persist_does_not_commit`. The
+repo was not modified to run that check.
+
+Commit: feat(phase-0): SQLite persistence for items and quarantine (pending)
+
+---
+
+## [P0 · c9] Vue scaffold, API, and single-origin wiring
+
+Minimal frontend — one page, one fetch, a legible table, no router and no state
+library. Two new tests: the bundle mount, which had been structurally present and
+unexercised since c1, and `/api/hardware`, which is production code and so needed a
+red test first. 28/28.
+
+Also the Dockerfile and `python -m scripts.seed`, both needed before anything can
+deploy. Findings from the pass went to `BACKLOG.md` rather than becoming work.
+
+Commit: feat(phase-0): Vue scaffold, hardware API, single-origin wiring (pending)
+
+---
+
+## [P0 · c10] Seed on boot when the database is empty
+
+`/tdd`. Two red specs first: an empty database seeds, a populated one is left
+untouched. 30/30.
+
+The second test is the one that matters. `persist` has replace semantics, so an
+unguarded boot seed would wipe the table on every restart — the emptiness check is
+what makes this safe rather than merely convenient, and once the rental engine
+exists the table is never empty, so the seeding branch can never reach live data.
+
+Chosen after `railway ssh` turned out to need an SSH key the machine did not have,
+following `preDeployCommand` silently not executing across two deploys and
+Railway's API exposing no exec. Recorded in `BACKLOG.md` as a deploy shim rather
+than a migration strategy, because that is what it is: boot logic that writes data
+couples "the process started" to "the data changed", and it will race itself the
+moment there is a second replica.
+
+Commit: feat(phase-0): seed on boot when the database is empty (pending)
+
+---
+
+## [P0 · c11] README, live-versions table, and visible boot logging
+
+v0 is live at https://hardware-hub-production-24b7.up.railway.app with all 11
+items and every seed fingerprint intact — id 12 re-keyed from the duplicate,
+ids 6 and 10 flagged, `"Appel"` preserved, id 2's orphan rental released.
+
+**A gap the tests could not have caught.** The boot-seed log line was emitted and
+asserted, and never appeared in production: under uvicorn the root logger has no
+handler, and `caplog` captures propagated records regardless of handlers, so the
+test passed while the real deployment was silent. Found by reading the deploy logs
+for a line that should have been there and was not. `create_app` now calls
+`basicConfig`. The lesson is narrow and worth keeping: a passing assertion that a
+log was *emitted* says nothing about whether anyone will ever *see* it.
+
+Commit: docs(phase-0): README with live v0, and make boot logging visible (pending)
+
+---
+
+## [P0 · c12] Data audit
+
+`docs/DATA_AUDIT.md`, transcribed from the green suite rather than from the plan —
+every figure came out of running the importer over the real seed, not from
+`brainstorm.md` §2's predictions. The last Phase 0 documentation deliverable.
+
+One correction to the brief I was given: the re-key is *not* one of the three
+quarantine records. Nothing is rejected when a duplicate id is repaired, and
+`test_seed_rekeys_duplicate_id` asserts the quarantine table stays empty for it.
+The three records are ids 2, 6 and 10. The document says so, and separately lists
+the four rows where stored data differs from the seed.
+
+Commit: docs(phase-0): data audit (pending)
