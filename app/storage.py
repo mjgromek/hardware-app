@@ -225,32 +225,32 @@ def add_item(
 ) -> HardwareItem:
     """Insert one new item as ``Available`` and unflagged, and return it.
 
-    **The id is chosen here, not by SQLite.** ``hardware.id`` is
-    ``autoincrement=False`` because ingestion carries the seed's own ids, and the seed
-    already re-keyed a duplicate to 12 — so ``max(id) + 1`` is the only value certain to
-    be free. Letting the database pick would hand out an id the seed already used and
-    overwrite a real item.
+    **The id is chosen by the database, inside the INSERT.** ``hardware.id`` is
+    ``autoincrement=False`` because ingestion carries the seed's own ids — the seed even
+    re-keyed a duplicate to 12 — so the next free id is ``max(id) + 1`` and the database
+    cannot be left to invent one.
+
+    Computing that with a separate ``SELECT`` was wrong, and concurrently wrong: two
+    admins adding hardware at the same moment both read the same maximum and the second
+    ``INSERT`` died on the primary key. The subquery below moves the read inside the
+    write, so SQLite evaluates it while holding the write lock and the two inserts
+    serialise. This is the same property Phase 2's rental engine needs from this module,
+    which is why it is fixed here rather than filed.
 
     ``Available`` and ``needs_review=False`` are not caller-supplied. An item an admin
     is holding is in hand and not under review; accepting a status here would let the
     UI create something already flagged, which under ADR-0003 is an item nobody can
     rent and nobody can clear.
     """
-    highest = session.execute(select(func.max(hardware.c.id))).scalar_one()
-    item = HardwareItem(
-        id=(highest or 0) + 1,
-        name=name,
-        brand=brand,
-        purchase_date=purchase_date,
-        status=Status.AVAILABLE,
-    )
-    session.execute(
-        insert(hardware).values(
-            id=item.id,
-            name=item.name,
-            brand=item.brand,
-            purchase_date=item.purchase_date,
-            status=item.status.value,
+    next_id = select(func.coalesce(func.max(hardware.c.id), 0) + 1).scalar_subquery()
+    assigned_id = session.execute(
+        insert(hardware)
+        .values(
+            id=next_id,
+            name=name,
+            brand=brand,
+            purchase_date=purchase_date,
+            status=Status.AVAILABLE.value,
             source_id=None,
             needs_review=False,
             review_reason=None,
@@ -258,8 +258,16 @@ def add_item(
             history=None,
             assigned_to=None,
         )
+        .returning(hardware.c.id)
+    ).scalar_one()
+
+    return HardwareItem(
+        id=assigned_id,
+        name=name,
+        brand=brand,
+        purchase_date=purchase_date,
+        status=Status.AVAILABLE,
     )
-    return item
 
 
 def set_status(session: Session, item_id: int, status: Status) -> bool:

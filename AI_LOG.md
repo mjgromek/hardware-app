@@ -181,7 +181,7 @@ in the phase where I made it and indefensible one phase later, and nothing in a
 per-phase review would have caught that — which is the argument for grilling at
 whole-project scope before any code exists, not per feature.
 
-**Commit:** `docs: ADRs 0001–0005 from whole-project grilling` (pending)
+**Commit:** `docs: plan v2 — four phases, ADRs 0001-0005 from whole-project grilling` (f5e669b) — written here in advance as *docs: ADRs 0001–0005 from whole-project grilling*; the commit shipped under the longer subject, and the difference is left visible rather than tidied.
 
 
 ---
@@ -195,7 +195,7 @@ Backend scaffold plus signature-only skeletons: `app/config.py`, `app/domain.py`
 vitest and CI are Phase 0 scope but not needed by the five backend tests; they are
 deferred to a later Phase 0 commit.
 
-Commit: chore(phase-0): scaffold and module skeletons (pending)
+Commit: chore(phase-0): scaffold and module skeletons (8e1501b)
 
 ---
 
@@ -215,7 +215,7 @@ specified target — it maps to `Available` + `needs_review`, not `Repair`, beca
 evidences. ADR-0005 now names `ENVIRONMENT` and states the permissive-local /
 strict-production asymmetry it had implied twice without ever writing down.
 
-Commit: test(phase-0): failing specs for seed ingestion and admin bootstrap (pending)
+Commit: test(phase-0): failing specs for seed ingestion and admin bootstrap (b4f8e61)
 
 ---
 
@@ -226,7 +226,7 @@ re-typed. Every defect is intentional test input and the file is treated as
 read-only from here: 11 records, 10 unique ids, `4` twice, no `8`, matching all ten
 rows of `brainstorm.md` §2.
 
-Commit: chore(phase-0): add seed data verbatim from brief (pending)
+Commit: chore(phase-0): add seed data verbatim from brief (8a25b0f)
 
 ---
 
@@ -247,7 +247,7 @@ quarantine with a reason; this one is not, so the database silently disagrees wi
 the brief about one row. §2 row 9 says only "resolved at import", so the
 implementation matches the spec and the spec is what is thin. Flagged, not fixed.
 
-Commit: feat(phase-0): quarantine importer and admin bootstrap (pending)
+Commit: feat(phase-0): quarantine importer and admin bootstrap (43c15ba)
 
 ---
 
@@ -274,7 +274,7 @@ orphan test red on exactly the assertion written to catch it. The test-author
 separation earned its keep here; the implementer could not have quietly widened the
 test to fit the code.
 
-Commit: test(phase-0): orphan rental audit trail and seed fidelity specs (pending)
+Commit: test(phase-0): orphan rental audit trail and seed fidelity specs (a22b083)
 
 ---
 
@@ -297,7 +297,7 @@ unresolved, and it is a design disagreement rather than an oversight: the queue
 either carries the reason on the item it renders, or joins back to quarantine to
 explain itself. Left for the human, because the test is the human's to change.
 
-Commit: feat(phase-0): separate quarantine audit trail from review flag (pending)
+Commit: feat(phase-0): separate quarantine audit trail from review flag (a10ba75)
 
 ---
 
@@ -311,7 +311,7 @@ against a scratchpad implementation is what confirmed it — a `persist_commits`
 mutant passes all five original tests and is caught only by
 `test_persist_does_not_commit`, which is why that sixth test exists.
 
-Commit: test(phase-0): SQLite persistence specs (pending)
+Commit: test(phase-0): SQLite persistence specs (9963791)
 
 ---
 
@@ -346,7 +346,7 @@ judgement is not only spotting the gap — it is knowing which gaps to write dow
 walk past. I had no mechanism for deferring a legitimate finding, so every
 legitimate finding became work.
 
-Commit: docs: findings discipline rule after Phase 0 scope drift (pending)
+Commit: docs: findings discipline rule after Phase 0 scope drift (29779c2)
 
 ---
 
@@ -361,7 +361,7 @@ scratchpad reference it was written against: with `persist` patched to commit vi
 pytest plugin, 1 failed / 5 passed — only `test_persist_does_not_commit`. The
 repo was not modified to run that check.
 
-Commit: feat(phase-0): SQLite persistence for items and quarantine (pending)
+Commit: feat(phase-0): SQLite persistence for items and quarantine (5f5893e)
 
 ---
 
@@ -375,7 +375,7 @@ red test first. 28/28.
 Also the Dockerfile and `python -m scripts.seed`, both needed before anything can
 deploy. Findings from the pass went to `BACKLOG.md` rather than becoming work.
 
-Commit: feat(phase-0): Vue scaffold, hardware API, single-origin wiring (pending)
+Commit: feat(phase-0): Vue scaffold, hardware API, single-origin wiring (a08a503)
 
 ---
 
@@ -396,7 +396,7 @@ than a migration strategy, because that is what it is: boot logic that writes da
 couples "the process started" to "the data changed", and it will race itself the
 moment there is a second replica.
 
-Commit: feat(phase-0): seed on boot when the database is empty (pending)
+Commit: feat(phase-0): seed on boot when the database is empty (74c38f6)
 
 ---
 
@@ -414,7 +414,7 @@ for a line that should have been there and was not. `create_app` now calls
 `basicConfig`. The lesson is narrow and worth keeping: a passing assertion that a
 log was *emitted* says nothing about whether anyone will ever *see* it.
 
-Commit: docs(phase-0): README with live v0, and make boot logging visible (pending)
+Commit: docs(phase-0): README with live v0, and make boot logging visible (3efe885)
 
 ---
 
@@ -430,7 +430,7 @@ quarantine records. Nothing is rejected when a duplicate id is repaired, and
 The three records are ids 2, 6 and 10. The document says so, and separately lists
 the four rows where stored data differs from the seed.
 
-Commit: docs(phase-0): data audit (pending)
+Commit: docs(phase-0): data audit (9e1d9cb)
 
 ---
 
@@ -446,7 +446,7 @@ every entry describes what the original showed before saying what was built
 instead, so it can be judged without them. Recorded in the README's ⚡ section
 rather than left as a silent omission.
 
-Commit: docs: wireframe justification scaffold (pending)
+Commit: docs: wireframe justification scaffold (36ec0b4)
 
 ---
 
@@ -463,7 +463,7 @@ tests where `pytest --collect-only` counts 30, from the two boot-seed specs in c
 The status block is the part of the README a reviewer trusts most and verifies
 least.
 
-Commit: docs: align README status sections with the brief (pending)
+Commit: docs: align README status sections with the brief (3121790)
 
 ---
 
@@ -509,7 +509,7 @@ red tests now fail in fixture setup rather than on their own assertion, because 
 sit behind a login that does not exist — so login is the first green commit, and the
 suite gets re-read there to confirm every test fails for its own reason.
 
-Commit: test(phase-1): failing specs for auth, admin guards and the dashboard (pending)
+Commit: test(phase-1): failing specs for auth, admin guards and the dashboard (0b0bd7e)
 
 ---
 
@@ -527,7 +527,7 @@ handler — ADR-0005 puts it in the same layer as the rental guards, and one `_e
 helper turns a `GuardViolation` into `409` with its reason intact, so Phase 2's rent
 and return find a layer instead of a precedent of inline `if` statements.
 
-Commit: feat(phase-1): login, session cookie, admin guards and dashboard (pending)
+Commit: feat(phase-1): login, session cookie, admin guards and dashboard (180329c)
 
 ---
 
@@ -541,7 +541,7 @@ still owed: the Phase 0 scope list, the `DATA_AUDIT.md` debt, the `StaticPool` a
 deleted when done rather than annotated; the reversal record lives in `AI_LOG.md` and
 `docs/adr/`, not here.
 
-Commit: docs: trim CLAUDE.md, CONTEXT.md, agents and backlog for pace (pending)
+Commit: docs: trim CLAUDE.md, CONTEXT.md, agents and backlog for pace (d26270f)
 
 ---
 
@@ -582,7 +582,7 @@ cookie comes back `HttpOnly; SameSite=lax; Secure`, anonymous requests to
 `/api/hardware` and `/api/session` both get `401`, and the guard's `409` reason renders
 verbatim in the UI for both the delete and the demote path.
 
-Commit: chore(phase-1): deploy v1 (pending)
+Commit: chore(phase-1): deploy v1 (1dc0921)
 
 ---
 
@@ -607,7 +607,7 @@ The three accepted items went to the README `⚠️ Partial / Missing` section w
 reason each was not fixed, rather than to `BACKLOG.md` — a reviewer reads the README, and
 "we knew and chose not to" belongs where the claim is made.
 
-Commit: fix(phase-1): demote published demo account to read-only (pending)
+Commit: fix(phase-1): demote published demo account to read-only (332b87a)
 
 ---
 
@@ -626,9 +626,59 @@ Backfilled as Part II, seven sessions, each marked *verbatim* or *reconstructed*
 naming its commit. The Phase 0 ones are reconstructed and say so; inventing wording would
 have made the document worth less than the gap it filled.
 
-One inconsistency this audit found and did not fix: every entry ends `(pending)` rather than
-the commit sha, including entries whose commits are long since pushed. `CLAUDE.md`'s own
-example shows `(a1b2c3d)`. Left alone because rewriting 22 of them at the review gate is a
-mechanical change I would rather the human sanction than discover.
+One inconsistency this audit found and did not fix at the time: every entry ended
+`(pending)` rather than the commit sha, including entries whose commits were long since
+pushed, against `CLAUDE.md`'s own `(a1b2c3d)` example. Left for the human to sanction, and
+sanctioned — backfilled in [P1 · c9] by matching each entry's stated message against
+`git log`. Two did not match cleanly and are noted where they sit.
 
-Commit: docs(phase-1): backfill prompt trail and audit both logs (pending)
+Commit: docs(phase-1): backfill prompt trail and audit both logs (0583244)
+
+---
+
+## [P1 · c9] Fixes from the MVP review, and the SHAs
+
+`mvp-reviewer` at Phase 1's gate: PASS WITH NOTES, one blocker. 55/55 green.
+
+**The blocker was a test gap, not a defect.** Deleting the `hmac.compare_digest` check in
+`app/sessions.py` left the whole suite green — every test presented a cookie the server had
+issued and none forged one. The signing code was right and nothing defended it, which
+matters because Phase 2's wrong-user rental guard reduces entirely to trusting the account
+id in that cookie. `tests/test_session_integrity.py` now forges five ways, including a
+genuine signature moved onto another subject and a correctly signed cookie for a deleted
+account. Both mutants that were previously green now fail five tests each. The first draft
+of that test passed against a *broken* implementation for an embarrassing reason: I forged
+subject `1`, and the bootstrapped admin is account 1, so my "forgery" was the real cookie.
+
+**Two were real defects.** `add_item` read `max(id)` then inserted, so six concurrent
+`POST /api/hardware` calls raced and one died on the primary key — the id is now chosen by
+a subquery inside the `INSERT`, so SQLite evaluates it under the write lock. Fixed here
+rather than filed because Phase 2 is entirely about concurrency and this module is what its
+rental engine will hold a transaction on. And `Field(min_length=1)` accepted `"   "`, which
+is precisely the unidentifiable row seed record 10 exists to demonstrate; names are now
+trimmed before length is checked.
+
+**One was a documentation trap.** `demo@booksy.com` existed only inside the Railway volume,
+created once by hand — so a replaced volume would leave the README publishing credentials
+that authenticate nothing, silently, with the app booting fine. It is now bootstrapped like
+admin #1 under the same emptiness guard as the hardware seed, as a `user`, and the test
+asserts the published password *by logging in with it* rather than by checking a row exists.
+The second test is the one that matters: a deliberately deleted demo account must stay
+deleted across a restart, or the published credential could never be revoked.
+
+**One needed no fix.** The privilege-escalation routes were already guarded — a `user`
+cannot self-promote through `PATCH /api/users/{own_id}`, because `Depends(current_admin)`
+refuses it. The review's point was that nothing *pinned* that, so
+`tests/test_privilege_escalation.py` now does, checking the role by consequence after each
+refusal rather than trusting the status code. Reported as tests added, not as a hole closed.
+
+**Owning the mislabel:** `1dc0921` is `chore(phase-1): deploy v1` and should have been
+`feat:` — ~1,600 lines of frontend and two new API routes with their tests, all in one
+commit, which also hid a red-then-green cycle for exactly the two routes whose test-first
+claim cannot otherwise be checked from history. It is pushed and it stays. Rewriting history
+so the log looks tidier is the failure mode this project is graded against, and a visible
+bad commit with a note is worth more than an invisible one.
+
+All 25 entries now carry their commit sha instead of `(pending)`.
+
+Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (pending)

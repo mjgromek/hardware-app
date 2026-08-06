@@ -13,11 +13,11 @@ from dataclasses import asdict
 from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Annotated, Any, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, StringConstraints
 
 from app import accounts, guards, sessions
 from app.config import PRODUCTION, load_settings
@@ -66,7 +66,11 @@ class NewHardware(BaseModel):
     fields here would make the API stricter than the data it already stores.
     """
 
-    name: str = Field(min_length=1)
+    #: Trimmed before length is checked, so `"   "` is refused rather than stored. A name
+    #: made of spaces satisfies `min_length=1`, reaches the database, and renders as a
+    #: blank dashboard row — indistinguishable from a rendering bug, and exactly the
+    #: unidentifiable record the seed's row 10 exists to demonstrate.
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     brand: str | None = None
     purchase_date: date | None = None
 
@@ -137,14 +141,29 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     # and additive — it never overwrites an existing admin.
     accounts.create_schema(engine)
     with new_session(engine) as session:
+        # Read before writing: `bootstrap_admin` is about to make the table non-empty,
+        # and the demo account is created only on a database that never had an account.
+        fresh = accounts.has_no_accounts(session)
         created = accounts.bootstrap_admin(
             session, settings.admin_email, settings.admin_password
         )
-        session.commit()
-    if created is not None:
-        logging.getLogger(__name__).info(
-            "bootstrapped admin #1 from the environment: %s", created.email
+        # A replaced volume must not leave the README publishing credentials that no
+        # longer exist — a reviewer meeting a login screen that rejects the only password
+        # they have is the worst first impression this project can make. Guarded by
+        # emptiness like the hardware seed, so a deliberately deleted demo account stays
+        # deleted and a rotated password stays rotated.
+        demo = (
+            accounts.bootstrap_demo(session, settings.demo_email, settings.demo_password)
+            if fresh
+            else None
         )
+        session.commit()
+
+    log = logging.getLogger(__name__)
+    if created is not None:
+        log.info("bootstrapped admin #1 from the environment: %s", created.email)
+    if demo is not None:
+        log.info("created the published read-only demo account: %s", demo.email)
 
     # ------------------------------------------------------------------
     # The enforcement point (brainstorm.md §7, settled here)

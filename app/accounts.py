@@ -49,6 +49,8 @@ __all__ = [
     "set_role",
     "delete_account",
     "bootstrap_admin",
+    "bootstrap_demo",
+    "has_no_accounts",
     "EmailAlreadyExists",
 ]
 
@@ -224,6 +226,30 @@ def bootstrap_admin(session: Session, email: str, password: str) -> Account | No
     if count_admins(session) > 0:
         return None
     return create_account(session, email, password, Role.ADMIN)
+
+
+def bootstrap_demo(session: Session, email: str, password: str) -> Account | None:
+    """Create the published read-only demo account. Caller decides when.
+
+    Deliberately **not** self-guarding on "does this account exist", because that would
+    resurrect an account somebody deliberately deleted on the next restart, making the
+    published credential impossible to revoke. The caller applies the emptiness guard —
+    the same one the hardware seed uses — so this runs on a fresh database and never
+    again.
+
+    ``Role.USER``, never admin: `/security-review` established that a published admin
+    credential on a public instance hands every reader delete rights over the inventory.
+    """
+    if _find_by_email(session, email) is not None:
+        return None
+    return create_account(session, email, password, Role.USER)
+
+
+def has_no_accounts(session: Session) -> bool:
+    """Whether this database has never had an account — the emptiness guard's input."""
+    return (
+        session.execute(select(func.count()).select_from(users)).scalar_one() == 0
+    )
 
 
 def _account(row) -> Account:

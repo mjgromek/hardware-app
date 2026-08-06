@@ -29,6 +29,10 @@ opened in ten seconds:
 | **Password** | `hardware-hub-demo` |
 | **Role** | `user` — read-only. Every admin route answers `403` to it |
 
+It is created at boot on a database with no accounts — the same emptiness guard the
+hardware seed uses — so replacing the volume cannot leave these credentials pointing at
+nothing. Deleting it deliberately keeps it deleted; a restart does not resurrect it.
+
 This is a separate account from the deployment's own bootstrap admin, whose credential
 stays in Railway's environment and is not published (ADR-0005).
 
@@ -62,7 +66,7 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue** — every flagged item with the reason ingestion recorded
   (read-only; see below)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 47 tests, all green
+- 55 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 

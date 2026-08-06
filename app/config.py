@@ -24,6 +24,11 @@ class Settings:
     secret_key: str
     admin_email: str
     admin_password: str
+    #: The read-only account whose credentials the README publishes. Created at boot on
+    #: a database with no accounts, so a replaced volume cannot leave the documented
+    #: credentials pointing at nothing (ADR-0005).
+    demo_email: str
+    demo_password: str
     database_url: str
 
 
@@ -37,6 +42,10 @@ DEVELOPMENT_DEFAULTS = {
     "SECRET_KEY": "dev-secret-key-not-for-production",
     "ADMIN_EMAIL": "admin@localhost",
     "ADMIN_PASSWORD": "admin",
+    # Not a secret by design: these are the credentials the README publishes, on a
+    # `user`-role account that every admin route refuses.
+    "DEMO_EMAIL": "demo@booksy.com",
+    "DEMO_PASSWORD": "hardware-hub-demo",
     "DATABASE_URL": "sqlite:///./hardware_hub.db",
 }
 
@@ -70,5 +79,7 @@ def load_settings(env: Mapping[str, str]) -> Settings:
         secret_key=value("SECRET_KEY"),
         admin_email=value("ADMIN_EMAIL"),
         admin_password=value("ADMIN_PASSWORD"),
+        demo_email=value("DEMO_EMAIL"),
+        demo_password=value("DEMO_PASSWORD"),
         database_url=value("DATABASE_URL"),
     )
