@@ -27,11 +27,18 @@ opened in ten seconds:
 | --- | --- |
 | **Email** | `demo@booksy.com` |
 | **Password** | `hardware-hub-demo` |
-| **Role** | `admin` — so every screen, including the admin panel, is reachable |
+| **Role** | `user` — read-only. Every admin route answers `403` to it |
 
 This is a separate account from the deployment's own bootstrap admin, whose credential
-stays in Railway's environment and is not published (ADR-0005). Publishing a demo
-credential on a public instance is a deliberate trade-off, recorded below.
+stays in Railway's environment and is not published (ADR-0005).
+
+**It is deliberately not an admin.** It was, until `/security-review` pointed out that
+publishing an admin credential on a public instance hands every reader delete rights
+over the inventory and the account list. Read access shows the dashboard, the review
+queue and the whole seed including its defects; the admin panel is described in
+[`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) and is reachable by
+anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
+`admin@localhost` / `admin`.
 
 ---
 
@@ -71,13 +78,13 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Future:** in a private or internal repo the images would be committed alongside
   the justification doc. The prose-only form exists solely because this one is
   public.
-- **Demo credentials are published, on an admin account, on a public instance.**
-  Anyone reading this can sign in and delete inventory.
-  **Why:** a reviewer opening the live version in ten seconds is worth more than
-  credential hygiene on a throwaway instance, and ADR-0005 chose that openly. The
-  deployment's own bootstrap admin is a separate account and its credential is not
-  published.
-  **Future:** a read-only demo role, or a per-reviewer invite link.
+- **Demo credentials are published, on a `user` account, on a public instance.**
+  Anyone reading this can sign in and read the inventory.
+  **Why:** ADR-0005 chose openly published demo credentials so a reviewer is in within
+  ten seconds. `/security-review` then cut the role from `admin` to `user`, because read
+  access is what a reviewer needs and delete rights are what an attacker wants.
+  **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
+  shared credential.
 - **`needs_review` is surfaced but still cannot be cleared.** The queue now shows every
   flagged item and the reason, and the flag still blocks rental (ADR-0003) — so
   releasing an item is a database edit. The screen says so rather than offering a
@@ -112,8 +119,24 @@ Each of these works, and each cost something. The full table with reasoning is i
 - Editing an item's name, brand or date — only status changes and deletion exist
 - Field-level authorization — every signed-in employee sees `notes` and `history`,
   which are admin- and auditor-facing
-- Logout, session expiry, login throttling
+- Logout, session expiry, login throttling — no route ends a session, and the signed
+  cookie has no server-side record to revoke
 - CI, vitest, a health endpoint
+
+Carried over from `/security-review` as accepted rather than fixed, each with the reason:
+
+- **Field-level authorization** — every signed-in employee sees `notes`, `history` and
+  `review_reason`. Not fixed because this branch *narrowed* it (the endpoint was
+  anonymous before ADR-0006) and what remains is maintenance prose about laptops rather
+  than secrets or PII; role-aware serialisation is the real fix and is not a one-liner.
+- **`ENVIRONMENT` fails open, not closed** — any value other than `production` falls
+  back to development defaults, including a `SECRET_KEY` that is public in this repo.
+  Not fixed because the live service sets `ENVIRONMENT=production`, verified by the
+  session cookie coming back `Secure` — a flag only set on that branch — so this is
+  hardening against an operator slip rather than an open door.
+- **No per-user-salt test** — `app/accounts.py` salts every hash and nothing asserts
+  that two accounts sharing a password store different digests. Not fixed because it is
+  a missing test rather than a defect, and it belongs in a `test:` commit.
 
 ### 🔮 Next Steps (24h Roadmap)
 
@@ -204,7 +227,7 @@ the moment it was taken.
 
 | Shortcut | Why | Future refactor |
 | --- | --- | --- |
-| **Demo credentials are published on a public instance, on an admin account** | A reviewer signing in within ten seconds is worth more than credential hygiene on a throwaway instance, and ADR-0005 chose that openly rather than quietly. The deployment's own bootstrap admin is a separate account whose credential is not published. | A read-only demo role, or per-reviewer invite links. Anyone with this README can currently delete inventory. |
+| **Demo credentials are published on a public instance, on a `user` account** | ADR-0005 chose openly published demo credentials so a reviewer is in within ten seconds. `/security-review` cut the role from `admin` to `user`: read access is what a reviewer needs, delete rights are what an attacker wants, and the admin panel is described in prose instead. | Per-reviewer invite links, so access can be withdrawn without rotating a shared credential. |
 | **`notes` and `history` are visible to every signed-in employee** | The endpoint returns whole items, and ADR-0006 closed the public half of this — a stranger with the URL no longer sees them. Field-level authorization is a separate piece of work that Phase 1 did not do. | Role-aware serialisation, so auditor-facing free text reaches admins only. `/security-review` before the Phase 1 gate. |
 | **Nothing can clear `needs_review`** | The queue is surfaced and read-only. Clearing needs a decision nobody has made — what evidence releases an item, and who records it — and inventing one to fill a screen is how an audit trail becomes decoration. | A clear-flag action with the decision recorded. ADR-0003 says this must not reach the Phase 2 gate. |
 | **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now — the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |

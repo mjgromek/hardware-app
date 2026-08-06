@@ -561,3 +561,28 @@ cookie comes back `HttpOnly; SameSite=lax; Secure`, anonymous requests to
 verbatim in the UI for both the delete and the demote path.
 
 Commit: chore(phase-1): deploy v1 (pending)
+
+---
+
+## [P1 · c7] Security review triage
+
+`/security-review` raised two code findings and both filtered out as false positives at
+2/10: the dev `SECRET_KEY` fallback (the live service sets `ENVIRONMENT=production` —
+provable from outside, because the session cookie comes back `Secure` and only that
+branch sets the flag), and the `notes`/`history` exposure (this branch *narrowed* it from
+anonymous to authenticated, and what remains is maintenance prose about laptops).
+
+The genuinely exploitable thing was the item the review flagged as outside its own scope:
+the README published an **admin** credential on a public instance, so any reader had
+delete rights over the inventory and the account list. Demoted `demo@booksy.com` to
+`user` on the live instance and verified all five admin routes now answer `403` to it,
+inventory intact. This does not contradict ADR-0005, which requires *published demo
+credentials* and never said they had to be admin. It cost the walkthrough: the admin
+panel is no longer reachable from the published credential, and the README says where to
+see it instead.
+
+The three accepted items went to the README `⚠️ Partial / Missing` section with the
+reason each was not fixed, rather than to `BACKLOG.md` — a reviewer reads the README, and
+"we knew and chose not to" belongs where the claim is made.
+
+Commit: fix(phase-1): demote published demo account to read-only (pending)
