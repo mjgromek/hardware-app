@@ -1176,3 +1176,13 @@ exists, by design. Cut under the 12-cap: `test_auditor_flags_misspelled_brand`
 (plumbing-identical to id 10's), filed in BACKLOG with the cost named — ADR-0002's
 typo loop has no test until green adds it back.
 Commit: test(phase-3): failing specs for semantic search and the inventory auditor (pending)
+
+---
+
+## [P3 · c6] Phase 3 green — slices A and B
+
+`/tdd` against the red pass. 111/111, `tests/` untouched. One module (`app/ai.py`)
+owns the schema and its SQL, per the ADR-0008 precedent; `extra="forbid"` on the
+filter model is what makes the oracle rejection wholesale rather than salvaged.
+The real Gemini client is built lazily so the socket-refusing suite never sees it.
+Commit: feat(phase-3): semantic search and the inventory auditor (pending)
