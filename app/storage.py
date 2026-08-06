@@ -59,6 +59,7 @@ __all__ = [
     "RentalsExist",
     "set_status",
     "clear_review",
+    "flag_review",
     "delete_item",
 ]
 
@@ -337,12 +338,28 @@ def clear_review(session: Session, item_id: int) -> bool:
 
     Both, not just the flag: `review_reason` explains a restriction, and an item that
     is no longer restricted showing "purchase date 2027-10-10 is in the future" is
-    stale prose in the column Phase 3's auditor writes into.
+    stale prose in the column a later flag (ADR-0017) would write over.
     """
     result = session.execute(
         update(hardware)
         .where(hardware.c.id == item_id)
         .values(needs_review=False, review_reason=None)
+    )
+    return result.rowcount == 1
+
+
+def flag_review(session: Session, item_id: int, reason: str) -> bool:
+    """Raise the review flag with the human's reason. Returns whether a row matched.
+
+    The mirror of `clear_review`, and like it a pure row-mover: whether flagging is
+    allowed, who may do it and what gets audited are the route's questions (ADR-0017).
+    `review_reason` has human authors only — this function is called with an admin's
+    words, never a model's (ADR-0014).
+    """
+    result = session.execute(
+        update(hardware)
+        .where(hardware.c.id == item_id)
+        .values(needs_review=True, review_reason=reason)
     )
     return result.rowcount == 1
 

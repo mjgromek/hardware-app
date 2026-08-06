@@ -15,6 +15,11 @@ const props = defineProps({
   accounts: { type: Array, required: true },
   currentEmail: { type: String, required: true },
   busyId: { type: [Number, null], default: null },
+  // The auditor's last run (ADR-0014): findings, or the refusal ADR-0016 wrote to be
+  // shown to exactly this admin. Null until a run is asked for — nothing is cached.
+  findings: { type: [Array, null], default: null },
+  auditError: { type: [String, null], default: null },
+  auditing: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -23,10 +28,22 @@ const emit = defineEmits([
   'delete-hardware',
   'force-return',
   'clear-review',
+  'flag-finding',
+  'run-audit',
   'add-account',
   'set-role',
   'delete-account',
 ])
+
+const KIND_LABELS = {
+  status_contradiction: 'Status contradiction',
+  unidentifiable: 'Unidentifiable',
+  probable_misspelling: 'Probable misspelling',
+}
+
+function itemFor(finding) {
+  return props.items.find((item) => item.id === finding.item_id) ?? null
+}
 
 const addingHardware = ref(false)
 const newItem = ref({ name: '', brand: '', purchase_date: '' })
@@ -75,6 +92,61 @@ function submitAccount() {
       @force-return="emit('force-return', $event)"
       @clear-review="emit('clear-review', $event)"
     />
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Inventory Auditor</h2>
+      <button type="button" class="button" :disabled="props.auditing" @click="emit('run-audit')">
+        {{ props.auditing ? 'Auditing…' : 'Run audit' }}
+      </button>
+    </div>
+
+    <!-- The refusal is a result (ADR-0016): no key or no provider means a readable
+         reason here, never a quieter answer pretending to be the audit. -->
+    <p v-if="props.auditError" class="empty">{{ props.auditError }}</p>
+    <p v-else-if="props.findings === null" class="empty">
+      Runs the model over the catalogue — notes, history and quarantine included — and
+      proposes findings. It flags nothing itself: each finding below is a button, and
+      the flag it sets records <em>your</em> reason (ADR-0014, ADR-0017).
+    </p>
+    <p v-else-if="!props.findings.length" class="empty">
+      The model reported nothing it is allowed to say. A clean catalogue and a model
+      having a bad day look the same here — run it again before believing it.
+    </p>
+    <div v-else class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col"><span class="th-label">Item</span></th>
+            <th scope="col"><span class="th-label">Finding</span></th>
+            <th scope="col"><span class="th-label">Evidence</span></th>
+            <th scope="col"><span class="th-label" style="justify-content: flex-end">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="finding in props.findings" :key="`${finding.item_id}-${finding.kind}`">
+            <td class="cell-name">{{ itemFor(finding)?.name ?? `item ${finding.item_id}` }}</td>
+            <td>
+              <span class="chip">{{ KIND_LABELS[finding.kind] ?? finding.kind }}</span>
+              <div class="hint">{{ finding.explanation }}</div>
+            </td>
+            <td class="cell-name"><em>{{ finding.evidence }}</em></td>
+            <td class="cell-actions">
+              <span v-if="itemFor(finding)?.needs_review" class="hint">already flagged</span>
+              <button
+                v-else
+                type="button"
+                class="button button-quiet"
+                @click="emit('flag-finding', finding)"
+              >
+                Flag for review
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="panel">

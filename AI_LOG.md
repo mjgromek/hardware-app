@@ -1186,3 +1186,15 @@ owns the schema and its SQL, per the ADR-0008 precedent; `extra="forbid"` on the
 filter model is what makes the oracle rejection wholesale rather than salvaged.
 The real Gemini client is built lazily so the socket-refusing suite never sees it.
 Commit: feat(phase-3): semantic search and the inventory auditor (pending)
+
+---
+
+## [P3 · c7] Slice C — the flag-review verb, and the finding that becomes a flag
+
+Red first (6 tests, all failing on their own assertions), then green: `flag_review`
+in storage as `clear_review`'s mirror, the action enum grows `flag_review`
+(ADR-0017's own consequence), route `409`s an already-flagged item. UI: dashboard
+search with the mode label shown (ADR-0016), auditor panel where each finding is a
+button whose reason arrives prefilled and editable — the recorded claim is the
+human's. 117/117.
+Commit: feat(phase-3): admin flag-review verb (pending)

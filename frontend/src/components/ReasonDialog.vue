@@ -14,6 +14,10 @@ const props = defineProps({
   prompt: { type: String, required: true },
   confirm: { type: String, required: true },
   busy: { type: Boolean, default: false },
+  // Pre-written words the admin may edit before submitting — the flag-from-finding
+  // flow (ADR-0017): the auditor's explanation is a starting point, and what gets
+  // recorded is whatever the human leaves in the field, because the claim is theirs.
+  prefill: { type: String, default: '' },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -27,7 +31,7 @@ watch(
   () => props.open,
   async (open) => {
     if (!open) return
-    reason.value = ''
+    reason.value = props.prefill
     await nextTick()
     field.value?.focus()
   },

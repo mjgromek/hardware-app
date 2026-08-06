@@ -30,6 +30,7 @@ from app.storage import (
     create_engine_for,
     create_schema,
     delete_item,
+    flag_review,
     load_items,
     load_quarantine,
     new_session,
@@ -633,6 +634,37 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             )
             session.commit()
         return {"item_id": item_id, "needs_review": False}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/flag-review")
+    def flag_review_item(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Put an item behind the review guard. Admin-only, reason mandatory (ADR-0017).
+
+        The verb that makes an auditor finding actionable: the model proposed
+        (ADR-0014), a human decides here, and the decision is recorded with its actor
+        — exactly what ADR-0010 reserved `audit_events` for. `409` on an item already
+        flagged, symmetric with `clear-review`: idempotency would file a mandatory
+        reason against a non-event.
+        """
+        with new_session(engine) as session:
+            item = _item_or_404(session, item_id)
+            if item.needs_review:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is already flagged for review — clear the "
+                    "existing flag first if the reason has changed.",
+                )
+            flag_review(session, item_id, body.reason)
+            audit.record(
+                session,
+                actor=admin,
+                action=audit.Action.FLAG_REVIEW,
+                reason=body.reason,
+                item_id=item_id,
+            )
+            session.commit()
+        return {"item_id": item_id, "needs_review": True}
 
     @app.post("/api/search")
     def semantic_search(
