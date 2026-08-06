@@ -52,6 +52,46 @@ the mechanism. *No longer overdue; it has an owner and two named tests.*
 
 ---
 
+## Found while writing the Phase 2 tests
+
+**ADR-0003 names the wrong item.** It says `test_cannot_rent_flagged_hardware` asserts
+"the Dell XPS specifically remains unrentable", and the Dell XPS (seed id 5) is **not
+flagged** — ADR-0002 makes ingestion structural only, so "battery swelling" is left for
+the Phase 3 auditor and the item imports `Available` and unflagged. The rows ingestion
+actually flags are id 6 (2027 purchase date) and id 10 (off-enum status). The test as
+written derives the flagged set from the inventory instead of naming a row, so it covers
+both and stays correct if Phase 3's auditor starts setting the flag. Nothing is broken;
+the ADR's example sentence is just false and a reviewer reading it will look for a test
+that cannot exist. *Urgent when: ADR-0003 is next edited, or the Phase 2 gate — a
+one-line correction, not a decision.*
+
+**Slice A and B ship no read surface for `rentals` or `audit_events`.** Three tests
+(`test_rental_history_records_both_ends`, `test_seed_id_7_imports_as_an_accountless_rental`,
+the two in `test_audit_events.py`) therefore read SQLite with raw SQL through
+`app.state.engine`, which pins the column names from `docs/specs/phase-2.md` rather than
+an API contract. Deliberate — importing `app.rentals` would have made every Phase 2 test
+*broken* rather than *red* before the module existed — but it means a schema rename turns
+four tests red for a reason that is not about behaviour. *Urgent when: Slice C's
+`GET /api/hardware?held_by=me` lands, at which point the rental half can go through the
+boundary and only the audit reads need the helper.*
+
+**`audit_events` has no read surface at all, in any slice.** ADR-0010 builds the table
+because "cleared by admin, no reason given" would be indefensible at an incident — but
+nothing in the product displays it, so the answer to that incident is a `sqlite3` prompt.
+Honest and disclosable; worth naming in the README trade-offs table rather than leaving
+implied. *Urgent when: the audit trail is offered to anyone as a feature.*
+
+**`persist` refusing is a decision inside a module whose docstring says it makes none.**
+ADR-0011 puts the refusal in `app/storage.py` while `app/storage.py` and ADR-0008 both
+say that module decides nothing — which is why `rentals` SQL was kept out of it. The
+tests pin the ADR's behaviour, not the docstring's claim, so this is a wording conflict
+rather than a bug. The alternative placement (refuse in `scripts/seed.py`, next to where
+the seed id 7 rental is written) would leave a caller who imports `persist` directly
+unprotected, and the belt for that is `PRAGMA foreign_keys=ON`. *Urgent when: a third
+caller of `persist` appears, or `PROJECT_SPEC.md` is written.*
+
+---
+
 ## Contract and UI decisions still open
 
 **The Phase 1 HTTP contract is fixed by `tests/conftest.py`, not by a spec.** Nothing
@@ -131,8 +171,18 @@ coverage and it has no branches. *Urgent when: it takes a flag.*
 
 **`test_persist_does_not_commit`'s docstring names Phase 2's
 `test_concurrent_rent_only_one_succeeds` directly.** Deliberate — it traces the
-constraint to the thing depending on it — but it drifts if that test is renamed.
-*Urgent when: Phase 2 writes its rental tests.*
+constraint to the thing depending on it — but it drifts if that test is renamed. The
+test now exists under that exact name, in `tests/test_rental_concurrency.py`, so the
+reference resolves. *No longer overdue; delete this entry if the name outlives the
+phase.*
+
+**`test_ordinary_rent_and_return_write_no_audit_event` is vacuously true until rent and
+return exist.** "These verbs wrote nothing" holds trivially of verbs that did not run,
+so what keeps it red today is its precondition and its control rather than its headline
+assertion. That is the correct shape for a negative claim, but it means the test is
+weaker evidence than its siblings until Slice A is green. *Urgent when: Slice A goes
+green — re-read the failure output once, and confirm the control is what would catch a
+regression.*
 
 **`review_reason` duplication is unresolved.** Items carry the reason for their own flag
 while the quarantine record carries the full narrative. Narrowed but not removed —

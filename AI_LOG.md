@@ -709,3 +709,35 @@ says it in `⚠️ Partial`, and three other places that still said "due before 
 gate" now agree with the ADR.
 
 Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (pending)
+
+---
+
+## [P2 · c2] Phase 2 red — slices A and B
+
+`test-author` against `docs/specs/phase-2.md` and ADRs 0003 (amended), 0007–0012.
+28 red, 55 still green, nothing failing for the wrong reason — no `ImportError`, because
+the tests drive HTTP rather than importing an `app/rentals.py` that does not exist. Two
+retrofit tests fail by *demonstrating the defect*: `PATCH /api/hardware/7 {"status":
+"Repair"}` returns `200` on a held item today, and `DELETE /api/hardware/7` returns `204`.
+
+**A gap the grilling missed, closed here.** ADR-0011 says `persist` refuses when rentals
+exist; ADR-0007 says seed id 7 is imported as a rental; `test_reseed_is_idempotent` calls
+`persist` twice and is green. All three hold only if the seed rental is written by
+`scripts/seed.py` *above* `persist`, which keeps `persist` a pure row-mover and is what the
+spec's own "replace semantics must never reach it" already implied. Pinned in the new
+test's docstring so the constraint is discoverable from the test rather than inferred.
+
+**No existing test needed changing.** I had expected three; the answer was none. The two
+retrofit guards cannot fire against seed item 1, which is `Available` with no rental, so
+`test_admin_can_toggle_repair_status` and `test_non_admin_cannot_delete_hardware` stay
+true — ADR-0009 says as much itself ("needs a companion, not a change"). The companions
+are new tests.
+
+**And ADR-0003 contains a false sentence**, found by writing the test it describes: it says
+`test_cannot_rent_flagged_hardware` asserts "the Dell XPS specifically remains unrentable",
+but ADR-0002 makes ingestion structural-only, so the Dell XPS imports `Available` and
+**unflagged**. The flagged rows are ids 6 and 10. The test derives the flagged set from the
+inventory instead, which covers both and survives Phase 3 flagging more. Filed rather than
+escalated — it changes no behaviour, only a claim.
+
+Commit: test(phase-2): failing specs for the rental engine and the review flag (pending)
