@@ -35,6 +35,7 @@ from sqlalchemy import (
     func,
     insert,
     select,
+    text,
     update,
 )
 from sqlalchemy.orm import Session
@@ -114,9 +115,47 @@ class EmailAlreadyExists(ValueError):
     """Raised when an account already holds the requested address."""
 
 
+#: Columns added after the users table first shipped, in the order they arrived. SQLite
+#: refuses `ADD COLUMN` with a `UNIQUE` constraint, so `session_token`'s uniqueness is a
+#: separate index — which `create_all` also builds for a fresh database, so both paths
+#: end in the same shape.
+_ADDED_COLUMNS = (
+    ("session_token", "VARCHAR"),
+    ("deleted_at", "DATETIME"),
+)
+
+
 def create_schema(engine: Engine) -> None:
-    """Create the users table if it is absent."""
+    """Create the users table if it is absent, and bring an older one up to date.
+
+    **`metadata.create_all` skips a table that already exists**, columns and all. That is
+    the whole reason this function has a second half: ADR-0013's columns were described as
+    "additive, backfilled on boot" and they are — but nothing was adding them to a live
+    `users` table, so the deploy came up and every request touching `deleted_at` answered
+    `502`. *Additive* is a property of the column, not of the code.
+
+    Idempotent by inspection rather than by exception: `ADD COLUMN` fails outright if the
+    column is present, so a migration that did not check would work exactly once and turn
+    every restart after it into the same outage.
+    """
     metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        existing = {
+            row[1]
+            for row in connection.execute(text("PRAGMA table_info(users)")).all()
+        }
+        for column, sql_type in _ADDED_COLUMNS:
+            if column not in existing:
+                connection.execute(
+                    text(f"ALTER TABLE users ADD COLUMN {column} {sql_type}")
+                )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_session_token "
+                "ON users (session_token)"
+            )
+        )
 
 
 def hash_password(password: str) -> str:

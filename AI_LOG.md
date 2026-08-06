@@ -989,3 +989,49 @@ keyword. And `current_account`'s docstring, which claimed a deleted account's se
 refused, is now true instead of aspirational.
 
 Commit: fix(phase-2): soft-delete accounts and sign a session token (pending)
+
+---
+
+## Correction #4 — "additive column" was a property of the column, not of the code
+
+**What I shipped.** ADR-0013 adds `session_token` and `deleted_at` to `users`, and I
+described them — in the ADR, the commit message and my report — as "additive columns,
+backfilled on boot, no destructive migration on the live volume". Every word of that was
+true about the *columns*. None of it was true about the *code*: `metadata.create_all()`
+skips a table that already exists, columns and all, so nothing ever added them to the live
+`users` table.
+
+**What happened.** The deploy came up. The first request touched `users.deleted_at`, and
+the instance answered `502` to everything for as long as it took me to notice — which was
+the verification step immediately afterwards, because I was checking the fingerprints and
+got JSON decode errors instead. It was down for roughly eight minutes.
+
+**How I caught it.** The verification I was already running. That is the only part of this
+I would repeat: the check was "log in fresh and confirm the seed fingerprints", not "did
+the build succeed", so it exercised a request path rather than a deploy status. A smoke
+test that asserts `200` on `/` would have passed — the static bundle serves fine, and the
+failure was in the first query behind it.
+
+**Why the tests did not catch it.** 95 of them passed, and every one built its database
+from scratch, where `create_all` does create the columns. The entire suite was blind to
+the only case that mattered: an *existing* table. This is the second time in two phases
+that a fresh-database suite has been green against a defect that only exists on an
+upgraded volume — the first was the seed rental that `seed_if_empty` never reconciled.
+Two of the same shape is a pattern, not bad luck.
+
+**The correction.** `create_schema` now inspects `PRAGMA table_info` and `ALTER TABLE …
+ADD COLUMN`s what is missing, idempotently — checked by inspection rather than by
+catching the exception, because `ADD COLUMN` fails if the column is present and a
+migration that works exactly once is worse than none. `tests/test_schema_migration.py`
+builds a `users` table in raw SQL in the shape Phase 1 shipped and boots over it, and it
+asserts a *login* rather than that `create_app` returned — the production failure was at
+first request, so a test that only booted would have been green while the instance was
+still `502`.
+
+**What I am taking from it.** I wrote "no destructive migration needed" and stopped
+thinking, because the sentence was reassuring and I had chosen the design specifically to
+earn it. The claim I should have checked was the adjacent one nobody had made: *is any
+migration happening at all?* When a design decision is justified by what it avoids, the
+thing to verify is that the alternative is actually being done.
+
+Commit: fix(phase-2): migrate the users table on boot (pending)

@@ -96,7 +96,7 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue** — every flagged item with the reason ingestion recorded
   (read-only; see below)
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 95 tests, all green
+- 97 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -128,6 +128,15 @@ Each of these works, and each cost something. The full table with reasoning is i
   decoration.
   **Future:** Phase 2 owns it — ADR-0003 assigns the mechanism there, because clearing a
   rentability guard is a transition in the rental state machine rather than a field edit.
+- **A soft-deleted account permanently reserves its email**, so an address can never be
+  recreated — no re-hires, and no fixing a typo'd address. Recreating one answers `409`.
+  **Why:** the audit trail names actors by email as well as by id (ADR-0010, ADR-0013),
+  and reusing an address rebuilds the same ambiguity the soft delete removed, one field
+  over: a decision recorded against `j.doe@booksy.com` would start describing whoever
+  holds that address next.
+  **Future:** a distinct archived-identity table, or scoping the uniqueness constraint to
+  non-deleted rows with the trail keyed on the immutable session token instead of the
+  address.
 - **Sign out is client-side only.** It drops the app's state and returns to the login
   screen; the cookie itself is not revoked, because there is no logout route.
   **Why:** stateless sessions were the cheap correct thing for one process. Deleting the
