@@ -1259,3 +1259,13 @@ key — a fact only the live call could know. Default is now `gemini-flash-lates
 a pin is one `GEMINI_MODEL` env var away. 118/118 (the suite mocks the client, as
 designed — which is exactly why this had to be found live).
 Commit: fix(phase-3): default to the gemini-flash-latest alias (pending)
+
+---
+
+## [P3 · c12] The audit gets its own budget
+
+The live audit refused with a read timeout: it was running on the search's 5-second
+budget, and an audit prompt carrying the whole catalogue is not a search. 30s for the
+audit route, 5s stays the search's (its degradation is designed and announced).
+Refusing slowly is honest; refusing on a borrowed budget is just wrong. 118/118.
+Commit: fix(phase-3): the audit gets its own timeout budget (pending)

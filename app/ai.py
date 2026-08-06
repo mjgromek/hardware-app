@@ -51,8 +51,14 @@ __all__ = [
 #: ADR-0014's closed vocabulary — exactly the three classes ADR-0002 deferred.
 FINDING_KINDS = ("status_contradiction", "unidentifiable", "probable_misspelling")
 
-#: Spec: 5 seconds, then the caller degrades (search) or refuses (auditor).
+#: Spec: 5 seconds, then search degrades — announced (ADR-0016).
 REQUEST_TIMEOUT_SECONDS = 5.0
+
+#: The audit reads the whole catalogue and writes a findings document; 5 seconds is
+#: a search budget, not an audit budget. Found live: the first audit run timed out
+#: at the search timeout and refused. Refusing *slowly* is still honest (ADR-0016);
+#: refusing because the budget was borrowed from a different feature is just wrong.
+AUDIT_TIMEOUT_SECONDS = 30.0
 
 GEMINI_KEY_VAR = "GEMINI_API_KEY"
 GEMINI_MODEL_VAR = "GEMINI_MODEL"
@@ -217,7 +223,10 @@ def audit_catalogue(
 
 
 def resolve_client(
-    state: Any, environ: Mapping[str, str] | None = None
+    state: Any,
+    environ: Mapping[str, str] | None = None,
+    *,
+    timeout: float = REQUEST_TIMEOUT_SECONDS,
 ) -> Callable[[str], str] | None:
     """The model behind this request, or ``None`` for feature-off (ADR-0016).
 
@@ -233,7 +242,7 @@ def resolve_client(
     fake = getattr(state, "llm", None)
     if fake is not None:
         return fake
-    return _gemini_client(key, env.get(GEMINI_MODEL_VAR, GEMINI_DEFAULT_MODEL))
+    return _gemini_client(key, env.get(GEMINI_MODEL_VAR, GEMINI_DEFAULT_MODEL), timeout)
 
 
 # --- internals -----------------------------------------------------------------
@@ -328,7 +337,7 @@ def _audit_prompt(items: tuple[HardwareItem, ...], quarantine: tuple) -> str:
     )
 
 
-def _gemini_client(key: str, model: str) -> Callable[[str], str]:
+def _gemini_client(key: str, model: str, timeout: float) -> Callable[[str], str]:
     """A real Gemini call, built only when no fake is on the seam.
 
     Imported lazily so the suite — which nails the socket shut — never constructs it.
@@ -354,9 +363,7 @@ def _gemini_client(key: str, model: str) -> Callable[[str], str]:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(
-                request, timeout=REQUEST_TIMEOUT_SECONDS
-            ) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 body = json.loads(response.read())
             return body["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as error:

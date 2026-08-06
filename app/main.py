@@ -714,7 +714,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         cannot judge id 10, so unavailability is a `503` with a reason, never a
         quieter answer under the auditor's name (ADR-0016).
         """
-        client = ai.resolve_client(app.state)
+        client = ai.resolve_client(app.state, timeout=ai.AUDIT_TIMEOUT_SECONDS)
         if client is None:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
