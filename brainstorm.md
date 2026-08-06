@@ -259,25 +259,58 @@ test_prod_config_requires_secret_key
 smoke_deployed_login_and_rent_flow
 ```
 
-### Phase 4 — Wireframe Fidelity *(added 2026-08-07 — does not start until Phase 3 ships)*
+### Phase 4 — Wireframe Fidelity *(added 2026-08-07, extended same day — does not start until Phase 3 ships)*
 
 Branch `phase-4-ui`. Goal: the app is a **close copy** of the supplied wireframes in
 `docs/wireframes/` (local, gitignored — they are confidential). Read every screenshot
 carefully before writing anything — layout, spacing, type scale, weights, control
 placement. **Fidelity is the objective, not inspiration.**
 
-**Cosmetic — no schema, no ADR:**
+**Slice C precondition — confirmed shipped.** The admin flag-review verb landed in
+Phase 3 (`feat(phase-3): admin flag-review verb`, six tests, live). Had it been cut it
+would sit here as a must-ship, because without it flagging is seed-only: ingestion
+flags at import, the add form rejects rather than flags, and the auditor cannot flag
+by design (ADR-0014) — a finding could never make an item unrentable. The README now
+documents the full chain so a reviewer can see how anything enters review after
+import.
 
-- "Inventory" heading becomes "Hardware List". No subtitle.
-- Remove the review-status column. Replace with a yellow "!" badge before the device
-  name; hover or click reveals "Awaiting review". Must be keyboard-reachable and
-  screen-reader labelled, not hover-only.
+**The table:**
+
+- Remove the review column entirely. A flagged row shows the amber **!** where the
+  Rent button would be — no button at all; the **!** is the affordance, a tooltip
+  explains. Keyboard-reachable and screen-reader labelled, not hover-only.
+  *(Supersedes the earlier "badge before the device name" placement.)*
+- Rented rows: users see "Rented" with no holder; admins see the holder's email.
+  Keeps the ADR-0012 amendment; "somebody else has it" is gone either way.
 - Display `In Use` as "Rented". **Display label only** — the stored enum stays
   `Available | In Use | Repair` per the brief and every ADR. Map at the view layer.
-- Match the prototype's font sizes and weights exactly.
-- Add New Device modal: match the wireframe — Name, Serial Number, Brand, Category
-  dropdown (Laptop / Mobile / Tablet / Monitor / Accessory).
-- Admin panel: match the wireframe exactly.
+- Every button the same width, height and font size — Rent, Repair, Edit, Remove.
+  Bigger than current: **32px minimum touch target**.
+- Correct Tabler glyphs for Repair, Edit, Remove, matching the wireframe.
+- Sorting works both directions on every sortable column, including alphabetical on
+  name and brand. Closes the descending-sort question open in `BACKLOG.md` since
+  Phase 1 — pick a convention, pin it with a test, delete the entry.
+- "Inventory" heading becomes "Hardware List". No subtitle. Match the prototype's
+  font sizes and weights exactly.
+
+**Needs-review tab — separate view, not a filter.** Carries the review column, the
+reason text, and the Review action. The Review action exists **only** here — never in
+the main table. Empty state: "No items awaiting review." After a successful Review,
+the row shows a resolved state for 2 seconds, then fades out — the admin sees the
+result rather than watching it vanish.
+
+**Admin edit** — name, brand, purchase date, serial, category. Moves from README ⚠️
+to ✅. Record in `docs/WIREFRAME_JUSTIFICATION.md` that the brief scopes admin actions
+to add/delete/toggle-Repair, so edit is **wireframe-driven, not brief-required**.
+
+**Review resolution note — amends ADR-0017.** Clearing `needs_review` takes a reason
+that must begin with `fixed:` — e.g. "fixed: battery replaced, safe to issue".
+Validated server-side, `422` otherwise. The amendment's claim: an admin must state
+what changed, not merely that they looked.
+
+**Add New Device modal:** match the wireframe — Name, Serial Number, Brand, Category
+dropdown (Laptop / Mobile / Tablet / Monitor / Accessory). Admin panel: match the
+wireframe exactly.
 
 **Schema — needs a migration test (CLAUDE.md, mandatory):**
 
@@ -299,15 +332,22 @@ deliberate:**
 **Renter identity hidden — amends ADR-0012.** The wireframe does not show who holds an
 item; ADR-0012 decided the opposite, with reasoning (knowing who to ask). Write the
 amendment rather than silently reversing: the item still shows Rented, the holder is
-admin-only.
+admin-only (which is what the table rules above implement).
 
-**Notifications with sound:**
+**Sounds and toasts — four events:**
 
-- Rent action: admin gets a toast plus a short sound. Item entering review: same.
-- Sound off by default or muteable, respects `prefers-reduced-motion`, and never the
-  only signal — the toast carries the information.
-- Delivery mechanism is a design decision: polling is acceptable for a demo, but say
-  so in an ADR rather than reaching for websockets.
+- Admin, rent happened: toast + soft chime.
+- Admin, item entered review: toast + distinct, slightly more urgent tone.
+- User, own action confirmed: short click on successful rent or return.
+- Anyone, `409` refusal: low tone.
+
+All muteable, **off by default**, respect `prefers-reduced-motion`, and never the only
+signal — the toast carries the information. Delivery mechanism is a design decision:
+polling is acceptable for a demo, but say so in an ADR rather than reaching for
+websockets.
+
+**Scope: desktop only.** State it in the README rather than leaving it to be
+discovered — an internal tool with six columns is a legitimate desktop-first decision.
 
 **Skills and agents:** `frontend-design` for every visual item — feed it the
 screenshots and the constraint that fidelity beats expressiveness here. `test-author`
@@ -315,7 +355,8 @@ then `/tdd` for the schema slice, migration test included. `mvp-reviewer` at the
 No `architecture-scout` — this phase adds no new seams.
 
 **Cut order if time runs out:** sounds first, then Date Added, then the notification
-toasts. The visual fidelity items are cheap and are what a reviewer sees.
+toasts. The visual fidelity items are cheap and are what a reviewer sees. Schema
+changes keep their migration test whatever else is cut.
 
 ### Final polish — one commit, not a phase
 

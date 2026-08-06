@@ -1209,3 +1209,15 @@ the two AI surfaces. 118/118. Live verification after the push: smoke flow, one
 semantic search, one audit run — the auditor's live judgment on ids 9 and 10 is the
 claim the suite cannot make (mocked model), so it is checked on the deployment.
 Commit: chore(phase-3): deploy v3 (pending)
+
+---
+
+## [P3 · c9] Phase 4 spec extended — the wireframe-fidelity decisions land in the plan
+
+Slice C confirmed shipped first (the conditional must-ship dissolves). Phase 4 gains:
+the table rules (amber ! as the affordance, holder admin-only, 32px targets, Tabler
+glyphs, bidirectional sort closing the Phase 1 BACKLOG entry), the needs-review tab
+with the only Review action, admin edit (wireframe-driven, not brief-required), the
+`fixed:` clearing note as an ADR-0017 amendment, four sound events, desktop-only
+scope. README documents the review-entry chain.
+Commit: docs(phase-4): extend the wireframe-fidelity spec (pending)

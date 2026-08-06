@@ -119,7 +119,12 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
   `503` rather than degrading, because a keyword auditor cannot find id 10
 - **The flag-review verb** — a human acts on a finding: mandatory reason, audit
   event, `409` when already flagged (ADR-0017); the loop ADR-0002 opened is closed
-  end to end — ingestion declined to judge, the auditor judges, an admin decides
+  end to end — ingestion declined to judge, the auditor judges, an admin decides.
+  **How anything enters review after import** (the full chain, since ingestion flags
+  only at import, the add form rejects rather than flags, and the auditor cannot
+  flag by design): *auditor proposes → admin flags → item unrentable (`409`) → admin
+  later clears, with a reason recorded at both ends.* Phase 4 tightens the clearing
+  reason to a mandatory `fixed:` note — what changed, not merely that somebody looked
 - **Health endpoint** — `GET /api/health`, sessionless by design, touches nothing
 - Single origin: one service, one URL, no CORS (ADR-0001)
 - 118 tests, all green
