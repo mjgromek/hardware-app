@@ -22,7 +22,7 @@ from pydantic import BaseModel, StringConstraints
 
 from app import accounts, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
-from app.domain import Account, Role, Status
+from app.domain import Account, Role, Status, visible_to
 from app.storage import (
     add_item,
     persist,
@@ -100,25 +100,6 @@ class Reason(BaseModel):
     """
 
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-
-
-#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor —
-#: Phase 3 writes findings into the same columns. Renter identity is *not* here: who
-#: holds a laptop is operational, and hiding it moves the question to Slack.
-ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
-
-
-def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
-    """One item, as this caller is allowed to see it.
-
-    The restricted fields are set to `None` rather than dropped, so the payload keeps
-    one shape and the client does not have to branch on which role it is.
-    """
-    if account.role is Role.ADMIN:
-        return item
-    return {
-        key: (None if key in ADMIN_ONLY_FIELDS else value) for key, value in item.items()
-    }
 
 
 class HeldBy(str, Enum):

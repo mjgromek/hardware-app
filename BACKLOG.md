@@ -301,14 +301,6 @@ reproduce rather than something the module hands over. One caller today, so noth
 duplicated. *Urgent when: a second caller appears — Phase 3's semantic search returning
 rentable items is the likely one.*
 
-**`visible_to` and `ADMIN_ONLY_FIELDS` live in `app/main.py`.** They encode ADR-0012's rule
-about who may see `notes`, `history` and `review_reason` — a domain concern that the routes
-module currently owns, so any other caller has to import it from `app.main` and invert the
-dependency. ~15 lines to `app/domain.py`, one file. ***Urgent in Phase 3, and it is not a
-maybe:*** the Inventory Auditor reads exactly those three fields and semantic search
-returns items through a different path, so Phase 3 brings two second callers at once. Move
-it before either is written, not after both have copied it.
-
 **The boot sequence is ~90 lines inside `create_app`.** Schema creation, migration, seed,
 rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/main.py` at
 702 lines is otherwise legitimate composition — fifteen thin routes over deep modules, not

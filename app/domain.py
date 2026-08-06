@@ -86,3 +86,28 @@ class IngestReport:
 
     imported: tuple[HardwareItem, ...] = field(default_factory=tuple)
     quarantined: tuple[QuarantineRecord, ...] = field(default_factory=tuple)
+
+
+#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor to
+#: read — the Phase 3 auditor consumes these columns and never writes them (ADR-0014).
+#: Renter identity is *not* here: who holds a laptop is operational, and hiding it
+#: moves the question to Slack.
+ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
+
+
+def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
+    """One item, as this caller is allowed to see it.
+
+    Lives here rather than in the routes module because ADR-0012's rule has three
+    callers in Phase 3 — the item list, semantic search, and the auditor — and a rule
+    every caller must import from `app.main` is a dependency pointing the wrong way
+    (`architecture-scout`, filed at the Phase 2 gate).
+
+    The restricted fields are set to `None` rather than dropped, so the payload keeps
+    one shape and the client does not have to branch on which role it is.
+    """
+    if account.role is Role.ADMIN:
+        return item
+    return {
+        key: (None if key in ADMIN_ONLY_FIELDS else value) for key, value in item.items()
+    }

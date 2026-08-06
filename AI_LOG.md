@@ -1155,3 +1155,13 @@ Session 9 precedent. ADR-0014–0017: propose-never-dispose, no restricted-field
 predicates, announced degradation, and the flag-review verb ADR-0010 withheld.
 Spec sliced A/B/C with hardening as a gate checklist.
 Commit: docs(phase-3): grilling 3, four ADRs, and the phase spec (pending)
+
+---
+
+## [P3 · c4] `visible_to` moves to the domain, ahead of its two new callers
+
+The architecture-scout finding executed on its own trigger: "urgent when a second
+caller appears" — Phase 3 adds two (search, auditor). Pure move, `app/main.py` →
+`app/domain.py`, plus one stale comment fixed (findings are never written into these
+columns, ADR-0014). 98/98 before and after.
+Commit: refactor(phase-3): move field visibility to the domain (pending)
