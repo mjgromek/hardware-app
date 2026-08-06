@@ -56,7 +56,10 @@ REQUEST_TIMEOUT_SECONDS = 5.0
 
 GEMINI_KEY_VAR = "GEMINI_API_KEY"
 GEMINI_MODEL_VAR = "GEMINI_MODEL"
-GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"
+#: The alias, not a pinned version: `gemini-2.5-flash` answered 404 "no longer
+#: available to new users" on the deployment's key. The alias tracks whatever
+#: Google currently serves; anyone needing a pin sets `GEMINI_MODEL`.
+GEMINI_DEFAULT_MODEL = "gemini-flash-latest"
 
 
 class ModelUnavailable(RuntimeError):

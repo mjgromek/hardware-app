@@ -1249,3 +1249,13 @@ Both defects lived exactly there. The live smoke is not a formality — it is th
 test those layers have.
 
 Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (pending)
+
+---
+
+## [P3 · c11] The model default becomes the alias
+
+`gemini-2.5-flash` answers 404 "no longer available to new users" on the deployment's
+key — a fact only the live call could know. Default is now `gemini-flash-latest`;
+a pin is one `GEMINI_MODEL` env var away. 118/118 (the suite mocks the client, as
+designed — which is exactly why this had to be found live).
+Commit: fix(phase-3): default to the gemini-flash-latest alias (pending)
