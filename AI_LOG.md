@@ -442,3 +442,49 @@ The status block is the part of the README a reviewer trusts most and verifies
 least.
 
 Commit: docs: align README status sections with the brief (pending)
+
+---
+
+## [P1 · c3] Phase 1 red — auth, admin guards, dashboard
+
+`test-author` against `brainstorm.md` §3 and ADRs 0001, 0003, 0005. The nine named
+specs plus a tenth for the session cookie: §3 lists the cookie as Phase 1 scope and
+no named test touched it, and ADR-0001's whole payoff here is that `SameSite` is
+free under single origin — free is not the same as set. 41 tests, 29 green, 11 red,
+no `ImportError`.
+
+**A spec contradiction the red state exposed.** The new tests read `/api/hardware`
+anonymously, because Phase 0's green tests do. `test-author` refused to change that
+on its own authority — turning a green Phase 0 test red is not a test author's call
+— and filed it as an open question instead. It was right to ask, and the answer was
+that my Phase 0 endpoint contradicted the brief: only admin-created accounts use the
+Hub, so a public inventory endpoint was wrong the day I shipped it, not wrong now.
+The endpoint is session-only. Three Phase 0 tests read it and all three are amended.
+
+The judgement inside that change is the part worth recording. Two of the three are
+the boot-seed pair, whose subject is what boot did to the table — not who may read
+it. They now read through `app.storage` rather than over HTTP, because giving them a
+login would have made two seeding tests unrunnable until auth exists and coupled
+every future auth regression to a seeding failure. `test_inventory_requires_a_session`
+pins the new rule on its own, and `test_serves_built_bundle_at_root` still fetches
+`/` unauthenticated — so the tempting implementation, one middleware refusing
+everything, turns a green test red and the login page stays reachable by
+construction.
+
+One cost I am not going to describe as free: no test now proves that *boot-seeded*
+rows reach the wire. The pair that used to show it incidentally reads the table
+directly, and `test_api_returns_hardware_items` seeds its own database rather than
+booting into one. The two halves are each covered and the join is not — which on the
+deploy path is exactly the join that runs. Written to `BACKLOG.md` rather than fixed,
+because the seam is one `load_items` call wide.
+
+`ADR-0006` records the decision, and leads with what was actually wrong rather than
+with the brief: the endpoint was publishing the Dell XPS's "battery swelling" note and
+the MacBook's liquid-damage history to anyone with the URL. The brief's rule is the
+citation, not the argument. The reversal is also in `BACKLOG.md` as resolved rather
+than deleted, with all five test consequences listed. Seven of the eleven
+red tests now fail in fixture setup rather than on their own assertion, because they
+sit behind a login that does not exist — so login is the first green commit, and the
+suite gets re-read there to confirm every test fails for its own reason.
+
+Commit: test(phase-1): failing specs for auth, admin guards and the dashboard (pending)
