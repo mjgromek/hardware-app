@@ -393,3 +393,19 @@ for a line that should have been there and was not. `create_app` now calls
 log was *emitted* says nothing about whether anyone will ever *see* it.
 
 Commit: docs(phase-0): README with live v0, and make boot logging visible (pending)
+
+---
+
+## [P0 · c12] Data audit
+
+`docs/DATA_AUDIT.md`, transcribed from the green suite rather than from the plan —
+every figure came out of running the importer over the real seed, not from
+`brainstorm.md` §2's predictions. The last Phase 0 documentation deliverable.
+
+One correction to the brief I was given: the re-key is *not* one of the three
+quarantine records. Nothing is rejected when a duplicate id is repaired, and
+`test_seed_rekeys_duplicate_id` asserts the quarantine table stays empty for it.
+The three records are ids 2, 6 and 10. The document says so, and separately lists
+the four rows where stored data differs from the seed.
+
+Commit: docs(phase-0): data audit (pending)
