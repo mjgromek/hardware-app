@@ -3,53 +3,66 @@
 Internal tool for Booksy employees to manage, rent and maintain company equipment.
 Built as a recruitment task for the Early Careers Programme.
 
-See `CONTEXT.md` for domain language. See `brainstorm.md` for the phased plan.
-See `PROJECT_SPEC.md` for architecture once it exists.
+See `CONTEXT.md` for domain language. See `brainstorm.md` (v2) for the phased plan.
+See `docs/adr/` for settled decisions. See `PROJECT_SPEC.md` for architecture once
+it exists.
 
 ## Stack
 
 - **Backend:** Python, FastAPI, SQLAlchemy, SQLite (file-based — portability is deliberate)
 - **Frontend:** Vue 3, Vite
+- **Single origin:** FastAPI serves the built Vue `dist/` as static files. One
+  service, one URL. **No CORS.** (ADR-0001)
 - **Tests:** pytest (backend), vitest (frontend)
 - **Deploy:** Railway (persistent volume; Vercel's ephemeral filesystem would reset SQLite)
 
 ## Non-negotiables
 
 - **TDD.** No production code before a failing test exists. Use `/tdd`.
-- **Never commit to `main`.** Branch per MVP, merge via PR after human review.
+- **Never commit to `main`.** Branch per phase, merge via PR after human review.
+  Exception: pre-Phase-0 setup commits.
 - **Conventional Commits:** `test:` `feat:` `fix:` `refactor:` `chore:` `docs:`
-- **Every commit updates `AI_LOG.md`.** No entry, not done. Write it in the moment,
-  never reconstructed at the end.
+- **Every commit updates `AI_LOG.md`.** No entry, not done. Write it in the moment.
 - **Secrets are server-side only.** No API key ever reaches the Vue bundle.
 - **Status enum is exactly** `Available | In Use | Repair`. `"Unknown"` is not a
-  status — it maps to a `needs_review` flag. Nothing from the seed is ever silently
-  deleted; bad rows go to `hardware_quarantine` with a reason.
-- **Target 15–25 commits total.** Roughly three per phase. Meaningful, not noise,
-  and never one giant dump.
+  status — it maps to `needs_review`. Nothing from the seed is silently deleted;
+  bad rows go to `hardware_quarantine` with a reason.
+- **`needs_review` blocks rental.** Flagged items return `409` through the same
+  guard as `Repair`. A flag that changes nothing is decoration. (ADR-0003)
+- **At least one admin must always exist.** Enforced as a guard returning `409`,
+  in the same layer as the rental guards. (ADR-0005)
+- **Ingestion validates structure only.** Semantic judgement is the auditor's job,
+  by declared design. (ADR-0002)
+- **Target 15–20 commits**, roughly four per phase. Meaningful, not noise.
 
-## Workflow — every MVP
+## Workflow — four phases
 
 ```
-0. /grill-me                  YOU, main thread. Never delegated to an agent.
-1. /to-spec                   → docs/specs/mvp-N.md
-2. test-author (agent)        → failing tests. Writes tests/ ONLY, never src/
-3. /implement (drives /tdd)   → green. Never edits tests/
-4. architecture-scout (agent) → ranked report; YOU decide what to act on
-5. mvp-reviewer (agent)       → docs/reviews/REVIEW_mvp-N.md
-6. HUMAN GATE                 → you approve, merge, tag vN
+Phase 0  foundation, data audit, first deploy   settled by grilling 1
+Phase 1  auth, admin, dashboard                 settled by grilling 1
+Phase 2  rental engine                          /grill-me first
+Phase 3  AI layer + production hardening        /grill-me first
+final    one polish commit on main — not a phase
 ```
 
-Every handoff is a **file**. Agents share no memory — an undocumented handoff is
-a dropped handoff.
+Each phase: branch → red → green → deploy vN → review gate → merge → tag.
 
-Authorship and verification never share a context. That is the whole point of the
-agent split: `test-author` cannot write `src/`, the implementer cannot edit
-`tests/`, and `architecture-scout` and `mvp-reviewer` have no write access at all.
+Only Phases 2 and 3 get their own grilling. Phases 0 and 1 were settled by the
+whole-project session — see `docs/PROMPT_TRAIL.md`.
 
-## Before starting any MVP
+## AI log — two formats
 
-Run `/grill-me` on the relevant section of `brainstorm.md`. Capture every decision
-worth defending as an ADR in `docs/adr/`. No implementation until the spec settles.
+**Routine commits, three lines:**
+
+```markdown
+## [P1 · c2] Admin CRUD + role guards
+/tdd against the phase-1 spec. Clean run, no corrections needed.
+Commit: feat(phase-1): admin hardware and account management (a1b2c3d)
+```
+
+**Corrections, long form and rare.** What the AI produced, why it was wrong, how
+you caught it, how you corrected it. **Three or four across the whole build** —
+twenty uniform long entries is itself the texture that reads as batch-written.
 
 ## Documentation that must stay current
 
