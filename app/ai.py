@@ -334,18 +334,27 @@ def _gemini_client(key: str, model: str) -> Callable[[str], str]:
     """
 
     def call(prompt: str) -> str:
-        import httpx
+        # stdlib on purpose. The first deploy used httpx here, which is a test-extra
+        # rather than a production dependency — locally green, live the auditor's own
+        # 503 reason read "No module named 'httpx'". The refusal-with-a-reason design
+        # (ADR-0016) is what surfaced it; the fix is to depend on nothing.
+        import urllib.error
+        import urllib.request
 
+        request = urllib.request.Request(
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent",
+            data=json.dumps(
+                {"contents": [{"parts": [{"text": prompt}]}]}
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json", "x-goog-api-key": key},
+            method="POST",
+        )
         try:
-            response = httpx.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:generateContent",
-                params={"key": key},
-                json={"contents": [{"parts": [{"text": prompt}]}]},
-                timeout=REQUEST_TIMEOUT_SECONDS,
-            )
-            response.raise_for_status()
-            body = response.json()
+            with urllib.request.urlopen(
+                request, timeout=REQUEST_TIMEOUT_SECONDS
+            ) as response:
+                body = json.loads(response.read())
             return body["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as error:
             raise ModelUnavailable(f"Gemini request failed: {error}") from error

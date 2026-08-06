@@ -1131,8 +1131,7 @@ Every `.md` checked against the brief's deliverables. AI_LOG: 17 SHAs back-annot
 gate-review gaps — 13/13 ADRs now trace to a prompt. README: 🔮 lists three next steps,
 seed-on-boot gets its Why/Future. BACKLOG drops three done/false entries; brainstorm.md
 gets a dated status note instead of a rewrite.
-Commit: docs(phase-3): audit every doc against the brief (pending — the one entry the
-final-polish pass back-annotates, since a commit cannot contain its own sha)
+Commit: docs(phase-3): audit every doc against the brief (1aff2db)
 
 ---
 
@@ -1144,7 +1143,7 @@ hidden from non-admins) written rather than silently reversed, and two brief-man
 wireframe deviations (Purchase Date, filtering) pre-registered for
 `WIREFRAME_JUSTIFICATION.md`. §0, CLAUDE.md's phase table and the README (🔮 + a v4 row)
 now agree there are five gates.
-Commit: docs(phase-4): plan the wireframe-fidelity phase (pending)
+Commit: docs(phase-4): plan the wireframe-fidelity phase (b059470)
 
 ---
 
@@ -1154,7 +1153,7 @@ Two rounds, frontier cut deliberately — flag-verb detail assigned to the spec,
 Session 9 precedent. ADR-0014–0017: propose-never-dispose, no restricted-field
 predicates, announced degradation, and the flag-review verb ADR-0010 withheld.
 Spec sliced A/B/C with hardening as a gate checklist.
-Commit: docs(phase-3): grilling 3, four ADRs, and the phase spec (pending)
+Commit: docs(phase-3): grilling 3, four ADRs, and the phase spec (270df1d)
 
 ---
 
@@ -1164,7 +1163,7 @@ The architecture-scout finding executed on its own trigger: "urgent when a secon
 caller appears" — Phase 3 adds two (search, auditor). Pure move, `app/main.py` →
 `app/domain.py`, plus one stale comment fixed (findings are never written into these
 columns, ADR-0014). 98/98 before and after.
-Commit: refactor(phase-3): move field visibility to the domain (pending)
+Commit: refactor(phase-3): move field visibility to the domain (082ac46)
 
 ---
 
@@ -1175,7 +1174,7 @@ assertions, 99 green, 0 broken — the bundle leak guard is green before the fea
 exists, by design. Cut under the 12-cap: `test_auditor_flags_misspelled_brand`
 (plumbing-identical to id 10's), filed in BACKLOG with the cost named — ADR-0002's
 typo loop has no test until green adds it back.
-Commit: test(phase-3): failing specs for semantic search and the inventory auditor (pending)
+Commit: test(phase-3): failing specs for semantic search and the inventory auditor (7ce8e05)
 
 ---
 
@@ -1185,7 +1184,7 @@ Commit: test(phase-3): failing specs for semantic search and the inventory audit
 owns the schema and its SQL, per the ADR-0008 precedent; `extra="forbid"` on the
 filter model is what makes the oracle rejection wholesale rather than salvaged.
 The real Gemini client is built lazily so the socket-refusing suite never sees it.
-Commit: feat(phase-3): semantic search and the inventory auditor (pending)
+Commit: feat(phase-3): semantic search and the inventory auditor (f126893)
 
 ---
 
@@ -1197,7 +1196,7 @@ in storage as `clear_review`'s mirror, the action enum grows `flag_review`
 search with the mode label shown (ADR-0016), auditor panel where each finding is a
 button whose reason arrives prefilled and editable — the recorded claim is the
 human's. 117/117.
-Commit: feat(phase-3): admin flag-review verb (pending)
+Commit: feat(phase-3): admin flag-review verb (c516ce3)
 
 ---
 
@@ -1208,7 +1207,7 @@ grepped clean of the provider and any key, README at v3 reality, wireframe doc g
 the two AI surfaces. 118/118. Live verification after the push: smoke flow, one
 semantic search, one audit run — the auditor's live judgment on ids 9 and 10 is the
 claim the suite cannot make (mocked model), so it is checked on the deployment.
-Commit: chore(phase-3): deploy v3 (pending)
+Commit: chore(phase-3): deploy v3 (32279ef)
 
 ---
 
@@ -1220,4 +1219,33 @@ glyphs, bidirectional sort closing the Phase 1 BACKLOG entry), the needs-review 
 with the only Review action, admin edit (wireframe-driven, not brief-required), the
 `fixed:` clearing note as an ADR-0017 amendment, four sound events, desktop-only
 scope. README documents the review-entry chain.
-Commit: docs(phase-4): extend the wireframe-fidelity spec (pending)
+Commit: docs(phase-4): extend the wireframe-fidelity spec (397a0f8)
+
+---
+
+## Correction #5 — the deploy path was a landmine, and the AI client was a test-extra
+
+Two production defects found by the live verification, neither visible to a 118-green
+suite.
+
+**What happened.** Attaching `GEMINI_API_KEY` made Railway redeploy from the branch
+the service has tracked since Phase 0 — putting **v0 live**: no login route, the whole
+inventory served without a session, ADR-0006 violated on the public URL until a
+`railway up` (~4 minutes). The deploy docs said "push the branch; Railway builds",
+which stopped being true the moment the phase branch changed names, and nobody noticed
+because pushes *appeared* to deploy — they deployed nothing, and the old build kept
+answering.
+
+**Second defect, surfaced by the first's fix.** With v3 back, the auditor refused with
+its own diagnosis: `No module named 'httpx'`. The Gemini client imported a library
+that exists locally only as a test dependency — the suite mocks the client (ADR-0004),
+so no test can ever import the real one. Replaced with stdlib `urllib`. ADR-0016's
+refusal-with-a-reason is what made this a one-line read instead of a debugging
+session: the 503 carried the ImportError verbatim.
+
+**What I am taking from it.** "The suite is green" says nothing about the two layers
+the suite deliberately never touches: the deploy trigger and the real provider call.
+Both defects lived exactly there. The live smoke is not a formality — it is the only
+test those layers have.
+
+Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (pending)

@@ -56,8 +56,8 @@ that ships.
 ```
 P0  foundation, data audit, deploy v0     ✅ DONE — merged, tagged, live
 P1  auth, admin, dashboard                ✅ DONE — merged, tagged v1-admin, live
-P2  rental engine                         ◐ green, deployed v2, at the gate
-P3  AI layer + production hardening       /grill-me first
+P2  rental engine                         ✅ DONE — merged, tagged v2-rental, live
+P3  AI layer + production hardening       ◐ green, deployed v3, at the gate
 P4  UI fidelity to the wireframes         planned — starts only after P3 ships
     final polish — one commit on main
 ```
@@ -70,7 +70,13 @@ Railway, one service, SQLite on a persistent volume. Per phase:
 
 1. `npm run build` in `frontend/` — `test_serves_built_bundle_at_root` needs the
    real `dist/`
-2. Push the branch; Railway builds from the Dockerfile
+2. **Deploy with `railway up --detach`** (CLI at `/opt/homebrew/bin/railway`, already
+   authenticated). Pushing the branch does NOT deploy: the service's GitHub trigger
+   still tracks the Phase 0 branch, so a push deploys nothing — and **any variable
+   change redeploys v0**, which has no auth and serves the volume's data publicly.
+   This happened once (2026-08-07, AI_LOG Correction #5). Until the tracked branch is
+   fixed in the dashboard (human-only), follow every variable change with an
+   immediate `railway up`.
 3. Seeding is automatic on boot **only when the table is empty** — never run a
    seed command by hand, and never remove that guard (it's what stops a restart
    destroying rentals)

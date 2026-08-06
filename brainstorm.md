@@ -18,7 +18,8 @@
 > visibility (ADR-0012), and a demo reset route; the §7 open item on the authorization
 > enforcement point settled as per-route dependencies in Phase 1; and the documented
 > manual reseed is gone — `persist` refuses while rentals exist (ADR-0011). CI and
-> vitest, listed under Phase 0, still do not exist and are Phase 3 scope.
+> vitest, listed under Phase 0, remained unbuilt through Phase 3 — the README 🔮
+> section owns them now.
 
 ---
 
