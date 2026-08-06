@@ -506,3 +506,17 @@ helper turns a `GuardViolation` into `409` with its reason intact, so Phase 2's 
 and return find a layer instead of a precedent of inline `if` statements.
 
 Commit: feat(phase-1): login, session cookie, admin guards and dashboard (pending)
+
+---
+
+## [P1 · c5] Trim the working documents
+
+`CLAUDE.md`, `CONTEXT.md` and the three agent briefs replaced with shorter versions —
+the pace rules were being paid for in tokens every turn. `BACKLOG.md` pruned to what is
+still owed: the Phase 0 scope list, the `DATA_AUDIT.md` debt, the `StaticPool` and
+`PRAGMA` constraints and the resolved session question are all deleted, because
+`create_engine_for`, the audit doc and ADR-0006 now hold those answers. Entries are
+deleted when done rather than annotated; the reversal record lives in `AI_LOG.md` and
+`docs/adr/`, not here.
+
+Commit: docs: trim CLAUDE.md, CONTEXT.md, agents and backlog for pace (pending)

@@ -1,91 +1,83 @@
 # Hardware Hub
 
-Internal tool for Booksy employees to manage, rent and maintain company equipment.
-Built as a recruitment task for the Early Careers Programme.
+Internal tool for Booksy employees to manage, rent and maintain equipment.
+Recruitment task, Early Careers Programme.
 
-See `CONTEXT.md` for domain language. See `brainstorm.md` (v2) for the phased plan.
-See `docs/adr/` for settled decisions. See `PROJECT_SPEC.md` for architecture once
-it exists.
+`CONTEXT.md` = domain language. `brainstorm.md` (v2) = phased plan.
+`docs/adr/` = settled decisions. `BACKLOG.md` = non-blocking findings.
 
 ## Stack
 
-- **Backend:** Python, FastAPI, SQLAlchemy, SQLite (file-based — portability is deliberate)
-- **Frontend:** Vue 3, Vite
-- **Single origin:** FastAPI serves the built Vue `dist/` as static files. One
-  service, one URL. **No CORS.** (ADR-0001)
-- **Tests:** pytest (backend), vitest (frontend)
-- **Deploy:** Railway (persistent volume; Vercel's ephemeral filesystem would reset SQLite)
+FastAPI + SQLAlchemy + SQLite. Vue 3 + Vite. pytest + vitest. Railway.
+**Single origin** — FastAPI serves the built `dist/`. One URL, no CORS. (ADR-0001)
+
+## Working pace — read this first
+
+Time is the binding constraint. Correctness that ships late loses to correctness
+that ships.
+
+- **Report in 5 lines or fewer.** What you did, what's green, what's next. Expand
+  only when something is wrong.
+- **Never restate work already described.** No recap tables, no summaries of the
+  last message.
+- **Make reversible decisions yourself.** Note them in one line and continue. Stop
+  only for: security, data loss, or a contradiction with an ADR.
+- **Non-blocking findings go to `BACKLOG.md`.** Do not ask. Only interrupt if
+  something makes the current work wrong.
+- **No mutation testing** unless the code is load-bearing — guards, concurrency,
+  transaction boundaries. Conventional CRUD gets written, run, moved on.
+- **Three commits per phase:** one `test:` (red), one `feat:` (green), one
+  `chore:` (deploy). Not per slice.
+- **Don't re-verify what the suite proves.** Green is the report.
 
 ## Non-negotiables
 
-- **TDD.** No production code before a failing test exists. Use `/tdd`.
-- **Never commit to `main`.** Branch per phase, merge via PR after human review.
-  Exception: pre-Phase-0 setup commits.
-- **Conventional Commits:** `test:` `feat:` `fix:` `refactor:` `chore:` `docs:`
-- **Every commit updates `AI_LOG.md`.** No entry, not done. Write it in the moment.
-- **Secrets are server-side only.** No API key ever reaches the Vue bundle.
-- **Status enum is exactly** `Available | In Use | Repair`. `"Unknown"` is not a
-  status — it maps to `needs_review`. Nothing from the seed is silently deleted;
-  bad rows go to `hardware_quarantine` with a reason.
-- **`needs_review` blocks rental.** Flagged items return `409` through the same
-  guard as `Repair`. A flag that changes nothing is decoration. (ADR-0003)
-- **At least one admin must always exist.** Enforced as a guard returning `409`,
-  in the same layer as the rental guards. (ADR-0005)
-- **Ingestion validates structure only.** Semantic judgement is the auditor's job,
-  by declared design. (ADR-0002)
-- **Target 15–20 commits**, roughly four per phase. Meaningful, not noise.
+- **TDD.** No production code before a failing test. Use `/tdd`.
+- **Never commit to `main`.** Branch per phase, merge by PR after human review.
+- **Conventional Commits.** Every commit updates `AI_LOG.md` — 3 lines, in the
+  moment. Long-form only for genuine corrections; 3–4 exist already, that's enough.
+- **Secrets server-side only.** Nothing reaches the Vue bundle.
+- **Status enum is exactly** `Available | In Use | Repair`. `"Unknown"` maps to
+  `needs_review`. Nothing is silently deleted — bad rows go to
+  `hardware_quarantine` with a reason. (ADR-0002)
+- **`needs_review` blocks rental**, `409`, same guard as `Repair`. (ADR-0003)
+- **At least one admin must always exist**, `409` guard. (ADR-0005)
+- **No public read surface.** Every data route needs a session, `401` without.
+  `GET /` stays open or nobody can log in. (ADR-0006)
+- **Target 15–20 commits total.**
 
-## Workflow — four phases
+## Phases
 
 ```
-Phase 0  foundation, data audit, first deploy   settled by grilling 1
-Phase 1  auth, admin, dashboard                 settled by grilling 1
-Phase 2  rental engine                          /grill-me first
-Phase 3  AI layer + production hardening        /grill-me first
-final    one polish commit on main — not a phase
+P0  foundation, data audit, deploy v0     ✅ DONE — merged, tagged, live
+P1  auth, admin, dashboard                ◐ in progress
+P2  rental engine                         /grill-me first
+P3  AI layer + production hardening       /grill-me first
+    final polish — one commit on main
 ```
 
-Each phase: branch → red → green → deploy vN → review gate → merge → tag.
+Each: branch → red → green → deploy → review gate → merge → tag.
 
-Only Phases 2 and 3 get their own grilling. Phases 0 and 1 were settled by the
-whole-project session — see `docs/PROMPT_TRAIL.md`.
+## Deploy — the fast path
 
-## AI log — two formats
+Railway, one service, SQLite on a persistent volume. Per phase:
 
-**Routine commits, three lines:**
+1. `npm run build` in `frontend/` — `test_serves_built_bundle_at_root` needs the
+   real `dist/`
+2. Push the branch; Railway builds from the Dockerfile
+3. Seeding is automatic on boot **only when the table is empty** — never run a
+   seed command by hand, and never remove that guard (it's what stops a restart
+   destroying rentals)
+4. Add the URL to the README live-versions table
 
-```markdown
-## [P1 · c2] Admin CRUD + role guards
+No SSH, no `preDeployCommand` — both were tried and neither works on this plan.
 
-/tdd against the phase-1 spec. Clean run, no corrections needed.
-Commit: feat(phase-1): admin hardware and account management (a1b2c3d)
-```
+## Docs that must stay current
 
-**Corrections, long form and rare.** What the AI produced, why it was wrong, how
-you caught it, how you corrected it. **Three or four across the whole build** —
-twenty uniform long entries is itself the texture that reads as batch-written.
+`AI_LOG.md` every commit · `docs/adr/` every architectural decision ·
+`docs/PROMPT_TRAIL.md` after each grilling · `docs/WIREFRAME_JUSTIFICATION.md`
+per UI deviation · `README.md` live-versions table and the four graded sections
+(✅ Fully Implemented / ⚡ Shortcuts & Hacks / ⚠️ Partial / 🔮 Next Steps).
 
-## Documentation that must stay current
-
-| File                              | When                                             |
-| --------------------------------- | ------------------------------------------------ |
-| `AI_LOG.md`                       | Every commit                                     |
-| `docs/adr/`                       | Every architectural decision                     |
-| `docs/DATA_AUDIT.md`              | Phase 0                                          |
-| `docs/PROMPT_TRAIL.md`            | After every grilling session                     |
-| `docs/WIREFRAME_JUSTIFICATION.md` | Every UI deviation, as it is made                |
-| `README.md`                       | Live-versions table + ✅/⚡/⚠️/🔮 status summary |
-
-## Honesty is a feature
-
-Shortcuts go in the README trade-offs table **the moment they are taken**, each with
-the Why and the Future refactor. A documented hack scores better than a hidden one.
-
-## Findings discipline
-
-When you surface an improvement, interface concern, or spec gap that is not
-blocking the current test, write it to BACKLOG.md and continue. Do not stop to
-ask. Only interrupt for something that makes the current work wrong.
-
-Time is the binding constraint, not correctness. A working deployed app with
-solid tests beats a perfect data layer with no UI.
+Shortcuts enter the README when taken, with a Why and a Future. A documented hack
+beats a hidden one.
