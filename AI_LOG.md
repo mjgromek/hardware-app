@@ -1088,3 +1088,11 @@ Commit: docs(phase-2): file the architecture-scout findings (pending)
 audit write lives in the route, so any second caller ends a rental unrecorded. Red at
 the direct call: 0 audit events.
 Commit: test(phase-2): pin the audit write inside force_return (pending)
+
+---
+
+## [P2 · c13] The audit write moves into the transition
+
+`audit.record` moves from the route into `rentals.force_return`, same transaction as
+the close; the route-level "exactly one event" test proves nothing double-writes. 98/98.
+Commit: fix(phase-2): force_return writes its own audit event (pending)

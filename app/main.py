@@ -594,22 +594,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     ) -> dict[str, Any]:
         """Recall an item from whoever holds it. Admin-only, reason mandatory.
 
-        Writes an `audit_events` row in the same transaction as the close: a rental
-        that ends without a record of who ended it is the audit trail becoming fiction
-        (ADR-0010).
+        The `audit_events` row is written by `rentals.force_return` itself, in the
+        same transaction as the close — the transition owns its record (ADR-0010), so
+        no future caller of it can end a rental and leave no trace.
         """
         with new_session(engine) as session:
             _item_or_404(session, item_id)
             rental = _claim(
                 lambda: rentals.force_return(session, item_id, admin, body.reason)
-            )
-            audit.record(
-                session,
-                actor=admin,
-                action=audit.Action.FORCE_RETURN,
-                reason=body.reason,
-                item_id=item_id,
-                rental_id=rental.id,
             )
             session.commit()
         return {"item_id": item_id, "rental_id": rental.id, "close_kind": "force_return"}

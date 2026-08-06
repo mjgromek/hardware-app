@@ -41,6 +41,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.domain import Account, Status
 from app.guards import GuardViolation
 from app.storage import hardware
@@ -195,8 +196,9 @@ def force_return(
 
     Separate from `return_` because it is a different claim about the world: not "I am
     done with this" but "somebody decided this had to come back". The reason is
-    mandatory and the caller writes an audit event (ADR-0010) — a rental that ends
-    without a record of who ended it is the audit trail becoming fiction.
+    mandatory and *this function* writes the audit event (ADR-0010), in the same
+    transaction as the close — it used to trust its caller to, which meant any second
+    caller could end a rental and leave no record: the audit trail becoming fiction.
     """
     rental = active_rental(session, item_id)
     if rental is None:
@@ -204,7 +206,16 @@ def force_return(
             f"item {item_id} is not currently rented, so there is nothing to recall."
         )
 
-    return _close(session, rental, admin.id, admin.email, CloseKind.FORCE_RETURN)
+    closed = _close(session, rental, admin.id, admin.email, CloseKind.FORCE_RETURN)
+    audit.record(
+        session,
+        actor=admin,
+        action=audit.Action.FORCE_RETURN,
+        reason=reason,
+        item_id=item_id,
+        rental_id=closed.id,
+    )
+    return closed
 
 
 def open_seed_rental(session: Session, item_id: int, renter_email: str) -> Rental | None:
