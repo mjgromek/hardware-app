@@ -409,3 +409,19 @@ The three records are ids 2, 6 and 10. The document says so, and separately list
 the four rows where stored data differs from the seed.
 
 Commit: docs(phase-0): data audit (pending)
+
+---
+
+## [P1 · c1] Wireframe justification scaffold
+
+The wireframes are Booksy's, the brief marks them confidential, and this repo is
+public — so `docs/wireframes/` is gitignored and they stay on the local machine.
+Ignored before anything was staged; `git log --all -- docs/wireframes` is empty, so
+nothing needs scrubbing from history.
+
+The document that replaces them has to carry the weight the images would have:
+every entry describes what the original showed before saying what was built
+instead, so it can be judged without them. Recorded in the README's ⚡ section
+rather than left as a silent omission.
+
+Commit: docs: wireframe justification scaffold (pending)

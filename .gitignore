@@ -8,6 +8,8 @@ __pycache__/
 node_modules/
 dist/
 .DS_Store
+# Booksy's material, marked confidential in the brief. This repo is public.
+docs/wireframes/
 .agents/skills/
 .claude/skills/*
 !.claude/skills/conductor/

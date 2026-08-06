@@ -34,6 +34,11 @@ Built as a recruitment task for the Early Careers Programme.
 
 - Frontend is one unstyled page. No router, no state management — Phase 1's job.
 - `needs_review` is set and displayed but nothing can clear it yet (see trade-offs).
+- The wireframes are not committed — they are Booksy's material, the brief marks
+  them confidential, and this repo is public. They stay local and gitignored;
+  [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) describes
+  each deviation in words, including what the original showed, so it stands alone
+  without them.
 
 **⚠️ Missing**
 
