@@ -36,7 +36,11 @@ discovered later.
 candidate formats, and normalising it loses nothing. Reading `brand: "Appel"` as
 `"Apple"` is a guess about intent, correct only because a human recognises the
 brand. Ingestion therefore normalises date formats and leaves `"Appel"` exactly as
-the seed wrote it. The typo is the auditor's to surface.
+the seed wrote it. The typo is the auditor's to surface — and as of Phase 2's planning
+that is written into `brainstorm.md` §3 Phase 3 scope and pinned by
+`test_auditor_flags_misspelled_brand`, so the deferral has a named owner rather than
+being a decision nobody follows up. An unfixed typo that nothing ever finds is
+indistinguishable from an oversight.
 
 **An off-enum status maps to `Available` + `needs_review`, not `Repair`.** The
 seed's `"Unknown"` tells us the record is unidentifiable, not that the item is

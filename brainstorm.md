@@ -224,8 +224,13 @@ route handlers, or Phase 3 gets built on sand.
 Branch `phase-3-ai`. **`/grill-me` first.** Then `/tdd`, `/improve-codebase-architecture`, `/security-review`.
 
 **Semantic search** — natural language → filter object → SQLite (ADR-0004).
-**Inventory Auditor** — flags the Dell XPS, the MacBook Air, the 2027 date, and
-**id 10** (the one with no keyword signature).
+**Inventory Auditor** — flags the Dell XPS, the MacBook Air, the 2027 date,
+**id 10** (the one with no keyword signature), and **id 9's brand `"Appel"`** as a
+probable misspelling of Apple. The typo is the one defect ADR-0002 named and deliberately
+declined to fix at ingestion, on the grounds that correcting a spelling is judgement
+rather than structure — so the auditor surfacing it is what closes that loop. Leaving it
+unfound would mean ingestion skipped it *and* nothing ever caught it, which reads as an
+oversight rather than the decision it was.
 
 Production hardening folds in here as a gate checklist, not a phase: secrets in env,
 persistent volume, documented reseed, health endpoint, demo credentials in README,
@@ -237,6 +242,7 @@ test_semantic_search_falls_back_on_api_error
 test_semantic_search_never_returns_unrentable_items
 test_auditor_flags_status_notes_contradiction
 test_auditor_flags_unidentifiable_item       # id 10 — no keyword signature
+test_auditor_flags_misspelled_brand          # id 9 "Appel" — ADR-0002's deferred typo
 test_llm_key_absent_from_frontend_bundle
 test_health_endpoint_returns_ok
 test_prod_config_requires_secret_key

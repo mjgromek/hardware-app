@@ -929,3 +929,23 @@ Put plainly: I am spending the deeper model at the two gates where a miss is sil
 not on the loop where a miss is loud.
 
 Commit: feat(phase-2): repeatable demo reset (pending)
+
+---
+
+## [P2 · c8] Give ADR-0002's deferred typo an owner
+
+`"Appel"` on seed id 9 is the one defect ADR-0002 explicitly declined to fix, on the
+grounds that parsing a date is structural and correcting a spelling is judgement. That
+argument only holds if something *does* eventually catch it — an unfixed typo that nothing
+ever finds is indistinguishable from an oversight, which is the reading ADR-0002 was
+written to prevent.
+
+So Phase 3's auditor scope now names it, and `test_auditor_flags_misspelled_brand` pins
+it. ADR-0002 points forward at both, so the deferral is traceable from the decision to the
+test rather than living only in a sentence somebody has to remember.
+
+Worth noting what it does *not* do: the auditor flags the brand as a probable misspelling.
+It does not correct it. Correcting is still judgement, and the item still belongs to a
+human.
+
+Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (pending)
