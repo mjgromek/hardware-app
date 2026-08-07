@@ -38,3 +38,8 @@ admin-only route** — persisted nowhere, recomputed per run.
 - Nothing persisted: no new table for the demo reset to erase, no staleness
   question. Findings gain an actor only when one becomes a flag — ADR-0017, a
   human's act, in the `audit_events` table ADR-0010 reserved for exactly that.
+- **Amended 2026-08-07 (post-gate):** an in-memory cache keyed on the catalogue
+  fingerprint serves repeated runs against an unchanged inventory — the free tier
+  rate-limits. "Recomputed per run" becomes "recomputed per catalogue state"; the
+  no-staleness consequence survives by construction (a changed catalogue cannot hit
+  the cache), findings still die with the process, and nothing touches a table.

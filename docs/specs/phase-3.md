@@ -26,6 +26,7 @@ salvage — a half-valid filter is a wrong filter):
 | `needs_review` | `bool \| None` | the flag itself is public — its *reason* is not |
 | `brand` | `str \| None` | case-insensitive equality |
 | `name_contains` | `str \| None` | substring over `name` |
+| `name_matches_any` | `list[str] \| None` | *(added post-gate)* the model's inferred product terms for a category query — "laptop" → `["MacBook", "XPS", …]`; OR within the list, case-insensitive, over `name` and `brand` only. The model contributes vocabulary, never results (ADR-0004), and the ADR-0015 oracle stays shut |
 | `purchased_before` | `date \| None` | |
 | `purchased_after` | `date \| None` | |
 | `rentable_only` | `bool \| None` | `True` excludes `Repair` **and** flagged items — ADR-0003 through the same rule, not a parallel one |

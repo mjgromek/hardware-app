@@ -192,6 +192,9 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     #: The LLM seam (tests/llm_seam.py). A test's fake lands here; production leaves
     #: it None and `ai.resolve_client` builds the real client per request (ADR-0016).
     app.state.llm = None
+    #: The model's replies, remembered per process — the free tier rate-limits, and a
+    #: duplicate call spends quota to learn nothing. Rows are never cached.
+    app.state.ai_cache = ai.ResponseCache()
 
     # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
     # with anything in it is left alone. Imported here rather than at module level
@@ -687,13 +690,24 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         `keyword`. The model's illegal reply is an expected event, not a `500` —
         rejected wholesale, no partial salvage (ADR-0015).
         """
-        client = ai.resolve_client(app.state)
-        filters = None
-        if client is not None:
-            try:
-                filters = ai.semantic_filter(client, body.query)
-            except ai.ModelUnavailable:
-                filters = None
+        cache = app.state.ai_cache
+        cache_key = ai.normalise_query(body.query)
+        if cache_key in cache.search_filters:
+            # The model's reply, not the rows: the SQL below still runs fresh, so a
+            # rental between two identical searches shows in the second answer.
+            filters = cache.search_filters[cache_key]
+        else:
+            client = ai.resolve_client(app.state)
+            filters = None
+            if client is not None:
+                try:
+                    filters = ai.semantic_filter(client, body.query)
+                except ai.ModelUnavailable:
+                    filters = None  # transient — deliberately not cached
+                else:
+                    # Cached even when None: the schema refused the reply, and asking
+                    # again about the same question buys the same refusal for quota.
+                    cache.search_filters[cache_key] = filters
 
         with new_session(engine) as session:
             if filters is not None:
@@ -724,6 +738,16 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         with new_session(engine) as session:
             items = load_items(session)
             quarantine = tuple(asdict(record) for record in load_quarantine(session))
+
+        # Keyed on the catalogue state, so repeated runs against an unchanged
+        # inventory cost nothing and a changed one structurally misses. The client
+        # check stays above: feature-off refuses even with warm entries (ADR-0016).
+        cache = app.state.ai_cache
+        fingerprint = ai.catalogue_fingerprint(items, quarantine)
+        cached = cache.audit_findings.get(fingerprint)
+        if cached is not None:
+            return {"findings": cached}
+
         try:
             results = ai.audit_catalogue(client, items, quarantine)
         except ai.ModelUnavailable as error:
@@ -732,6 +756,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 detail=f"The model could not be reached, so the audit did not run: "
                 f"{error}. Try again once the provider is back.",
             )
+        cache.audit_findings[fingerprint] = results
         return {"findings": results}
 
     @app.post("/api/admin/reset-demo")

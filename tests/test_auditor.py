@@ -350,3 +350,58 @@ def test_auditor_writes_nothing(monkeypatch, app, admin_client: TestClient) -> N
     assert rental_rows(app) == before_rentals, (
         "and nothing about rentals is the auditor's business"
     )
+
+
+def test_audit_reuses_findings_while_catalogue_unchanged(
+    monkeypatch, app, admin_client: TestClient
+) -> None:
+    """Two audits of the same catalogue cost one model call.
+
+    Keyed on the inventory state, not on time: a TTL would serve stale findings for
+    its duration and fresh ones cost quota for no new information. Hash-keying makes
+    staleness structurally impossible, which is what lets this cache coexist with
+    ADR-0014 — "recomputed per run" becomes "recomputed per catalogue state", and
+    the no-staleness consequence survives.
+    """
+    model = enable_ai(monkeypatch, app, reply={"findings": [UNIDENTIFIABLE]})
+
+    first = admin_client.get(AUDIT_PATH)
+    second = admin_client.get(AUDIT_PATH)
+
+    assert first.status_code == 200 and second.status_code == 200
+    assert findings_of(first) == findings_of(second)
+    assert len(model.prompts) == 1, (
+        "an unchanged catalogue must be served the cached findings; the model was "
+        f"asked {len(model.prompts)} times"
+    )
+
+
+def test_audit_recomputes_when_the_catalogue_changes(
+    monkeypatch, app, admin_client: TestClient
+) -> None:
+    """Any change to the catalogue invalidates the cached findings.
+
+    This is the half that makes the cache honest: without it, an admin who marked
+    the Dell XPS as Repair would keep reading findings about a catalogue that no
+    longer exists. The mutation goes through the public PATCH route, so the test
+    also pins that the cache key covers route-driven changes rather than only
+    ingestion's.
+    """
+    model = enable_ai(monkeypatch, app, reply={"findings": [UNIDENTIFIABLE]})
+
+    first = admin_client.get(AUDIT_PATH)
+    assert first.status_code == 200 and len(model.prompts) == 1
+
+    changed = admin_client.patch("/api/hardware/5", json={"status": "Repair"})
+    assert changed.status_code in (200, 204), (
+        f"setup: the catalogue must be changeable; got {changed.status_code}: "
+        f"{changed.text}"
+    )
+
+    second = admin_client.get(AUDIT_PATH)
+    assert second.status_code == 200
+    assert len(model.prompts) == 2, (
+        "the catalogue changed, so the cached findings describe a state that no "
+        "longer exists and the model must be asked again; it was asked "
+        f"{len(model.prompts)} times in total"
+    )

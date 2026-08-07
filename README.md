@@ -150,6 +150,15 @@ Each of these works, and each cost something. The full table with reasoning is i
   access is what a reviewer needs and delete rights are what an attacker wants.
   **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
   shared credential.
+- **The AI layer runs on Gemini's free tier, which rate-limits.** A burst of
+  searches or audits can hit the quota ceiling mid-demo.
+  **Why:** a paid tier for a recruitment demo buys nothing the design doesn't
+  already handle — the announced keyword fallback (ADR-0016) means a rate-limited
+  search *degrades visibly* rather than breaking, which is the design working, not
+  failing; and the model's replies are cached (search by normalised query, the
+  auditor by catalogue fingerprint), so repeats cost no quota at all.
+  **Future:** a paid tier or a second provider behind the same seam; the cache and
+  the mode label both carry over unchanged.
 - **Semantic search waits up to 12 seconds before degrading.** The spec said 5; the
   live provider spends ~7.5s thinking before emitting one small filter object and
   rejects its thinking-off knob with an opaque 400.
