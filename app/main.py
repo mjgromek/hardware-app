@@ -30,6 +30,7 @@ from app.storage import (
     create_engine_for,
     create_schema,
     delete_item,
+    edit_item,
     flag_review,
     load_items,
     load_quarantine,
@@ -85,8 +86,23 @@ class NewHardware(BaseModel):
     category: Category | None = None
 
 
-class StatusChange(BaseModel):
-    status: Status
+class HardwareEdit(BaseModel):
+    """`PATCH /api/hardware/{id}` — partial on purpose: only the fields sent change.
+
+    One mutation route rather than a second one for edits, because the status guards
+    live here and a parallel route would be a way around them. `model_fields_set` is
+    what distinguishes "brand: null" (clear it) from "brand absent" (leave it) —
+    treating absence as null is how fixing a typo in the name quietly blanks the
+    brand. Edit itself is wireframe-driven, not brief-required
+    (docs/WIREFRAME_JUSTIFICATION.md).
+    """
+
+    status: Status | None = None
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
+    brand: str | None = None
+    purchase_date: date | None = None
+    serial_number: str | None = None
+    category: Category | None = None
 
 
 #: Typed in full so the request cannot be issued by accident. The route destroys rental
@@ -504,15 +520,30 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         return asdict(item)
 
     @app.patch("/api/hardware/{item_id}")
-    def change_status(
-        item_id: int, change: StatusChange, _: Account = Depends(current_admin)
+    def change_hardware(
+        item_id: int, change: HardwareEdit, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Move one item's status — the Repair toggle, in both directions.
+        """The status toggle and the Phase 4 edit, one guarded route.
 
-        `StatusChange.status` is a `Status`, so an off-enum value is a `422` and never
-        reaches the database. A fourth status in that column would break every guard
-        that pattern-matches on the three (CONTEXT.md).
+        `HardwareEdit.status` is a `Status` and `category` a `Category`, so an
+        off-enum value is a `422` and never reaches the database. An edit naming no
+        fields is a `422` too — a no-op UPDATE would report success for a request
+        that expressed no intent. Explicitly nulling `name` is refused: every other
+        editable field is nullable in the schema, the name is what identifies the
+        device (seed id 10 is the cautionary row).
         """
+        sent = change.model_fields_set
+        if not sent:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An edit must name at least one field to change.",
+            )
+        if "name" in sent and change.name is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An item cannot lose its name — it is the one field that "
+                "identifies the device.",
+            )
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if change.status is Status.REPAIR:
@@ -524,9 +555,23 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     item,
                     "sent to Repair",
                 )
-            set_status(session, item_id, change.status)
+            if change.status is not None:
+                set_status(session, item_id, change.status)
+            fields = {
+                key: value
+                for key, value in (
+                    ("name", change.name),
+                    ("brand", change.brand),
+                    ("purchase_date", change.purchase_date),
+                    ("serial_number", change.serial_number),
+                    ("category", change.category.value if change.category else None),
+                )
+                if key in sent
+            }
+            if fields:
+                edit_item(session, item_id, **fields)
             session.commit()
-        return {"id": item_id, "status": change.status.value}
+        return {"id": item_id, "edited": sorted(sent)}
 
     @app.delete("/api/hardware/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
     def remove_hardware(item_id: int, _: Account = Depends(current_admin)) -> Response:

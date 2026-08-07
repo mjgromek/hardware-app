@@ -1392,3 +1392,14 @@ the main table for the tab (ADR-0017 amendment, dated), arrives prefilled "fixed
 and a released row holds its resolved state for 2s then fades — reduced-motion drops
 the fade, keeps the state. 138/138.
 Commit: feat(phase-4): the needs-review tab and the fixed: release note (pending)
+
+---
+
+## [P4 · c5] Admin edit — partial by fields-sent, guarded by the same route
+
+Red first (7 tests; the one that matters is `test_edit_changes_only_the_fields_sent`
+— absence is not null, or fixing a name blanks the brand). Rides the existing PATCH
+so the Repair guard cannot be routed around; `model_fields_set` carries the partial
+semantics; a nameless item and an empty edit are both 422. `StatusChange` retired —
+`HardwareEdit` subsumes it. 145/145.
+Commit: feat(phase-4): admin edit (pending)

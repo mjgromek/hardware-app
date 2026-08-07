@@ -59,6 +59,7 @@ __all__ = [
     "RentalsExist",
     "set_status",
     "clear_review",
+    "edit_item",
     "flag_review",
     "delete_item",
 ]
@@ -382,6 +383,20 @@ def add_item(
         category=category,
         date_added=date.today(),
     )
+
+
+def edit_item(session: Session, item_id: int, **fields) -> bool:
+    """Change the named fields on one item. Returns whether a row matched.
+
+    A pure row-mover, like `set_status` below: which fields may change, who may
+    change them and what counts as a legal value are the route's questions. The
+    caller passes only the fields the request actually named — partial semantics
+    live at the boundary that knows what was sent.
+    """
+    result = session.execute(
+        update(hardware).where(hardware.c.id == item_id).values(**fields)
+    )
+    return result.rowcount == 1
 
 
 def set_status(session: Session, item_id: int, status: Status) -> bool:
