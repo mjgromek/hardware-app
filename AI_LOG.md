@@ -1906,4 +1906,36 @@ Worth naming as a hazard rather than a one-off: a persisted preference makes the
 theme the untested one, silently, for as long as the tab lives. Light is the default for
 every real visitor and was the last thing I looked at.
 
-Commit: docs: verify the account modal and the light theme (pending)
+Commit: docs: verify the account modal and the light theme (4de8a2b)
+
+---
+
+## [P4 · c22] The validation nobody checked the data against
+
+Domain validation was specified — only `@booksy.com` may hold an account — without anyone
+first asking whether the accounts that already exist satisfy it. Checking took one command
+and found two that did not: `admin@localhost`, the local bootstrap default, and
+`admin@hardwarehub.internal`, the **deployed** admin.
+
+Had the rule gone in at login, as specified, it would have locked the only admin out of the
+live instance the moment it shipped — and there is no way back, because `reset-demo` and
+account management are both admin-only. Recovery would have meant editing a Railway
+variable and redeploying to reach your own product.
+
+`ADMIN_EMAIL`'s development default is now `admin@booksy.com`, matching the deployed
+variable. With no off-domain address left in the project, creation-time validation applies
+uniformly — and the exemption is structural rather than remembered, since `bootstrap_admin`
+writes from the environment and never traverses `POST /api/users`. ADR-0019 records it.
+
+**Two things this ADR says that I will not let the commit imply.** The validation itself is
+still unwritten — this is the ground it will stand on, not the rule. And changing
+`ADMIN_EMAIL` does nothing to the live volume: `bootstrap_admin` runs only when no admin
+exists, so the deployed instance is still administered by `admin@hardwarehub.internal` and
+a redeploy will not add the new address beside it. Migrating is a deliberate act — create
+through the API, soft-delete the old — and ADR-0013 then reserves the old address forever.
+
+The generalisable part: a validation rule is a claim about data that already exists, and
+the cheapest moment to test that claim is before writing the rule. "Only X may exist" is
+worth nothing until somebody counts the non-X.
+
+Commit: docs: put every account on the company domain (pending)

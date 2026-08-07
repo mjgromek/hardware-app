@@ -81,7 +81,7 @@ over the inventory and the account list. Read access shows the dashboard, the re
 queue and the whole seed including its defects; the admin panel is described in
 [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) and is reachable by
 anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
-`admin@localhost` / `admin`.
+`admin@booksy.com` / `admin`.
 
 ---
 
