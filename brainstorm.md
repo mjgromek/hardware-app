@@ -17,9 +17,11 @@
 > an `audit_events` table, force-return, soft-deleted accounts (ADR-0013), field-level
 > visibility (ADR-0012), and a demo reset route; the §7 open item on the authorization
 > enforcement point settled as per-route dependencies in Phase 1; and the documented
-> manual reseed is gone — `persist` refuses while rentals exist (ADR-0011). CI and
-> vitest, listed under Phase 0, remained unbuilt through Phase 3 — the README 🔮
-> section owns them now.
+> manual reseed is gone — `persist` refuses while rentals exist (ADR-0011). **Phase 3
+> shipped 2026-08-07 (v3 live):** semantic search, the Inventory Auditor and the
+> flag-review verb, verified on the deployment — the auditor flags id 10 and id 9's
+> `"Appel"`. CI and vitest remained unbuilt through Phase 3 — the README 🔮 section
+> owns them now. Phase 4 (§3) is planned and untouched.
 
 ---
 

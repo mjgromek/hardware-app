@@ -120,8 +120,10 @@ individually well-formed but collectively nonsensical.
 That commits the auditor to something harder than the two obvious rows. **Record 10
 is the test.** Empty brand, null purchase date, `"Unknown"` status, no notes at all
 — unidentifiable, needing a physical audit. That judgement has no keyword
-signature, and it is what will show whether the AI layer does anything a regex
-could not.
+signature, and it is what shows whether the AI layer does anything a regex
+could not. *(It did: v3's live auditor reports record 10 as `unidentifiable` and
+id 9's `"Appel"` as `probable_misspelling` — the finding this document deferred
+to it and the one ADR-0002 deliberately left unfixed.)*
 
 ### Safety is not addressed by this boundary
 

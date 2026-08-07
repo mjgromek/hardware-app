@@ -150,6 +150,23 @@ Each of these works, and each cost something. The full table with reasoning is i
   access is what a reviewer needs and delete rights are what an attacker wants.
   **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
   shared credential.
+- **Semantic search waits up to 12 seconds before degrading.** The spec said 5; the
+  live provider spends ~7.5s thinking before emitting one small filter object and
+  rejects its thinking-off knob with an opaque 400.
+  **Why:** a slower true answer with an honest label beats a fast one that is always
+  the fallback — under 5s the semantic path literally never answered, which the mode
+  chip made visible on the first live check.
+  **Future:** a provider or endpoint tier with sub-second extraction latency, or a
+  streaming call that can be cut off at the first complete JSON object.
+- **Deploys go through `railway up`, not the GitHub trigger.** The service still
+  tracks the Phase 0 branch, so a push deploys nothing — and a variable change
+  redeploys v0, which briefly put an unauthenticated build back on the public URL
+  (AI_LOG Correction #5).
+  **Why:** the trigger's tracked branch can only be changed in the dashboard, which
+  is a human-only action that has not happened yet; `railway up` ships the current
+  checkout deterministically in the meantime.
+  **Future:** point the trigger at `main` in the dashboard, then delete this entry
+  and the CLAUDE.md warning that orders a `railway up` after every variable change.
 - **41 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
   double it, so it is acknowledged here rather than left for a reviewer to count.
   **Why:** two security fixes (the demo account's role cut from `admin` to `user`, the
@@ -305,6 +322,8 @@ On a database with no rentals, the direct form still works locally:
 | `ADMIN_PASSWORD` | in production | Same. Booting without it reaches the zero-admin state the guard layer exists to prevent (ADR-0005). |
 | `ADMIN_EMAIL` | no | Defaults to a development address. |
 | `DATABASE_URL` | no | Defaults to a local SQLite file. On Railway it points at the persistent volume. |
+| `GEMINI_API_KEY` | no | Enables the AI layer. Absent: search runs keyword-labelled and the auditor answers `503` with the reason — feature-off, never a boot refusal (ADR-0016). Read per request, so *rotating* it needs no redeploy; *adding* it the first time restarts the process (new variable = new environment). |
+| `GEMINI_MODEL` | no | Defaults to `gemini-flash-latest`. The pin for anyone who needs one. |
 
 ---
 

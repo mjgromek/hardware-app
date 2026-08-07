@@ -55,8 +55,14 @@ inventory and so the layer is unit-testable. (ADR-0004)
 **Inventory Auditor** — the AI pass over the catalogue including `notes`,
 `history` and quarantine, flagging items a human should look at.
 
-**Fallback** — keyword search, used when the LLM times out or errors. The feature
-degrades; it never breaks.
+**Fallback** — keyword search over `name` and `brand` only, used when the LLM times
+out, errors, or says something the filter schema forbids. The feature degrades; it
+never breaks — and the response says which path answered (ADR-0016).
+
+**Finding** — one proposed judgment from the auditor: an item, a `kind` from the
+closed enum (`status_contradiction` | `unidentifiable` | `probable_misspelling`),
+the evidence quoted, an explanation. Proposed, never acted on — acting is an
+admin's flag (ADR-0014, ADR-0017).
 
 ## Process
 

@@ -1248,7 +1248,7 @@ the suite deliberately never touches: the deploy trigger and the real provider c
 Both defects lived exactly there. The live smoke is not a formality — it is the only
 test those layers have.
 
-Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (pending)
+Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (bd5961d)
 
 ---
 
@@ -1258,7 +1258,7 @@ Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (pending)
 key — a fact only the live call could know. Default is now `gemini-flash-latest`;
 a pin is one `GEMINI_MODEL` env var away. 118/118 (the suite mocks the client, as
 designed — which is exactly why this had to be found live).
-Commit: fix(phase-3): default to the gemini-flash-latest alias (pending)
+Commit: fix(phase-3): default to the gemini-flash-latest alias (189815c)
 
 ---
 
@@ -1268,7 +1268,7 @@ The live audit refused with a read timeout: it was running on the search's 5-sec
 budget, and an audit prompt carrying the whole catalogue is not a search. 30s for the
 audit route, 5s stays the search's (its degradation is designed and announced).
 Refusing slowly is honest; refusing on a borrowed budget is just wrong. 118/118.
-Commit: fix(phase-3): the audit gets its own timeout budget (pending)
+Commit: fix(phase-3): the audit gets its own timeout budget (d6868f4)
 
 ---
 
@@ -1278,4 +1278,21 @@ Live: every search degraded to keyword because gemini-flash-latest spends ~7.5s
 thinking before emitting one small JSON object, and the thinking-off knob answers an
 opaque 400. The spec's 5s was a guess; 12s is a measurement. The spec is amended in
 place with the reason. 118/118.
-Commit: fix(phase-3): search timeout meets measured provider latency (pending)
+Commit: fix(phase-3): search timeout meets measured provider latency (97b6967)
+
+---
+
+## [P3 · c14] Every document at v3 reality
+
+README: AI layer in ✅ as shipped, two new ⚡ entries (12s search budget, railway-up
+deploys) each with Why and Future, env table gains `GEMINI_API_KEY`/`GEMINI_MODEL` —
+including the distinction the incident taught: the key is read per request so
+*rotation* needs no redeploy, but *adding* the variable restarted the process, because
+that changes the environment rather than a value in it. PROMPT_TRAIL Session 15
+records the verification that amended the spec. DATA_AUDIT's "will show" became "did":
+the live auditor flags id 10 and the `"Appel"` typo. CONTEXT gains *Finding*;
+brainstorm's status note marks Phase 3 shipped. Brief check: README's four sections
+present, ⚡ all carry Why+Future, AI_LOG covers Tooling / Data strategy / Prompt Trail
+/ five Corrections, setup runs from a fresh clone with no new dependencies (the AI
+client is stdlib). No gap left open.
+Commit: docs(phase-3): bring every document to v3 reality (pending)

@@ -962,3 +962,42 @@ four ADRs, the `visible_to` move (the scout's "urgent when a second caller appea
 this phase adds two), the sliced spec (A: search + fallback · B: auditor · C: re-flag
 verb + UI, first to cut), and production hardening as a gate checklist rather than a
 slice.
+
+
+---
+
+## Session 15 — 2026-08-07 — The live verification that amended the spec — *verbatim*
+
+**Status:** ✅ closed. **Commits:** `bd5961d`, `189815c`, `d6868f4`, `97b6967` —
+`AI_LOG.md` Correction #5 and c11–c13. Not a grilling: a verification instruction
+whose results changed a spec value and the deploy documentation, which is what earns
+it a place here.
+
+### The invoking prompt (verbatim)
+
+> Rerun the live verification now the key is attached:
+> - semantic search returns mode: "semantic", not "keyword"
+> - the auditor returns 200 rather than 503
+> - it flags id 10 (unidentifiable) and id 9 ("Appel")
+
+### What the verification found, in order
+
+1. **The deploy trigger was a landmine.** Attaching `GEMINI_API_KEY` redeployed the
+   service's tracked branch — Phase 0's build, no auth, open read surface, live for
+   ~4 minutes. `railway up` replaced it; CLAUDE.md now orders one after every
+   variable change until the trigger is repointed (dashboard-only).
+2. **The Gemini client imported a test-extra.** The auditor's own `503` reason read
+   `No module named 'httpx'` — ADR-0016's refusal-with-a-reason turned a debugging
+   session into one line. Fix: stdlib `urllib`.
+3. **The pinned model is retired for new keys.** `gemini-2.5-flash` → 404 "no longer
+   available to new users". Default became the `gemini-flash-latest` alias.
+4. **The 5s search budget was below the provider's floor.** Measured ~7.5s of
+   thinking per filter object, thinking-off knob 400s — under 5s the semantic path
+   could never answer, which the mode chip made visible. The spec's 5s is amended to
+   12s in place, with the measurement.
+
+Final state, all three checks green: `mode: "semantic"` on the live search, auditor
+`200` with exactly `(5, status_contradiction)`, `(9, probable_misspelling)`,
+`(10, unidentifiable)`, `(11, status_contradiction)` — and the oracle probe returning
+the *whole catalogue* for the battery query (n=12, zero selectivity), confirming
+ADR-0015's structural claim on the real model: it cannot leak what it never sees.
