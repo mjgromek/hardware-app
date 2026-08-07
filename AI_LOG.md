@@ -1848,4 +1848,39 @@ files, having been amended once already; the document nearest the change is not 
 Both stale plan entries are struck through and annotated rather than deleted, because a
 plan that quietly matches the outcome hides the decision.
 
-Commit: docs: sweep the stale claims and bring the README current (pending)
+Commit: docs: sweep the stale claims and bring the README current (fde6603)
+
+---
+
+## [P4 · c20] Product copy, a fixed rail, and the account form in a modal
+
+Four UI items, made with the Edit tool and each verified against the live DOM rather than
+the build.
+
+**The copy was documentation on a screen.** The auditor explained itself as "each finding
+below is a button, and the flag it sets records *your* reason (ADR-0014, ADR-0017)", and
+the review queue opened with "Ingestion could not vouch for these records… (ADR-0003)". A
+document number is a reference to something the reader cannot open, and "ingestion could
+not vouch" is how the system describes itself rather than how a person experiences it. Both
+are one sentence now, and the propose-never-dispose boundary still lands — "flagging is
+yours" says it in the reader's terms. Verified by asserting no `ADR-\d+` string survives
+anywhere in the rendered page: the match list came back empty.
+
+**The sidebar was not fixed**, which I had not noticed across a whole phase of looking at
+this UI: sign out, the theme toggle and the sound control scrolled away with the inventory,
+leaving the screen exactly when the list grew long enough to need them. `position: sticky`
+at full viewport height. Confirmed by reading the computed style, not by scrolling and
+believing my eyes.
+
+**The Ask AI bar** gets its own fill between page and card, so it reads as a different kind
+of thing rather than a row above the list — measured as three distinct values.
+
+**The account form moves into a modal**, and Role becomes two toggles rather than a select.
+With exactly two roles, a dropdown hides one behind a click and makes the more dangerous
+choice no harder to pick than the safer one; side by side, choosing Admin is visibly
+deliberate. Verified: the inline form is gone, the modal opens, both toggles render with
+`aria-pressed`, and no `<select>` remains.
+
+Five deviations recorded.
+
+Commit: feat(phase-4): product copy, fixed rail, account modal (pending)

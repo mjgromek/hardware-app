@@ -21,6 +21,7 @@
   /* surface */
   --ground: #f7f8fa;          /* page */
   --surface: #ffffff;         /* card */
+  --ask-fill: #eef0f4;        /* the Ask AI bar — its own step, neither page nor card */
   --hover-wash: #fafbfc;      /* row under the pointer */
   --focus-wash: #f4f7ff;      /* row under the keyboard */
   --danger-wash: #fef2f2;     /* destructive control, hovered */
@@ -79,6 +80,7 @@
   /* surface */
   --ground: #101216;
   --surface: #16181d;
+  --ask-fill: #1e222a;
   --hover-wash: #1b1e24;
   --focus-wash: #16202e;
   --danger-wash: #2a1717;
@@ -1194,16 +1196,58 @@ th[aria-sort] .sort-arrow {
   background: none;
 }
 
+/* The Ask AI bar gets its own fill, distinct from both the page and the table surface.
+ * Sharing the page's grey made it read as a row sitting above the list rather than as a
+ * different kind of thing — it asks a question of the inventory, it is not part of it. */
 .search-bar input[type='search'] {
   border: 0;
-  background: var(--ground);
+  background: var(--ask-fill);
 }
 
 .search-bar input[type='search']:focus-visible {
   border: 0;
-  background: var(--ground);
+  background: var(--ask-fill);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* Two adjacent toggles, not a dropdown. Both options visible, the same size, so picking
+ * Admin is a deliberate act rather than the second line of a menu. */
+.toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-weight: 550;
+}
+
+.toggle:hover {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+/* The sidebar holds its position. Sign out, the theme toggle and the sound control are
+ * the controls a person reaches for without looking, and they were scrolling away with
+ * the inventory — which is the one thing a sidebar exists to prevent. The main column
+ * scrolls; the rail does not. */
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* The auditor panel in the same language as the search bar: the flat fill, the same

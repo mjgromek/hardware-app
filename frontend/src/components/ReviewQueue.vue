@@ -24,9 +24,12 @@ const emit = defineEmits(['review'])
 
 <template>
   <h1>Needs review</h1>
+  <!-- "Ingestion could not vouch for these records" is how the system describes itself;
+       "these items are blocked" is how a person experiences it. Same fact, reader's
+       vocabulary, and no ADR number on a screen. -->
   <p class="lede">
-    Ingestion could not vouch for these records, so they are blocked from rental until
-    someone checks the equipment (ADR-0003). Releasing one records what was fixed.
+    These items are blocked from rental until someone checks them. Releasing one records
+    what was fixed.
   </p>
 
   <div class="panel">

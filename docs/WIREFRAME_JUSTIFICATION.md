@@ -404,3 +404,48 @@ no card border.
 **Why:** it is a second reading of the inventory the table already shows, so it should
 recede rather than compete with it. A bordered card beside a bordered table reads as two
 peers disagreeing about which one to look at.
+
+### On-screen copy stops citing ADRs
+
+**The wireframe showed:** plain product copy, no internal references.
+**What was built:** the auditor and needs-review panels previously explained themselves in
+the project's own vocabulary — "Ingestion could not vouch for these records… (ADR-0003)",
+"each finding below is a button, and the flag it sets records *your* reason (ADR-0014,
+ADR-0017)". Now: *"Reviews the catalogue and suggests items worth checking. Flagging is
+yours — each finding becomes an action."* and *"These items are blocked from rental until
+someone checks them. Releasing one records what was fixed."*
+**Why:** a document number on screen is a reference to something the reader cannot open,
+and "ingestion could not vouch for these records" is how the *system* describes itself
+rather than how a person experiences it. The propose-never-dispose boundary still reaches
+the reader — "flagging is yours" says it in their terms — but the reasoning for it belongs
+in `docs/adr/`. Verified by asserting no `ADR-\d+` string appears anywhere in the rendered
+page.
+
+### The Ask AI bar has its own fill
+
+**The wireframe showed:** a search bar above the list.
+**What was built:** the same bar on a fill that is neither the page nor the card — its own
+step between them.
+**Why:** sharing the page's grey made it read as a row sitting above the table rather than
+as a different kind of thing. It asks a question *of* the inventory; it is not part of it.
+
+### The new-account form becomes a modal, and Role becomes two toggles
+
+**The wireframe showed:** no accounts screen at all — it is beyond the brief's wireframes.
+**What was built:** a `+ Add account` button opening a modal, with Role as two adjacent
+toggle buttons rather than a dropdown.
+**Why:** inline, the form sat permanently open under the account list — three empty fields
+and a submit button on a screen whose job is reading *who has access*, giving the rare
+action the same weight as the common one. And with exactly two roles, a dropdown hides one
+of them behind a click and makes the more dangerous choice no harder to pick than the safer
+one; side by side, choosing Admin is visibly deliberate.
+
+### The sidebar is fixed
+
+**The wireframe showed:** a sidebar with navigation and `Logout` at the foot.
+**What was built:** the same, `position: sticky` at full viewport height, so the rail holds
+still while the main column scrolls.
+**Why:** sign out, the theme toggle and the sound control were scrolling away with the
+inventory — controls people reach for without looking, leaving the screen exactly when the
+list gets long enough to need them. Not holding position is the one thing a sidebar exists
+to prevent.
