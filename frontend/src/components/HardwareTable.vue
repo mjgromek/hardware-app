@@ -31,10 +31,12 @@ const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', '
 //: somebody press a button to be told "it is in Repair" is a worse version of knowing.
 //: A 409 can still arrive — the row can go stale between paint and click — and the
 //: toast carries the server's own reason when it does.
+// Why this row has no Rent button. `In Use` is deliberately absent: the Status pill
+// already says "Rented", and repeating it in the Actions column as "somebody else has
+// it" told the reader nothing the row had not already told them one cell to the left.
+// A refused rental still states its cause — the 409 carries the server's own reason.
 function blockedBecause(item) {
-  if (item.needs_review) return 'Needs review before it can be rented'
   if (item.status === 'Repair') return 'In Repair'
-  if (item.status === 'In Use') return 'Somebody else has it'
   return null
 }
 
@@ -170,7 +172,6 @@ function shown(value) {
             </button>
           </th>
           <th scope="col"><span class="th-label">Status</span></th>
-          <th scope="col"><span class="th-label">Review</span></th>
           <th v-if="props.manage || props.rentable" scope="col">
             <span class="th-label" style="justify-content: flex-end">Actions</span>
           </th>
@@ -200,12 +201,6 @@ function shown(value) {
             <span v-if="item.status === 'In Use'" class="held-by">
               {{ heldByMe(item) ? 'you' : item.assigned_to || 'unknown holder' }}
             </span>
-          </td>
-          <td>
-            <span v-if="item.needs_review" class="chip chip-flag" :title="item.review_reason">
-              Needs review
-            </span>
-            <span v-else class="missing">—</span>
           </td>
           <td v-if="props.rentable" class="cell-actions">
             <button

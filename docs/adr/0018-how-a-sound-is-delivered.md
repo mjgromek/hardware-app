@@ -70,9 +70,9 @@ Every voice finishes inside 400 ms — the second note starts at 70 ms and decay
 - **This is notification on refresh, not realtime, and the phrase matters.** An admin
   sitting on an idle dashboard hears nothing until something makes their client fetch.
   Calling it "notifications" without that qualifier would oversell it; adding polling to
-  close the gap would put a timer on every client to serve four sounds.
-- The confirmed-action tone doubles as the toggle's own feedback: switching sound on plays
-  it once, so "on" is audible rather than a claim the UI makes about itself.
+  close the gap would put a timer on every client to serve six sounds.
+- The rent tone doubles as the toggle's own feedback: switching sound on plays it once, so
+  "on" is audible rather than a claim the UI makes about itself.
 - An admin renting an item hears the confirmation tone, not the rent tone — the diff
   excludes rows the admin took themselves, or the same action would announce twice.
 - **`prefers-reduced-motion` governs the toast animation, not the sound**, and conflating

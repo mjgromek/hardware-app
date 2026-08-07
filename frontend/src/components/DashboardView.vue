@@ -6,6 +6,7 @@
 import { computed, ref } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
+import Icon from './Icon.vue'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -48,15 +49,21 @@ function clearSearch() {
   <h1>Hardware list</h1>
 
   <form class="panel panel-head search-bar" @submit.prevent="submitSearch">
-    <label class="field" style="flex: 1 1 320px">
-      <span>Ask the inventory</span>
+    <!-- One pill, full width. The visible label is gone and the placeholder carries the
+         wireframe's "Ask AI…" — a label above a search field that already says what it
+         is for is a second sentence saying the first one again. `aria-label` keeps it
+         named for anybody not reading the placeholder. -->
+    <div class="search-field">
+      <Icon name="search" class="search-glyph" :size="18" />
       <input
         v-model="query"
         type="search"
-        placeholder="e.g. apple gear we could hand out today"
+        placeholder="Ask AI…"
+        aria-label="Ask the inventory a question"
         :disabled="props.searching"
       />
-    </label>
+      <Icon name="sparkle" class="search-spark" :size="18" />
+    </div>
     <button class="button" type="submit" style="align-self: flex-end" :disabled="props.searching">
       {{ props.searching ? 'Searching…' : 'Search' }}
     </button>

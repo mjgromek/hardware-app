@@ -309,3 +309,33 @@ considered and dropped — the server would have had to stop serialising `assign
 `test_renter_identity_is_visible_to_every_signed_in_user` red; and hiding it in the UI
 while still shipping the address in the JSON would be an appearance of privacy rather than
 privacy. Either the field is theirs to see or it is not, and ADR-0012 says it is.
+
+### The Review column is gone from every table but the queue
+
+**The wireframe showed:** no Review column anywhere — three statuses and no fourth state.
+**What was built:** Phase 1 added one to every table; Phase 4 removes it from all of them
+except the needs-review tab, where it is the subject.
+**Why:** the amber `!` in the Actions column already marks a flagged row, carries the
+reason in its tooltip, and is the thing that replaces the Rent button — so a Review column
+beside it repeated the same fact in the same row twice. On the needs-review screen the
+column stays, because there the reason *is* the content rather than an annotation on it.
+
+### "Somebody else has it" is gone
+
+**The wireframe showed:** a greyed `Rent` button on rows that cannot be taken.
+**What was built:** nothing in the Actions column for a rented row.
+**Why:** the Status pill one cell to the left already says `Rented`. Repeating it as
+"somebody else has it" told the reader nothing new and made the Actions column a second
+status column. A refusal still states its cause — the `409` carries the server's own
+reason, which is the case where the reader genuinely does not already know.
+
+### The search field is a pill with no visible label
+
+**The wireframe showed:** a full-width search bar reading `Ask AI…`, a magnifier at the
+left and a sparkle at the right.
+**What was built:** the same, with the visible "Ask the inventory" label removed and kept
+as an `aria-label`.
+**Why:** a label above a field whose placeholder already says what it is for is a second
+sentence saying the first one again. The subtle fill rather than a hard border is what
+makes it read as a place to ask a question rather than as a form input — which matters,
+because "Ask AI" is a different promise from "filter".

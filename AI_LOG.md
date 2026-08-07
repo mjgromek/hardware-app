@@ -1597,3 +1597,24 @@ Every voice finishes inside 400 ms.
 Still no test — the frontend has no vitest, and these six are verified by listening.
 
 Commit: feat(phase-4): six notification voices as one family (pending)
+
+---
+
+## [P4 · c12] Finish batch, and one piece of dead CSS caught before it shipped
+
+ADR-0018's Consequences said "four sounds" twenty minutes after the amendment made it six.
+Fixed first, because a document contradicting its own code is the failure this project has
+now had four of.
+
+Done: Review column gone from every table but the queue, "somebody else has it" removed,
+larger mark, the search pill with magnifier and sparkle and no visible label, wider table
+margins. 152/152.
+
+**And one thing I nearly reported as done that was not.** I wrote `.auditor-panel` and
+`.finding` rules to bring the auditor into the table's visual language, then checked the
+markup and found neither class exists — the panel is already built from `.panel` and
+`.table-scroll`, so it inherits the radius, surface, hairline and the new padding by
+construction. The CSS was dead against selectors nothing used. Removed rather than left in,
+and the item is satisfied because it was already true, not because I made it true.
+
+Commit: feat(phase-4): finish batch — column, pill, margins (pending)

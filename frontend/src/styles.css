@@ -1048,3 +1048,87 @@ th[aria-sort] .sort-arrow {
   font-weight: 550;
   letter-spacing: 0.01em;
 }
+
+
+/* ---------------------------------------------------------------- Phase 4, finish II */
+
+/* The mark carries the product's only piece of identity, and at 34px it read as a
+ * favicon that had wandered into the sidebar. */
+.brand-mark {
+  width: 44px;
+  height: 44px;
+}
+
+/* The search field is the wireframe's "Ask AI…" bar: one full-width pill, generous
+ * height, a subtle fill instead of a hard border. A 1px outline around a 52px field
+ * reads as a form input; a filled pill reads as a place to type a question, which is
+ * what this one is for. */
+.search-bar {
+  gap: 10px;
+  padding: 14px 18px;
+}
+
+.search-bar .field,
+.search-bar label {
+  flex: 1;
+}
+
+.search-bar input[type='search'] {
+  height: 52px;
+  padding: 0 46px 0 44px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--ground);
+  font-size: 14px;
+}
+
+.search-bar input[type='search']:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+/* Magnifier left, sparkle right — both inside the pill, neither clickable. The sparkle
+ * is the one accent-coloured mark in the table view, and it is there because "Ask AI"
+ * is a different promise from "filter". */
+.search-field {
+  position: relative;
+  flex: 1;
+}
+
+.search-field .search-glyph {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.search-field .search-spark {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  color: var(--focus);
+  pointer-events: none;
+}
+
+/* The wireframe's margins. The table sat flush against the panel edge, which is what
+ * made a dense table feel cramped rather than dense. */
+.main {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.table-scroll td,
+.table-scroll th .th-label,
+.table-scroll th .sort-button {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* The auditor panel needed no new rules: it is already built from `.panel` and
+ * `.table-scroll`, so the radius, surface, hairline and the wider table padding above
+ * reach it by construction. Writing `.auditor-panel` selectors would have been dead CSS
+ * against markup that does not use them — checked before adding, and removed after
+ * adding them anyway. */
