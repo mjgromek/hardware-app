@@ -110,6 +110,10 @@ def test_a_repair_outcome_writes_one_audit_row_naming_the_admin(
         "two rows can come apart, and a reader would have to join them by timestamp"
     )
     assert "swelling" in written[0]["reason"]
+    assert written[0]["action"] == "review_to_repair", (
+        "the trail cannot tell 'released as fit' from 'confirmed unfit' — which is the "
+        f"first question an incident asks. Got {written[0]['action']!r}"
+    )
 
 
 def test_a_repair_outcome_does_not_demand_the_word_fixed(

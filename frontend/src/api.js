@@ -94,8 +94,8 @@ export const api = {
   // one transaction, one audit row. `edits` holds only the fields the admin actually
   // changed — sending an unchanged field would look like a deliberate rewrite in the
   // trail, and sending them all would blank anything the form did not know about.
-  clearReview: (id, reason, edits = {}) =>
-    request('POST', `/api/hardware/${id}/clear-review`, { reason, ...edits }),
+  clearReview: (id, reason, edits = {}, outcome = 'released') =>
+    request('POST', `/api/hardware/${id}/clear-review`, { reason, outcome, ...edits }),
   editHardware: (id, edits) => request('PATCH', `/api/hardware/${id}`, edits),
   flagReview: (id, reason) => request('POST', `/api/hardware/${id}/flag-review`, { reason }),
 

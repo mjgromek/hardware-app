@@ -64,3 +64,28 @@ something the record cannot express as a column change.
   deliberately not prefixed: restricting an item asserts a problem, not a fix.
   The Review action also moves to the needs-review tab exclusively — one place to
   release an item, next to the reason it was held.
+- **Amended again 2026-08-07 (Phase 4): a review concludes; it does not only
+  absolve.** The first amendment demanded that a release state what changed, and
+  left an admin who found a *real* fault with no honest move: leaving the flag set
+  records no decision, and releasing certifies a repair nobody performed. That is
+  the same false record one move earlier, and worse — a release makes the item
+  rentable, so it ends with an unfit device in somebody's bag. `clear-review` now
+  takes an `outcome`:
+  - `released` (the default, so every existing caller is unchanged) keeps the
+    `fixed:` note and leaves the item issuable.
+  - `repair` takes a reason describing **what is wrong**, and is deliberately
+    exempt from `fixed:` — demanding it there would readmit the false record
+    through the new door.
+
+  Both clear `needs_review`, because both are conclusions, and both write exactly
+  one `audit_events` row, because both are decisions with an actor. The repair
+  outcome sets the status to `Repair` and adds no blocking mechanism of its own:
+  unrentability comes from the guard that already refuses rentals on repair items,
+  which is why the test asserts it through the renting seam rather than the column.
+  The trail distinguishes them — `review_to_repair` rather than
+  `clear_review_flag` — because a log that cannot tell "released as fit" from
+  "confirmed unfit" cannot answer the first question an incident asks.
+
+  A third outcome was considered and refused. `dismissed` — clear the flag,
+  assert nothing — is the one somebody will ask for, and it is exactly the
+  finding-shaped hole this ADR exists to close.

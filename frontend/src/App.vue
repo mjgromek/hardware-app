@@ -143,7 +143,12 @@ function announceChanges(before, after) {
       sound.flag()
       say(`${item.name} entered review`)
     }
-    if (prior.needs_review && !item.needs_review) {
+    // A cleared flag is not always a release. Since the second Phase 4 amendment a
+    // review can conclude in Repair, which clears the flag too — and announcing "was
+    // released from review" over an item an admin just declared unfit is the false
+    // record ADR-0017 keeps closing, this time in the copy rather than the database.
+    // The Repair branch below reports that conclusion in its own words.
+    if (prior.needs_review && !item.needs_review && item.status !== 'Repair') {
       sound.resolve()
       say(`${item.name} was released from review`)
     }
@@ -282,7 +287,10 @@ function askClearReview(item) {
     title: 'Review this item',
     subject: `${item.name} — ${item.review_reason || 'flagged at import'}`,
     prompt: 'What was fixed? The note must start with "fixed:".',
-    confirm: 'Release it',
+    confirm: 'Record the outcome',
+    //: A review concludes two ways (ADR-0017, second Phase 4 amendment). The dialog is
+    //: the only place that choice exists, so this is the only verb that sets it.
+    outcomes: true,
     // The server refuses anything that does not state a change (ADR-0017 as
     // amended); prefilling the prefix turns the rule into a prompt.
     prefill: 'fixed: ',
@@ -332,7 +340,7 @@ function askEditHardware(item) {
   }
 }
 
-function submitOverride(reason, edits = {}) {
+function submitOverride(reason, edits = {}, outcome = 'released') {
   const { kind, item } = override.value
   override.value = null
   busyId.value = item.id
@@ -347,10 +355,21 @@ function submitOverride(reason, edits = {}) {
   } else if (kind === 'flag-review') {
     act(() => api.flagReview(item.id, reason), `${item.name} is flagged and unrentable`)
   } else {
-    act(async () => {
-      await api.clearReview(item.id, reason, edits)
-      markResolved(item)
-    }, `${item.name} released — resolved`)
+    // Two outcomes, two messages and two sounds. Telling an admin who just declared a
+    // battery unsafe that the item was "released" would be the false record again, one
+    // layer up — the toast is what they read to confirm what they did.
+    const repairing = outcome === 'repair'
+    act(
+      async () => {
+        await api.clearReview(item.id, reason, edits, outcome)
+        markResolved(item)
+      },
+      repairing
+        ? `${item.name} sent to Repair — stays unrentable`
+        : `${item.name} released — resolved`,
+      // No voice here: the change observer plays `repair` when it sees the status move,
+      // exactly as it plays `resolve` for a release. Passing one too would double it.
+    )
   }
 }
 
@@ -529,6 +548,7 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
     :prompt="override?.prompt ?? ''"
     :confirm="override?.confirm ?? ''"
     :prefill="override?.prefill ?? ''"
+    :outcomes="override?.outcomes === true"
     @submit="submitOverride"
     @cancel="override = null"
   />

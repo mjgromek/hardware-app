@@ -229,14 +229,25 @@ function shown(value) {
             >
               Rented
             </span>
-            <span
-              v-else-if="item.needs_review"
-              class="button flag-mark"
-              tabindex="0"
-              role="img"
-              :title="item.review_reason || 'The record could not be verified at import.'"
-              :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
-            >!</span>
+            <!-- Three channels, because a native `title` only covers one and a half.
+                 `title` gives the pointer its familiar tooltip; `aria-label` gives the
+                 screen reader the reason with its label; and `.flag-tip` is what a
+                 *keyboard* user gets, since browsers never show a `title` on focus. The
+                 styles for this pair shipped in the visual finish pass and the markup
+                 did not, so the rule matched nothing — dead CSS on one side, an
+                 unreachable reason on the other. -->
+            <span v-else-if="item.needs_review" class="flag-holder">
+              <span
+                class="button flag-mark"
+                tabindex="0"
+                role="img"
+                :title="item.review_reason || 'The record could not be verified at import.'"
+                :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
+              >!</span>
+              <span class="flag-tip" role="presentation" aria-hidden="true">
+                {{ item.review_reason || 'The record could not be verified at import.' }}
+              </span>
+            </span>
             <button
               v-else-if="item.status === 'Available'"
               type="button"

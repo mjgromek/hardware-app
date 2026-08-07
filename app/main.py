@@ -140,6 +140,20 @@ class HardwareEdit(BaseModel):
     notes: str | None = None
 
 
+class ReviewOutcome(str, Enum):
+    """How a review concluded. A closed set, for the reason `Status` and `Action` are.
+
+    Two members and no third. `"dismissed"` is the one somebody will ask for, and it is
+    precisely what this verb refuses to offer: it would clear the flag while asserting
+    nothing about the device, which is the finding-shaped hole ADR-0017 exists to close.
+    """
+
+    #: The record is now correct and the item is fit to issue. Takes a `fixed:` note.
+    RELEASED = "released"
+    #: The finding was real. Takes a reason describing the fault, and sets `Repair`.
+    REPAIR = "repair"
+
+
 class ReviewRelease(HardwareEdit):
     """`POST /api/hardware/{id}/clear-review` — the edit and the note it describes.
 
@@ -153,6 +167,10 @@ class ReviewRelease(HardwareEdit):
     """
 
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    #: Defaulted rather than required, so every caller that predates the second outcome
+    #: keeps the behaviour it already had. A mandatory field would be the tidier schema
+    #: and would break the Phase 3 UI on deploy.
+    outcome: ReviewOutcome = ReviewOutcome.RELEASED
 
 
 #: Typed in full so the request cannot be issued by accident. The route destroys rental
@@ -722,10 +740,25 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         The reason goes with the flag: a cleared item still showing "purchase date is
         in the future" explains a restriction that no longer applies.
 
-        The reason must begin with `fixed:` (ADR-0017 as amended in Phase 4): a
+        **A review concludes; it does not only absolve** (ADR-0017, second Phase 4
+        amendment). `outcome="repair"` is the exit for a finding that turned out to be
+        real: an admin who inspects seed id 5 and confirms the battery is swelling had,
+        before this, a choice between leaving the flag set — recording no decision — and
+        certifying a repair nobody performed. The second is the false record the first
+        amendment closed one move earlier, and here it ends with an unfit device in
+        somebody's bag, because a release makes the item rentable.
+
+        Repair sets the status and nothing else: unrentability comes from the guard that
+        already refuses rentals on repair items, not from a new mechanism. Both outcomes
+        clear the flag and write one `audit_events` row, because both are decisions with
+        an actor.
+
+        A release's reason must begin with `fixed:` (ADR-0017 as amended in Phase 4): a
         release asserts what *changed*, not that somebody looked. Checked here,
         after authorization, so a `user` still gets their `403` whatever their
-        reason says — only an authorized admin's prose is worth validating.
+        reason says — only an authorized admin's prose is worth validating. **The repair
+        outcome is deliberately exempt**: its reason describes what is *wrong*, and
+        demanding "fixed:" would let the false record back in through the new door.
 
         **And the release carries the change it describes.** Demanding "fixed:" while
         offering no way to fix anything made the note certify work the system had not
@@ -736,14 +769,18 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         to an edit by timestamp to learn whether the certified change happened.
         """
         release = body.reason
-        if not release.lower().startswith("fixed:") or not release[len("fixed:"):].strip():
+        if body.outcome is ReviewOutcome.RELEASED and (
+            not release.lower().startswith("fixed:")
+            or not release[len("fixed:"):].strip()
+        ):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='A release note must state what changed, starting with '
                 '"fixed:" — e.g. "fixed: battery replaced, safe to issue". '
-                f'Got {release!r}.',
+                "If the fault is real, conclude the review with the Repair outcome "
+                f'instead. Got {release!r}.',
             )
-        edited = body.model_fields_set - {"reason"}
+        edited = body.model_fields_set - {"reason", "outcome"}
         if "name" in edited and body.name is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -764,15 +801,21 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             # readability — nothing is written until the commit, so a refused edit
             # (an off-enum `category` never reaches here; a guard violation raises)
             # leaves the item flagged rather than released against a rejected fix.
-            if body.status is Status.REPAIR:
+            # The outcome decides the status when it is `repair`; an explicit `status`
+            # in the body still wins for a release, which is how an admin marks an item
+            # repaired *and* releases it in one action.
+            new_status = (
+                Status.REPAIR if body.outcome is ReviewOutcome.REPAIR else body.status
+            )
+            if new_status is Status.REPAIR:
                 _enforce(
                     guards.ensure_no_active_rental,
                     rentals.active_rental(session, item_id),
                     item,
                     "sent to Repair",
                 )
-            if body.status is not None:
-                set_status(session, item_id, body.status)
+            if new_status is not None:
+                set_status(session, item_id, new_status)
             fields = {
                 key: value
                 for key, value in (
@@ -792,7 +835,11 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             audit.record(
                 session,
                 actor=admin,
-                action=audit.Action.CLEAR_REVIEW_FLAG,
+                action=(
+                    audit.Action.REVIEW_TO_REPAIR
+                    if body.outcome is ReviewOutcome.REPAIR
+                    else audit.Action.CLEAR_REVIEW_FLAG
+                ),
                 reason=body.reason,
                 item_id=item_id,
             )

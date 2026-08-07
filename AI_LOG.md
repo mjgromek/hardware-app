@@ -2067,3 +2067,36 @@ Six red. Two of them passed on the first run for the wrong reason — the flag i
 rental and the reason itself failed the `fixed:` check, so neither could see the outcome
 it was named after. Strengthened until they can only pass for the reason claimed.
 Commit: test(phase-4): failing specs for concluding a review in Repair (pending)
+
+---
+
+## [P4 · c28] A review concludes, and the flag says why
+
+Green: `outcome` on `clear-review`, `released` by default so no existing caller changes.
+Repair sets the status and nothing else — unrentability is the guard that already exists,
+which is why the test tries to *rent* rather than reading the column. Own audit action,
+`review_to_repair`: a trail that cannot separate "released as fit" from "confirmed unfit"
+cannot answer the first question an incident asks. ADR-0017 amended a second time.
+
+**Two false-record repeats, caught in the browser.** The dialog's `fixed: ` prefill
+survived a switch to Repair, which would have recorded "fixed: battery is swelling"; and
+the change observer announced "was released from review" over an item the admin had just
+declared unfit, because it reads a cleared flag as a release. Both are the same defect
+ADR-0017 keeps closing, in the copy rather than the database. Neither was visible from the
+suite.
+
+**And the reason the first submission looked broken was not the code.** The client sent
+`{"outcome":"repair"}` correctly and the server answered with the release-note refusal —
+because `uvicorn` had been started before the Python changes and was serving stale code.
+Captured the outgoing request body before theorising, which is what made it a two-minute
+diagnosis instead of another wrong theory published as fact.
+
+**The `!` tooltip: half of it had shipped.** `title` and `aria-label` were present and
+correct since 76bb467 — the report that it "never landed" was right about the symptom and
+wrong about the cause. What was missing is that `styles.css` already carried
+`.flag-holder`, `.flag-tip` and `.flag-mark:focus-visible + .flag-tip`, and no markup ever
+rendered a `.flag-tip`: dead CSS on one side, an unreachable reason on the other. A native
+`title` never appears on keyboard focus, so the gap was real even though the attributes
+were there. Verified all three channels by hand — hover shows the tip, Tab shows a focus
+ring and the tip with no pointer, `aria-label` carries the labelled reason.
+Commit: feat(phase-4): a review concludes in Release or Repair (pending)

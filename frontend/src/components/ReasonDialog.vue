@@ -3,7 +3,7 @@
 // an admin doing something an ordinary user could not, with a reason attached. The
 // reason is mandatory server-side, so it is `required` here — a client that lets you
 // submit an empty one just turns a considered refusal into a 422.
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 //: The six editable fields, in the order the form shows them. `notes` is last and
 //: multi-line because it is prose rather than a value — and it is the field a release
@@ -41,10 +41,15 @@ const props = defineProps({
   // flow (ADR-0017): the auditor's explanation is a starting point, and what gets
   // recorded is whatever the human leaves in the field, because the claim is theirs.
   prefill: { type: String, default: '' },
+  //: Turns the dialog into a review, which concludes two ways rather than one. Only
+  //: `clear-review` sets it; every other verb has a single outcome and shows no choice.
+  outcomes: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
 const reason = ref('')
+//: Released is the default because it is the common case and the pre-existing behaviour.
+const outcome = ref('released')
 const field = ref(null)
 const draft = ref({})
 
@@ -78,11 +83,27 @@ watch(
   async ([open]) => {
     if (!open) return
     reason.value = props.prefill
+    outcome.value = 'released'
     resetDraft()
     await nextTick()
     field.value?.focus()
   },
 )
+
+//: The server exempts a repair reason from the `fixed:` prefix, because it describes what
+//: is *wrong*. The dialog has to agree, or it would demand words the server refuses.
+const reviewingRepair = computed(() => props.outcomes && outcome.value === 'repair')
+
+// The release prefill is `fixed: `, and carrying it into a repair note would produce
+// "fixed: battery is swelling" — the false record wearing the other outcome's words.
+// Only an *untouched* prefill is swapped; anything the admin typed is theirs and stays.
+watch(outcome, (now, before) => {
+  if (now === 'repair' && reason.value === props.prefill) reason.value = ''
+  else if (now === 'released' && before === 'repair' && !reason.value.trim()) {
+    reason.value = props.prefill
+  }
+  field.value?.focus()
+})
 
 function onKeydown(event) {
   if (event.key === 'Escape') emit('cancel')
@@ -99,7 +120,39 @@ function onKeydown(event) {
         </div>
       </div>
 
-      <form @submit.prevent="emit('submit', reason.trim(), changedFields())">
+      <form @submit.prevent="emit('submit', reason.trim(), changedFields(), outcome)">
+        <!-- The outcome first, because it changes what the note below has to say. Two
+             radios rather than a select: there are exactly two conclusions and one of
+             them makes the device rentable again, so both belong in view. Same reasoning
+             as the role toggles on the account form. -->
+        <div v-if="props.outcomes" class="field">
+          <span class="field-label">Outcome</span>
+          <div class="toggle-group" role="group" aria-label="Review outcome">
+            <button
+              type="button"
+              class="toggle"
+              :aria-pressed="outcome === 'released'"
+              @click="outcome = 'released'"
+            >
+              Release
+            </button>
+            <button
+              type="button"
+              class="toggle"
+              :aria-pressed="outcome === 'repair'"
+              @click="outcome = 'repair'"
+            >
+              Send to Repair
+            </button>
+          </div>
+          <span class="hint">
+            {{
+              reviewingRepair
+                ? 'The fault is real. The item stays unrentable until it is fixed.'
+                : 'The record is correct and the item is fit to issue.'
+            }}
+          </span>
+        </div>
         <template v-if="props.item">
           <label v-for="f in EDITABLE" :key="f.key" class="field">
             <span>{{ f.label }}</span>
@@ -112,12 +165,16 @@ function onKeydown(event) {
           </label>
         </template>
         <label v-if="props.requireReason" class="field">
-          <span>{{ props.prompt }}</span>
+          <span>{{ reviewingRepair ? 'What is wrong with it?' : props.prompt }}</span>
           <input
             ref="field"
             v-model="reason"
             required
-            placeholder="Bench-tested by IT; battery replaced"
+            :placeholder="
+              reviewingRepair
+                ? 'Battery is swelling, confirmed by inspection'
+                : 'Bench-tested by IT; battery replaced'
+            "
           />
           <span class="hint">
             Recorded against your name in the audit trail. It is what a later question
