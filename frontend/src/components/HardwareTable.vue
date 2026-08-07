@@ -4,6 +4,7 @@
 // Home/End to jump. One Tab press enters the table and the arrows take over, instead
 // of Tab walking through every action button in every row.
 import { computed, nextTick, ref, watch } from 'vue'
+import { displayRank } from '../displayState.js'
 import Icon from './Icon.vue'
 import StatusChip from './StatusChip.vue'
 
@@ -89,7 +90,14 @@ function toggleSort(key) {
 
 const sorted = computed(() => {
   const rows = [...props.items]
-  if (!sortKey.value) return rows
+  // First load: group by the state a person sees, not by the stored status. "In Review"
+  // is a display rule over `needs_review` and has no position in a status sort, so the
+  // rank comes from `displayState.js` — the same module the chip reads, which is what
+  // stops the order and the label drifting apart.
+  //
+  // `Array.prototype.sort` is stable (spec, ES2019), so rows inside a group keep the
+  // order the server sent them in. The secondary ordering is unchanged, not re-derived.
+  if (!sortKey.value) return rows.sort((a, b) => displayRank(a) - displayRank(b))
   const read = SORTABLE[sortKey.value]
   const direction = sortAscending.value ? 1 : -1
   return rows.sort((a, b) => {

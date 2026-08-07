@@ -2395,3 +2395,27 @@ Nav labels 16px → 15px, wordmark 500 → 600. Size alone was not doing the sep
 Confirmed: wordmark 20px/600, inactive nav 15px/500, active nav 15px/600 from the existing
 `aria-current` rule. Mark 56px and the 8px gap untouched, as asked.
 Commit: style(phase-4): sidebar type hierarchy (pending)
+
+---
+
+## [P4 · c38] Default sort by display state
+
+`displayState.js` now owns the rule, and both the chip and the table read it. That was the
+actual requirement: a second copy of the precedence in the table would have drifted the
+first time either list changed, and the symptom would have been a row labelled one thing
+sitting in another thing's group.
+
+The module holds **two** orderings, which are deliberately not the same list. Resolution
+precedence — `In Repair > Rented > In Review > Available` — decides which state wins when
+several are true of a row. `SORT_ORDER` — `Available → Rented → In Repair → In Review` —
+decides where those resolved states sit down the page. Conflating them would have put
+Available last.
+
+Within a group the order is untouched: `Array.prototype.sort` has been stable since ES2019,
+so rows keep the sequence the server sent. Header clicks still override, unchanged.
+
+Extracting it left `PRESENTATION` in `StatusChip` dead — it was replaced by the tone map
+and would have sat there styling nothing, which is the fourth dead-block in this codebase.
+Deleted in the same edit rather than noticed later. Verified in the browser: all 11 rows
+grouped correctly, every chip agreeing with its group, and a Name click still reordering.
+Commit: feat(phase-4): default sort follows the display state (pending)
