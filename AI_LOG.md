@@ -2611,3 +2611,14 @@ rentals check behind it, guard refusal rolls the uncommitted delete back. The ra
 rent now waits on the lock and loses cleanly; a rental committed first still 409s the
 delete. 197 green, including the sequential delete-with-rental test, untouched.
 Commit: fix(review): delete writes before it reads, closing the strand (self)
+
+## [review · c4] The rule written down, the probe armed, the arithmetic closed
+
+The three non-code closures from the grilling. Lifecycle-pair testing is now a
+CLAUDE.md non-negotiable instead of an interview answer. The four smoke assertions
+run every 30 minutes from GitHub Actions (scripts/probe.sh, demo credentials, no
+secrets) — the between-deploys detector Corrections #5/#6 lacked; verified green
+against the live URL before committing. And the README retrospective now closes its
+own arithmetic: the docs cost nothing marginal because they were written in the
+moment; the wasted hours bought the corrections log — waste versus tuition.
+Commit: chore(review): lifecycle rule, scheduled probe, honest arithmetic (self)

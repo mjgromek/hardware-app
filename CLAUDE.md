@@ -38,6 +38,12 @@ that ships.
   session produced two features reported as built that did not exist, and two wrong
   theories reasoned on top of files that never changed. A build succeeding is not
   evidence that a change landed.
+- **Every test that creates an entity gets a sibling that destroys it** and replays
+  every consumer of its identity — sessions, rentals, audit actors, whatever names it.
+  The class this suite was missing was not security, it was entity lifecycle: a
+  recycled rowid produced full admin takeover under 91 green tests (ADR-0013), and the
+  same blindness resurfaced as a rent racing a deletion (`test_lifecycle_race`). When
+  the destroy path can race a consumer, the write goes before the read.
 - **Every schema change ships with a migration test.** Boot over the *previous*
   table shape built in raw SQL, then assert a real request succeeds — not that
   `create_app` returned. The suite builds every database from scratch, where

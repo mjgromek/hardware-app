@@ -300,8 +300,13 @@ Each of these works, and each cost something. The full table with reasoning is i
   `/api/health` → `200`, that login answers, and that the inventory returns — skipped
   unless `SMOKE_URL` is set, and `CLAUDE.md` makes a deploy incomplete until it passes
   against the live URL. It is the only test that can fail while the code is correct,
-  which is the point. What remains partial is that nothing runs it *automatically*: it
-  is a step in a documented procedure, not a gate a machine enforces. See `AI_LOG.md`
+  which is the point. And the between-deploys half — the failure mode that actually
+  happened, a rollback while nobody was deploying — is watched by
+  `.github/workflows/deployed-probe.yml`: the same four assertions as
+  `scripts/probe.sh`, every 30 minutes from GitHub's infrastructure, signing in with
+  the published demo account so it needs no secret. A failure fails the run and
+  GitHub notifies the owner. Runnable by hand from any machine:
+  `bash scripts/probe.sh` (override the target with `PROBE_URL`). See `AI_LOG.md`
   Correction #6
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
@@ -459,7 +464,7 @@ the moment it was taken.
 | **Demo credentials are published on a public instance, on a `user` account** | ADR-0005 chose openly published demo credentials so a reviewer is in within ten seconds. `/security-review` cut the role from `admin` to `user`: read access is what a reviewer needs, delete rights are what an attacker wants, and the admin panel is described in prose instead. | Per-reviewer invite links, so access can be withdrawn without rotating a shared credential. |
 | **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now — the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |
 | **`test_serves_built_bundle_at_root` needs `npm run build` first** | It asserts against the real `frontend/dist` on purpose — a fixture directory would prove the mount works, not that the built bundle is served. | CI builds the frontend before running pytest. |
-| **No CI** | Time. The tests exist and run locally; automating them was the cut. | A workflow running both build steps and both suites. |
+| **No build/test CI** | Time. The tests exist and run locally; automating them was the cut. The one workflow that does exist is `deployed-probe.yml` — a scheduled probe of the live URL, not CI: it watches the deployment, which is the only thing the local suite structurally cannot see. | A workflow running both build steps and both suites. |
 | **The app seeds itself on boot when the database is empty** | The deploy target offers no way to run a one-off command against the mounted volume: Railway's API has no exec or SSH, `preDeployCommand` silently did not run, and `railway ssh` needs an SSH key. Seeding at startup was the only mechanism left. An emptiness guard makes it safe — once rentals exist the table is never empty, so it can never wipe them. | A migration step or a one-off job. Boot logic should not write data. See [`BACKLOG.md`](BACKLOG.md). |
 | **Deploying needed three human-in-the-loop steps** | Browser OAuth for the Railway MCP, a *second* browser authorization for the Railway CLI, and an SSH key — none of which any tooling removes. Seed-on-boot-if-empty was chosen partly to delete the manual seeding step for whoever redeploys next. | Nothing to fix in this codebase; recorded because the deploy story is otherwise easy to tell as smoother than it was. |
 | **Sign out does not revoke the session** | The session is a signed cookie with no server-side record. There is no logout route, so the control clears the client and says so. Deleting the account *does* revoke its sessions (ADR-0013); ending one session without retiring the person is what is missing. | A logout route and session expiry. A leaked cookie is valid until the account is deleted or `SECRET_KEY` changes. |
@@ -489,9 +494,15 @@ produced no code a reviewer will ever read:
 - **UI decisions reversed three times** (~45m) — status dots became pills became dots
   became pills; the wireframe had the answer the whole time.
 
-None of it is engineering. All of it is recorded in `AI_LOG.md` where it happened,
-because the failure mode of an AI-assisted build is not bad code — it is time spent
-supervising machinery instead of shipping.
+None of it is engineering — and the arithmetic deserves stating plainly, because it
+is the uncomfortable half of the hours claim: the pillars cost four to five hours of
+actual engineering, so the brief's timebox was hittable. The documentation is not
+where the surplus went — it cost almost nothing marginal, because it was written in
+the moment: three lines per commit, ADRs at decision time, never reconstructed. What
+the wasted hours bought is the corrections log itself. Every one of them is itemised
+in `AI_LOG.md` where it happened, and that is the difference between waste and
+tuition — the failure mode of an AI-assisted build is not bad code, it is time spent
+supervising machinery instead of shipping, and the log is the receipt.
 
 ---
 

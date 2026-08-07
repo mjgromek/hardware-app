@@ -1,0 +1,22 @@
+# The between-deploys detector. Corrections #5 and #6: the live URL served a
+# pre-auth image twice, for an unknown duration, found both times by a human
+# opening the URL. The deploy-time smoke test closes the introduction path; this
+# closes detection — the same four assertions, every 30 minutes, from GitHub's
+# infrastructure rather than the machine that deploys. A failure fails the run,
+# and GitHub notifies the repository owner.
+#
+# No secrets: the probe signs in with the published read-only demo account.
+name: deployed-probe
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe the deployed instance
+        run: bash scripts/probe.sh
