@@ -8,7 +8,7 @@
 // the endpoint shipped and is deleted rather than edited — it had been false since
 // 0e0be61.
 //
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
 import Icon from './Icon.vue'
@@ -55,8 +55,36 @@ const newItem = ref({ name: '', brand: '', purchase_date: '', serial_number: '',
 //: dropdown can render it — the server is the guard, this is the affordance.
 const CATEGORIES = ['Laptop', 'Mobile', 'Tablet', 'Monitor', 'Accessory']
 
+//: Accounts belong to Booksy employees, and the server refuses anything else at creation
+//: (ADR-0019). Prefilled rather than merely hinted, so the rule is visible before the
+//: admin types instead of arriving as a 422 after they have filled the whole form.
+const COMPANY_DOMAIN = '@booksy.com'
+
 const addingAccount = ref(false)
-const newAccount = ref({ email: '', password: '', role: 'user' })
+const newAccount = ref({ email: COMPANY_DOMAIN, password: '', role: 'user' })
+const emailInput = ref(null)
+
+/** Put the caret before the domain, so typing continues the address rather than the domain.
+ *
+ * `autofocus` alone leaves the caret at the end, where the first keystroke would produce
+ * `@booksy.comj.doe`. Selecting nothing at offset 0 keeps the field an ordinary email
+ * input: a pasted full address still overwrites cleanly, and the domain stays editable
+ * for anyone who needs to correct it.
+ */
+function focusBeforeDomain() {
+  const field = emailInput.value
+  if (!field) return
+  field.focus()
+  field.setSelectionRange(0, 0)
+}
+
+// `v-if` means the input does not exist until the modal renders, so the caret has to be
+// placed on the tick after it opens — not in `focusBeforeDomain`'s caller.
+watch(addingAccount, async (open) => {
+  if (!open) return
+  await nextTick()
+  focusBeforeDomain()
+})
 
 function submitHardware() {
   emit('add-hardware', {
@@ -74,7 +102,7 @@ function submitHardware() {
 
 function submitAccount() {
   emit('add-account', { ...newAccount.value, email: newAccount.value.email.trim() })
-  newAccount.value = { email: '', password: '', role: 'user' }
+  newAccount.value = { email: COMPANY_DOMAIN, password: '', role: 'user' }
   addingAccount.value = false
 }
 </script>
@@ -228,7 +256,21 @@ function submitAccount() {
       <form @submit.prevent="submitAccount">
         <label class="field">
           <span>Email</span>
-          <input v-model="newAccount.email" type="email" required autofocus placeholder="name@booksy.com" />
+          <!-- `type="text"`, not `type="email"`, for one concrete reason: `setSelectionRange`
+               throws `InvalidStateError` on an email input, so the caret cannot be placed
+               before the prefilled domain. `inputmode="email"` keeps the phone keyboard,
+               and `pattern` keeps the browser's own refusal — now for the *company*
+               domain rather than for any address at all, which is the stricter rule. -->
+          <input
+            ref="emailInput"
+            v-model="newAccount.email"
+            type="text"
+            inputmode="email"
+            required
+            pattern="[^@\s]+@[Bb][Oo][Oo][Kk][Ss][Yy]\.[Cc][Oo][Mm]"
+            title="Accounts must be on the @booksy.com domain"
+            placeholder="name@booksy.com"
+          />
         </label>
         <label class="field">
           <span>Password</span>

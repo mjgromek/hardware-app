@@ -18,7 +18,7 @@ from typing import Annotated, Any, Literal, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, StringConstraints, field_validator
 
 from app import accounts, ai, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
@@ -54,10 +54,39 @@ class Credentials(BaseModel):
     password: str
 
 
+#: Accounts belong to Booksy employees, so an address off the company domain is somebody
+#: who should not have a login (ADR-0019).
+COMPANY_DOMAIN = "@booksy.com"
+
+
 class NewAccount(BaseModel):
     email: str
     password: str
     role: Role
+
+    @field_validator("email")
+    @classmethod
+    def on_the_company_domain(cls, email: str) -> str:
+        """Refuse anything that is not a `@booksy.com` mailbox.
+
+        Validated here, on the request model, rather than in `accounts.create_account` —
+        and that placement is the decision, not an accident of layering. It puts the rule
+        on the API boundary, which `bootstrap_admin` does not cross: it reads `ADMIN_EMAIL`
+        from the environment, a value the deployment's owner sets, and creates the account
+        directly. So the bootstrap exemption is structural rather than a special case in a
+        conditional that somebody has to remember not to delete (ADR-0019).
+
+        `endswith` on the *whole* suffix, not `in`: `attacker@booksy.com.evil.net` contains
+        the domain and `someone@notbooksy.com` ends with `booksy.com`. Both are registrable
+        by an outsider, and both pass the looser checks.
+        """
+        candidate = email.strip()
+        if not candidate.lower().endswith(COMPANY_DOMAIN):
+            raise ValueError(f"email must be on the {COMPANY_DOMAIN} domain")
+        # `@booksy.com` itself ends with the domain and names no mailbox.
+        if not candidate[: -len(COMPANY_DOMAIN)]:
+            raise ValueError(f"email needs a name before {COMPANY_DOMAIN}")
+        return candidate
 
 
 class RoleChange(BaseModel):

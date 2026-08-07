@@ -79,7 +79,7 @@ def test_deleted_account_id_is_never_reissued(admin_client: TestClient) -> None:
     ambiguous about which person it names.
     """
     doomed = _create_account(
-        admin_client, "first.holder@booksy.example", "first-holder-pw-71c3a8", "user"
+        admin_client, "first.holder@booksy.com", "first-holder-pw-71c3a8", "user"
     )
     assert doomed["id"] == _highest_account_id(admin_client), (
         "setup: the account under test must hold the highest id, or SQLite would not "
@@ -93,12 +93,12 @@ def test_deleted_account_id_is_never_reissued(admin_client: TestClient) -> None:
     )
 
     replacement = _create_account(
-        admin_client, "second.holder@booksy.example", "second-holder-pw-2f90d4", "user"
+        admin_client, "second.holder@booksy.com", "second-holder-pw-2f90d4", "user"
     )
 
     assert replacement["id"] != doomed["id"], (
-        f"id {doomed['id']} belonged to first.holder@booksy.example and was handed "
-        "straight back to second.holder@booksy.example. Ids must be issued once and "
+        f"id {doomed['id']} belonged to first.holder@booksy.com and was handed "
+        "straight back to second.holder@booksy.com. Ids must be issued once and "
         "never reused: the id is what a session cookie carries and what a rental row "
         "names, so a recycled one makes both point at a person who is gone"
     )
@@ -126,7 +126,7 @@ def test_audit_event_still_names_its_actor_after_that_account_is_deleted(
     implementation that recycles the id, and the id alone would pass against one that
     forgets who the person was; the row has to survive as a whole.
     """
-    actor_email = "recording.admin@booksy.example"
+    actor_email = "recording.admin@booksy.com"
     actor = _create_account(admin_client, actor_email, "recording-admin-pw-4b71fe", "admin")
     assert actor["id"] == _highest_account_id(admin_client), (
         "setup: the actor must hold the highest id, or deleting it frees nothing and "
@@ -163,7 +163,7 @@ def test_audit_event_still_names_its_actor_after_that_account_is_deleted(
     )
 
     successor = _create_account(
-        admin_client, "successor@booksy.example", "successor-pw-90c2d7", "user"
+        admin_client, "successor@booksy.com", "successor-pw-90c2d7", "user"
     )
 
     after = audit_rows(app, action="clear_review_flag")
@@ -184,7 +184,7 @@ def test_audit_event_still_names_its_actor_after_that_account_is_deleted(
     )
     assert successor["id"] != event["actor_account_id"], (
         f"account id {event['actor_account_id']} recorded this override for "
-        f"{actor_email}, and it has now been handed to successor@booksy.example. Anyone "
+        f"{actor_email}, and it has now been handed to successor@booksy.com. Anyone "
         f"joining `audit_events` to `users` reads that item {FLAGGED_ITEM} was cleared "
         "by a person who was not employed when it happened — the id an audit row names "
         "must belong to one account forever"
@@ -210,7 +210,7 @@ def test_recycled_id_does_not_revive_a_session(app, admin_client: TestClient) ->
     but keep a cookie they already had.
     """
     doomed = _create_account(
-        admin_client, "departing@booksy.example", "departing-pw-58ab19", "user"
+        admin_client, "departing@booksy.com", "departing-pw-58ab19", "user"
     )
     assert doomed["id"] == _highest_account_id(admin_client), (
         "setup: the deleted account must hold the highest id, or its id is not the one "
@@ -219,7 +219,7 @@ def test_recycled_id_does_not_revive_a_session(app, admin_client: TestClient) ->
 
     condemned = TestClient(app)
     assert attempt_login(
-        condemned, "departing@booksy.example", "departing-pw-58ab19"
+        condemned, "departing@booksy.com", "departing-pw-58ab19"
     ).status_code in (200, 204), "setup: the account must be able to log in"
     original_cookie = condemned.cookies.get(COOKIE_NAME)
     assert original_cookie, "setup: logging in must have issued a session cookie"
@@ -239,7 +239,7 @@ def test_recycled_id_does_not_revive_a_session(app, admin_client: TestClient) ->
     )
 
     _create_account(
-        admin_client, "replacement.admin@booksy.example", "replacement-admin-pw-3d70ce", "admin"
+        admin_client, "replacement.admin@booksy.com", "replacement-admin-pw-3d70ce", "admin"
     )
 
     replayed = TestClient(app)

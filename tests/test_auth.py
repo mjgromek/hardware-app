@@ -36,7 +36,7 @@ from tests.conftest import (
     issued_cookies,
 )
 
-UNKNOWN_EMAIL = "nobody.at.all@booksy.example"
+UNKNOWN_EMAIL = "nobody.at.all@booksy.com"
 WRONG_PASSWORD = "not-the-admin-password"
 
 

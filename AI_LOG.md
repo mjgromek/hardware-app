@@ -2034,3 +2034,27 @@ read, and the two pinning ADR-0019's *structural* exemption. Those two are the p
 failure there means `bootstrap_admin` has been routed through the validated path, and a
 deployment with an off-domain `ADMIN_EMAIL` no longer boots, with no admin left to fix it.
 Commit: test(phase-4): failing specs for creation-time domain validation (pending)
+
+---
+
+## [P4 · c26] Creation-time domain validation, green
+
+The rule lives on `NewAccount`, the request model — which is the decision, not layering
+convenience. `bootstrap_admin` reads `ADMIN_EMAIL` from the environment and never crosses
+that boundary, so ADR-0019's exemption is structural rather than a conditional somebody
+has to remember. `endswith` on the whole suffix, because `attacker@booksy.com.evil.net`
+contains the domain and `someone@notbooksy.com` ends with `booksy.com`; both are
+registrable by an outsider.
+
+Eighteen fixture addresses moved from `@booksy.example` to `@booksy.com`. The alternative
+was loosening the rule to keep the fixtures — ADR-0019 says every account in the project
+sits on the domain, and test accounts are accounts.
+
+**The prefill bug the build did not catch.** `setSelectionRange` throws `InvalidStateError`
+on `type="email"`, so the caret could not be placed before the prefilled domain and
+`focusBeforeDomain` threw on every open. The build succeeded; only opening the modal
+showed it. The field is now `type="text"` with `inputmode="email"` and a `pattern` for the
+company domain — a stricter client-side refusal than `type="email"` gave. Verified in the
+browser: caret 0, typing `j.doe` yields `j.doe@booksy.com`, the suffix attack and
+off-domain addresses fail `checkValidity`, mixed case passes.
+Commit: feat(phase-4): only company addresses may be created (pending)
