@@ -1,22 +1,10 @@
 /* Hardware Hub — an internal tool where a dense table is the product.
- *
- * The palette comes from the supplied wireframes: near-white ground, white surfaces,
- * near-black for the one primary action, red reserved for destruction. One colour is
- * added — amber — because the wireframes have three statuses and the domain has four
- * states to show (see `--flag-*` and `docs/WIREFRAME_JUSTIFICATION.md`).
- *
- * Type is the system UI stack. Not a default by omission: the bundle is served by the
- * Python process on one origin (ADR-0001), and a webfont would be the only
- * cross-origin request in the app — or 90 kB self-hosted to say nothing the system
- * face does not. Numbers and dates are set in the system mono face so columns of
- * them align, which is the whole reason a table is the right shape here.
- */
+ * Palette from the wireframes plus amber (three statuses drawn, four states to
+ * show). System type stack: a webfont would be the app's only cross-origin request
+ * (ADR-0001). Numbers set in mono so columns align. */
 
-/* The token layer (brainstorm.md §3 Phase 4). Four groups — surface, text, border,
- * status — plus the two interaction hues. Every colour in the app resolves through
- * one of these; components carry no hex. `[data-theme="dark"]` below overrides the
- * full set and is inert until something sets the attribute, which is what makes the
- * extraction provably behaviour-neutral in light mode. */
+/* The token layer. Every colour resolves through one of these; components carry no
+ * hex. `[data-theme="dark"]` overrides the full set. */
 :root {
   /* surface */
   --ground: #f7f8fa;          /* page */
@@ -938,18 +926,9 @@ th.col-date .sort-button {
   cursor: help;
 }
 
-/* One tooltip mechanism for the whole table, not one per control.
- *
- * This started as `.flag-mark:hover + .flag-tip` — tied to the amber `!` by selector, so
- * the grey `Rented` control beside it could not use it and fell back to a native `title`.
- * That gave the same column two different tooltips: one instant and styled, one delayed
- * and drawn by the OS. Worse, a native `title` never appears on keyboard focus, so the
- * renter's address was pointer-only while the review reason was not.
- *
- * `:focus-within` rather than `:focus-visible` on a sibling, because the holder wraps the
- * trigger: focus landing anywhere inside opens the tip, which is what a keyboard user
- * tabbing onto the control expects. Reachable by pointer and by keyboard through the same
- * rule, with `aria-label` on the trigger carrying it to a screen reader. */
+/* One tooltip mechanism for the whole table — a native `title` never appears on
+ * keyboard focus, so mixing them made the renter's address pointer-only.
+ * `:focus-within` because the holder wraps the trigger. */
 .tip-holder:hover > .tip,
 .tip-holder:focus-within > .tip {
   opacity: 1;
@@ -1051,16 +1030,9 @@ th[aria-sort] .sort-arrow {
 
 
 /* ---------------------------------------------------------------- status pills
-
- * One width for all three, so the Status column is a rule rather than a ragged edge —
- * the whole reason a pill reads at a glance is that the eye learns its shape and stops
- * reading the word. Sized to the longest label ("Available", "In Repair") with the text
- * centred, so "Rented" does not shrink to a different object.
- *
- * Each tone is a fill/ink *pair per theme*, not one value: a near-black Available pill
- * is the strongest mark in light mode and invisible on a dark surface, so dark inverts
- * it to a near-white fill with dark text. Both stops are measured — docs/ACCESSIBILITY.md.
- */
+ * One width for all three, sized to the longest label — the eye learns the shape
+ * and stops reading the word. Each tone is a fill/ink pair per theme, measured in
+ * docs/ACCESSIBILITY.md. */
 .chip-status {
   display: inline-flex;
   justify-content: center;
@@ -1256,29 +1228,12 @@ th[aria-sort] .sort-arrow {
   }
 }
 
-/* The one place the global focus ring is deliberately replaced rather than inherited,
- * and the only `outline` reset in this stylesheet — so the replacement has to carry
- * WCAG SC 2.4.11 by itself.
- *
- * **A soft ring alone cannot.** Measured: `--focus-edge` composited over the fill at
- * 0.18 alpha is 1.21:1, and even at 0.60 it reaches only 2.03:1 — a pale or blurred ring
- * cannot get near 3:1 at any alpha, because contrast is a function of the composited
- * colour and translucency only moves it toward the background. So the indicator is a
- * *two-layer* shadow:
- *
- *   1. an opaque 2px ring at zero blur — geometrically a ring, but a solid colour with a
- *      hard edge, which is what makes it measurable: 3.66:1 against the focused fill and
- *      3.44:1 against the page in light, 3.94:1 and 4.16:1 in dark;
- *   2. a wider translucent halo with blur, which is what makes it read as soft.
- *
- * The border is no longer involved. It was a 2px solid `--focus-edge` edge, and a crisp
- * 2px line at that value reads as a hard black outline however grey the token is — that
- * was the complaint, and the cascade was never the problem: this rule (0,3,1) already
- * won. Replacing the border with layer 1 keeps the same measured contrast while letting
- * layer 2 blur the outer edge, and the transition on the base rule fades both.
- *
- * The fill shift is supporting feedback only — 1.14:1 light, 1.11:1 dark, nowhere near
- * 3:1. If the two shadow layers are ever removed, the indicator goes with them. */
+/* The only `outline` reset in this stylesheet, so the replacement must carry WCAG
+ * SC 2.4.11 by itself. A translucent ring cannot reach 3:1 at any alpha, so the
+ * indicator is two shadow layers: an opaque 2px ring at zero blur (measured 3.66:1
+ * on the fill / 3.44:1 on the page in light; 3.94:1 / 4.16:1 in dark) plus a
+ * translucent halo that only makes it read as soft. The fill shift is supporting
+ * feedback (~1.1:1) — if the shadow layers go, the indicator goes with them. */
 .search-bar input[type='search']:focus-visible {
   background: var(--surface);
   box-shadow:
@@ -1417,14 +1372,10 @@ th.cell-status .th-label {
   color: var(--ai);
 }
 
-/* In flight. A gradient outline rather than a spinner: the bar itself is the thing
- * working, and a spinner beside it would be a second object to watch. The gradient
- * lives on the holder's ::after so it can sit behind the input without the input's own
- * border having to become transparent — swapping the border here would move the focus
- * indicator, which is measured.
- *
- * `aria-busy` on the input and a polite live region carry this to assistive technology;
- * the animation is never the only signal. */
+/* In flight: the gradient ring, secondary to the spinner since the polish pass —
+ * the focus ring sits in this ring's exact footprint, so it cannot carry the state
+ * alone. On the holder's ::after so the input's own border (whose focus indicator
+ * is measured) never changes. */
 .search-field.is-busy::after {
   content: '';
   position: absolute;

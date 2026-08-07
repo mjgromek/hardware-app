@@ -1,9 +1,36 @@
 # AI Development Log
 
 Append-only. Newest entries at the bottom. **Every commit gets an entry**, written
-at the time — not reconstructed at the end.
+at the time, never reconstructed at the end.
 
 Failures and wrong turns stay in. A log with no wrong answers in it did not happen.
+
+---
+
+## The corrections, indexed
+
+The part of this log the brief grades hardest: seven times the AI-assisted process
+produced something wrong, what it cost, and what changed because of it. (The
+numbering drifted during the build: no #1 was ever written and #5 was used twice.
+Corrected here and in the headings below; two code comments and two documents that
+cited the old numbers were updated in the same commit.)
+
+1. [I acted on every finding, and every finding was correct](#correction-1-i-acted-on-every-finding-and-every-finding-was-correct) — the agent pipeline out-produced the review budget.
+2. [I wrote the brief that made the agent slow](#correction-2-i-wrote-the-brief-that-made-the-agent-slow) — 18 tests where 9 were asked for; the brief was the defect.
+3. [Additive column was a property of the column, not of the code](#correction-3-additive-column-was-a-property-of-the-column-not-of-the-code) — a live volume never received ADR-0013's columns; every request 502'd.
+4. [The deploy path was a landmine, and the AI client was a test-extra](#correction-4-the-deploy-path-was-a-landmine-and-the-ai-client-was-a-test-extra) — a variable change redeployed a pre-auth v0; httpx was missing in production.
+5. [A build succeeding is not evidence that a change landed](#correction-5-a-build-succeeding-is-not-evidence-that-a-change-landed) — four silent no-op patches, two features reported as built that did not exist.
+6. [A stale deployment served a pre-auth build on a public URL](#correction-6-a-stale-deployment-served-a-pre-auth-build-on-a-public-url) — for an unknown duration, found by a human opening the URL.
+7. [Six instrument errors, one tell](#correction-7-six-instrument-errors-one-tell) — every one was a reading taken from something other than the thing itself.
+
+## The brief's four elements, and where each lives
+
+- **Tooling** — the table directly below.
+- **Data strategy** — [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md), enforced by test;
+  the ingestion entries in Phase 0 record how it was built.
+- **Prompt trail** — [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md), 20 sessions,
+  indexed by the ADRs each produced.
+- **The correction** — the seven above, long-form, in place in the timeline.
 
 ---
 
@@ -19,6 +46,8 @@ Failures and wrong turns stay in. A log with no wrong answers in it did not happ
 | LLM (product) | TBD before MVP 3 — Gemini Flash / Claude Haiku / GPT-4o-mini |
 
 ---
+
+# Timeline · Phase −1: planning and conventions
 
 ## [Phase −1 · commit 2] Conventions, domain language, and this log
 
@@ -186,6 +215,8 @@ whole-project scope before any code exists, not per feature.
 
 ---
 
+# Timeline · Phase 0: foundation, data audit, first deploy
+
 ## [P0 · c1] Scaffold and module skeletons
 
 Backend scaffold plus signature-only skeletons: `app/config.py`, `app/domain.py`,
@@ -315,7 +346,7 @@ Commit: test(phase-0): SQLite persistence specs (9963791)
 
 ---
 
-## Correction #2 — I acted on every finding, and every finding was correct
+## Correction #1: I acted on every finding, and every finding was correct
 
 **What happened:** the agent pipeline worked. `test-author` kept surfacing spec
 gaps, interface friction and design consequences at a rate I did not anticipate —
@@ -433,6 +464,8 @@ the four rows where stored data differs from the seed.
 Commit: docs(phase-0): data audit (9e1d9cb)
 
 ---
+
+# Timeline · Phase 1: auth, admin, dashboard
 
 ## [P1 · c1] Wireframe justification scaffold
 
@@ -685,6 +718,8 @@ Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (4f9b
 
 ---
 
+# Timeline · Phase 2: the rental engine
+
 ## [P2 · c1] Phase 2 owns clearing `needs_review`
 
 Phase 1 merged (PR #2, tagged `v1-admin`) with one piece of its own scope unresolved: the
@@ -779,7 +814,7 @@ Commit: chore: enforce AI log as a commit gate (87167d1)
 
 ---
 
-## Correction #3 — I wrote the brief that made the agent slow
+## Correction #2: I wrote the brief that made the agent slow
 
 **What I observed.** `test-author` was taking about twenty minutes a phase and producing
 far more than I asked for: 18 tests in Phase 0, and 11 in Phase 1 against a named list of
@@ -805,7 +840,7 @@ list costs me tests I would probably never have missed, and buys back the minute
 Phase 2's three slices need. If I were building this to run in production rather than to be
 read in a review, I would revert every one of these changes.
 
-**What I am taking from it.** This is the same lesson as Correction #2, which is the part
+**What I am taking from it.** This is the same lesson as Correction #1, which is the part
 worth writing down. There, every finding the pipeline surfaced was correct and I acted on
 all of them, and the aggregate was wrong. Here, every test the agent wrote was justified by
 the brief I gave it, and the aggregate was wrong. Both times the agent did exactly what I
@@ -1007,7 +1042,7 @@ Commit: fix(phase-2): soft-delete accounts and sign a session token (5d33b44)
 
 ---
 
-## Correction #4 — "additive column" was a property of the column, not of the code
+## Correction #3: "additive column" was a property of the column, not of the code
 
 **What I shipped.** ADR-0013 adds `session_token` and `deleted_at` to `users`, and I
 described them — in the ADR, the commit message and my report — as "additive columns,
@@ -1059,7 +1094,7 @@ Commit: fix(phase-2): migrate the users table on boot (4fc27c5)
 *previous* table shape and asserts a real request, not that `create_app` returned.
 
 It earns its place by having been paid for twice — the seed rental `seed_if_empty` never
-reconciled on an existing volume, and Correction #4's missing `ALTER TABLE`. Both were
+reconciled on an existing volume, and Correction #3's missing `ALTER TABLE`. Both were
 green across the whole suite, because every test in it builds its database from scratch,
 which is the one condition under which `create_all` does the migration for you.
 
@@ -1123,6 +1158,8 @@ four non-blocking findings are filed in BACKLOG.md.
 Commit: docs(phase-2): bring the README to Phase 2 reality (eb5b20a)
 
 ---
+
+# Timeline · Phase 3: the AI layer and production hardening
 
 ## [P3 · c1] Pre-submission doc audit against the brief
 
@@ -1223,7 +1260,7 @@ Commit: docs(phase-4): extend the wireframe-fidelity spec (397a0f8)
 
 ---
 
-## Correction #5 — the deploy path was a landmine, and the AI client was a test-extra
+## Correction #4: the deploy path was a landmine, and the AI client was a test-extra
 
 Two production defects found by the live verification, neither visible to a 118-green
 suite.
@@ -1334,6 +1371,8 @@ free-tier rate limit, with the fallback named as the design working. 123/123.
 Commit: feat(phase-3): cache the model's replies, never the rows (c4b561d)
 
 ---
+
+# Timeline · Phase 4: wireframe fidelity (elective)
 
 ## [P4 · c0] The design system enters the plan
 
@@ -1696,7 +1735,7 @@ Commit: feat(phase-4): the review dialog edits what it certifies (af9a3ac)
 
 ---
 
-## Correction #5 — a build succeeding is not evidence that a change landed
+## Correction #5: a build succeeding is not evidence that a change landed
 
 **What I did.** I patched source files all session with `python -c` scripts calling
 `str.replace`. When the target text does not match — a stray `?? ''`, a reflowed line, an
@@ -1942,7 +1981,7 @@ Commit: docs: put every account on the company domain (2770379)
 
 ---
 
-## Correction #6 — a stale deployment served a pre-auth build on a public URL
+## Correction #6: a stale deployment served a pre-auth build on a public URL
 
 **What happened.** While checking something unrelated — whether the admin account had been
 migrated to `@booksy.com` — a query against the live instance returned `200` for an
@@ -2192,7 +2231,7 @@ Commit: fix: the README's seed step runs (7eb83de)
 
 ---
 
-## Correction #7 — six instrument errors, one tell
+## Correction #7: six instrument errors, one tell
 
 The consolidation the earlier entries kept deferring. Three places in this log carry
 pieces of it — a "Correction candidate" at the review-dialog entry, a "fourth instrument
@@ -2431,7 +2470,7 @@ last two rollbacks went undetected without.
 proves only that *something* is serving. I polled the bundle hash instead and watched three
 attempts return `index-DoBvDVnp.js` before `index-CjDp7Hj-.js` appeared — the old build was
 still up for roughly a minute after `railway up` returned. Reporting the deploy done on the
-health check would have repeated Correction #5 exactly.
+health check would have repeated Correction #4 exactly.
 
 **And the browser lied after that.** The first live screenshot showed the *old* UI —
 flagged rows chipped `Available`, the old placeholder, ungrouped sort. The server was
@@ -2508,6 +2547,8 @@ question is asked the text is the question, not a substring, so the local filter
 down while results are showing and the full list returns beneath them.
 Commit: fix(phase-4): unclip the focus ring, move Clear to the results (90b47d3)
 
+# Timeline · Final polish
+
 ## [polish · c1] The AI's answer narrows the table it was asked about
 
 Diagnosed on the live deploy before editing, as directed. The busy state was real —
@@ -2566,6 +2607,8 @@ order as a product opinion, and the final-polish deviations. AI_LOG's last (pend
 SHAs were swept on the polish branch.
 Commit: docs: final polish — README at true scale, wireframe entries, retrospective (self)
 
+# Timeline · Submission review: the grilling's closures
+
 ## [review · c1] The answer outlived the question
 
 User-found: ask the AI, switch tabs, come back — empty bar, table still narrowed by
@@ -2622,3 +2665,26 @@ against the live URL before committing. And the README retrospective now closes 
 own arithmetic: the docs cost nothing marginal because they were written in the
 moment; the wasted hours bought the corrections log — waste versus tuition.
 Commit: chore(review): lifecycle rule, scheduled probe, honest arithmetic (self)
+
+# Timeline · Curation
+
+## [curation · c1] The comment diet
+
+Backend prose 1,397 → 571 lines (59% cut, AST-fingerprint identical before and
+after, 197 green). Frontend 676 → ~520. Kept: the why-not-recoverable set (delete
+writes first, the UPDATE is the decision, no StaticPool, persist does not commit,
+readonly-not-disabled, the -webkit mask ordering), one-line ADR pointers, module
+responsibility statements, test docstrings untouched. Stopped above the ~350 target
+where the next cut would take lines the keep-rules themselves protect. Also fixed a
+stale claim found mid-pass: styles.css still said "a gradient rather than a spinner".
+Commit: refactor(curation): comments earn their place or go (self)
+
+## [curation · c2] The reading path, and the log made navigable
+
+README gains the ten-minute tour: live demo, the three pillars by file, DATA_AUDIT,
+three named ADRs (0002, 0004, 0013) with 0008 and 0015 as further reading, and the
+corrections index. This log now opens with that index, the brief's four elements
+named, and the timeline grouped by phase. Corrections renumbered one to seven with
+the drift owned in place; four cross-references updated to match. PROMPT_TRAIL gains
+the session-to-ADR index. Em dashes rewritten out of README and CLAUDE.md.
+Commit: docs(curation): a ten-minute tour, an indexed log, three stale claims fixed (self)

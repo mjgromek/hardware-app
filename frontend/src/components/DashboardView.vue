@@ -27,37 +27,23 @@ const STATUSES = ['Available', 'In Use', 'Repair']
 
 const query = ref('')
 
-/** Type-to-filter: instant, local, and deliberately shallow.
- *
- * **Name and brand only, and that is a security boundary rather than a scope decision.**
- * ADR-0015 keeps the model's filter schema free of any predicate over `notes`, `history`
- * and `review_reason`, because a filter that can *select* on a restricted field leaks it
- * one query at a time — ask for "battery", get the Dell XPS back, and the notes have been
- * read without ever being displayed. A client-side filter over the same fields would be
- * the same oracle with a shorter round trip, and it would be worse: for an admin those
- * fields are actually present in the payload, so it would work.
- *
- * Two columns, listed explicitly. Not `Object.values(item)`, not "everything except the
- * restricted three" — an allow-list, so a field added later is excluded until somebody
- * decides otherwise.
- */
+/** Type-to-filter: name and brand only, and that is a security boundary — a
+ * client-side filter over `notes` would be ADR-0015's oracle with a shorter round
+ * trip. An allow-list, so a field added later is excluded until somebody decides. */
 const FILTERABLE = ['name', 'brand']
 
-//: The question the results answer, held so the header can say what is narrowing the
-//: table and so typing something new can be told apart from the asked text sitting there.
+//: The question the results answer, so new typing can be told apart from it.
 const asked = ref(null)
 
 const visible = computed(() => {
-  // An answer narrows the same table the type-to-filter narrows: one list, one mental
-  // model. The AI names rows; the rows themselves stay the table's own — same order,
-  // same sort, still intersected by the status chips.
+  // An answer narrows the same table the type-to-filter narrows: one list, one
+  // mental model. The AI names rows; the rows stay the table's own.
   if (props.searchResults) {
     const chosen = new Set(props.searchResults.items.map((item) => item.id))
     return props.items.filter((item) => chosen.has(item.id))
   }
-  // In flight, the text in the bar is a question, not a substring. Narrowing by it
-  // emptied the table for the whole call — six seconds of "No hardware matches this
-  // filter" as the only response to pressing Enter.
+  // In flight the bar's text is a question, not a substring — narrowing by it
+  // emptied the table for the whole call.
   if (props.searching) return props.items
   const needle = query.value.trim().toLowerCase()
   if (!needle) return props.items
@@ -91,35 +77,22 @@ watch(query, (text) => {
   }
 })
 
-// The same rule at mount. This component unmounts on every tab switch while the
-// answer lives above it in App state — so returning to the inventory produced an
-// empty bar over a table still narrowed by a question nobody could see any more.
-// The bar is the source of truth: empty bar, no question, whole table.
+// The same rule at mount: this component unmounts per tab switch while the answer
+// lives above it in App state — returning showed an empty bar over a table still
+// narrowed by a question nobody could see. Empty bar, no question, whole table.
 onMounted(() => {
   if (props.searchResults) emit('clear-search')
 })
 </script>
 
 <template>
-  <!-- Heading alone, search directly beneath it, as the wireframe has it. The lede
-       that used to sit between them is gone: it described what a table of hardware is
-       to somebody already looking at one, and it pushed the search box below the fold
-       on a laptop. The review count it carried now lives on the nav item, where it is
-       a link to the queue rather than a sentence about it. -->
   <h1>Hardware list</h1>
 
   <form class="panel panel-head search-bar" @submit.prevent="submitSearch">
-    <!-- One pill, full width. The visible label is gone and the placeholder carries the
-         wireframe's "Ask AI…" — a label above a search field that already says what it
-         is for is a second sentence saying the first one again. `aria-label` keeps it
-         named for anybody not reading the placeholder. -->
     <div class="search-field" :class="{ 'is-busy': props.searching }">
       <Icon name="search" class="search-glyph" :size="18" />
-      <!-- Not `disabled` while searching. Disabling drops focus to `<body>`, so a
-           keyboard user is thrown to the top of the page every time they ask something,
-           and a disabled input is unreadable to a screen reader mid-request. `aria-busy`
-           says the same thing without taking the control away, and `readonly` stops the
-           text changing under an in-flight query. -->
+      <!-- `readonly`, never `disabled`, while searching: disabling drops focus to
+           `<body>` and is unreadable to a screen reader mid-request. -->
       <input
         v-model="query"
         type="search"
@@ -128,43 +101,29 @@ onMounted(() => {
         :aria-busy="props.searching"
         :readonly="props.searching"
       />
-      <!-- While the model is thinking the sparkle becomes a spinner: motion exactly
-           where the question was typed. The gradient ring alone failed twice over —
-           the focus ring sits in its footprint at the same weight (Enter means the
-           field is focused, always), and a 2px sweep is below notice anyway. -->
+      <!-- The sparkle becomes a spinner in flight: the gradient ring cannot carry
+           the state — Enter means the field is focused, and the focus ring sits in
+           its exact footprint. -->
       <Icon v-if="!props.searching" name="sparkle" class="search-spark" :size="18" />
       <span v-else class="search-spinner" aria-hidden="true"></span>
     </div>
-    <!-- The gradient outline and the spinner are colour and motion, so they cannot be
-         the only signal. Polite, not assertive: the answer is worth interrupting for,
-         the wait is not. -->
+    <!-- Colour and motion cannot be the only signal. Polite: the answer is worth
+         interrupting for, the wait is not. -->
     <p class="visually-hidden" role="status" aria-live="polite">
       {{ props.searching ? 'Asking AI…' : '' }}
     </p>
-    <!-- No submit button: Enter submits, which is what a search field has taught
-         everyone to expect, and a button beside a full-width pill was a second target
-         for no gain. The form still has `@submit`, so Enter and assistive technology
-         both reach it.
-
-         Clear used to live here as well, appearing *inside* this 52px form the instant
-         results arrived — it overlapped the bar and read as something popping up over
-         the control you had just typed into. It belongs to the results rather than to
-         the input, so it now sits in their header beside the mode chip. -->
   </form>
 
   <div class="panel">
     <div class="panel-head">
       <h2>Hardware</h2>
-      <!-- A second surface for results taught two mental models for one list. Instead
-           the answer narrows this table, and this header says what is narrowing it:
-           the wait, then the question with its provenance and a way out. The mode chip
-           is the honesty ADR-0016 requires — a reviewer can tell whether the AI
-           answered or the keyword fallback did, from the screen alone. -->
+      <!-- The header says what is narrowing the table: the wait, then the question
+           with its provenance. The mode chip is ADR-0016's honesty — which path
+           answered, from the screen alone. No Clear button: the field's own ✕
+           empties the text, and edited text already drops the answer. -->
       <span v-if="props.searching" class="chip chip-role">
         Asking AI about “{{ query }}”…
       </span>
-      <!-- No Clear button: the search field's own ✕ empties the text, and edited
-           text already drops the answer. One control, one behaviour. -->
       <span
         v-else-if="props.searchResults"
         class="chip"

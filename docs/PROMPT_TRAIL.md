@@ -4,10 +4,35 @@ The prompts that shaped the architecture and design, in the order they happened.
 Append-only.
 
 Two parts, because the material differs. **Part I** is one grilling session, transcribed
-verbatim — the disagreements are the point, so the answers are preserved as given.
+verbatim; the disagreements are the point, so the answers are preserved as given.
 **Part II** is the architecture-shaping prompts from ordinary build sessions, each marked
 *verbatim* or *reconstructed* depending on whether the wording survived. Every entry names
 the commit and the ADR it produced, so a claim here can be checked against the code.
+
+## Index: which session produced which decision
+
+| Session | What it was | ADRs it produced or amended |
+| --- | --- | --- |
+| 1 | Grilling 1, whole-project scope | ADR-0001 to ADR-0005 |
+| 2 | Phase 0 build *(reconstructed)* | none; executed Session 1's decisions |
+| 3 | Wireframes are confidential, repo is public | none; created WIREFRAME_JUSTIFICATION.md |
+| 4 | Phase 1 red, and a Phase 0 defect exposed | ADR-0006 |
+| 5 | Phase 1 green, the enforcement point | none; applied ADR-0005 and ADR-0006 |
+| 6 | Pace, and pruning the working documents | none |
+| 7 | The Phase 1 UI, two routes the spec never had | none |
+| 8 | Security review triage | none; queued the finding ADR-0012 later closed |
+| 9 | Grilling 2, Phase 2 scope | ADR-0007 to ADR-0012 |
+| 10 | Agent-brief revision #2 | none; see Correction #2 |
+| 11 | Model assignment as an architectural choice | none |
+| 12 | `/security-review` at the Phase 2 gate | ADR-0013 |
+| 13 | mvp-reviewer: who owns the audit write | ADR-0010 (the transition owns its record) |
+| 14 | Grilling 3, Phase 3 scope | ADR-0014 to ADR-0017 |
+| 15 | The live verification that amended the spec | ADR-0016 timeout amendments |
+| 16 | Phase 4 UI: the flag verb's home, sounds | ADR-0018; ADR-0017 first amendment |
+| 17 | Measure it, do not look at it | none; produced ACCESSIBILITY.md |
+| 18 | The company domain, and the lockout check | ADR-0019 |
+| 19 | A review concludes; it does not only absolve | ADR-0017 second amendment |
+| 20 | The returner gets a channel | ADR-0020 |
 
 ---
 

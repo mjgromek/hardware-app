@@ -3,22 +3,8 @@ import { computed } from 'vue'
 
 import { displayState } from '../displayState.js'
 
-// Filled pills, as the wireframe draws them.
-//
-// Phase 4 tried dot-and-text first, on the argument that a filled pill makes the label
-// carry the hue. The wireframe is the reference and it shows pills, so this comes back
-// to them — see `docs/WIREFRAME_JUSTIFICATION.md`, where the dots entry is marked
-// superseded rather than deleted.
-//
-// The status enum is exactly Available / In Use / Repair (CONTEXT.md). Only the *label*
-// differs: "Rented" and "In Repair" are the wireframe's words and the ones an employee
-// says out loud, while the value the API sees is unchanged. `displayState` now owns that
-// translation, because the table's default sort needs the same answer — this file keeps
-// only the question it alone can answer, which is what colour each state wears.
-//
-//: `chip-flag` was written during the visual pass and never rendered by anything — the
-//: amber fill and ink are the `!` mark's, already measured at 6.65:1 in ACCESSIBILITY.md,
-//: so this reuses a token pair rather than introducing a fourth status colour.
+// Filled pills, as the wireframe draws them. `displayState` owns the enum→label
+// translation; this file answers only what colour each state wears.
 const TONES = {
   Available: 'chip-ok',
   Rented: 'chip-busy',

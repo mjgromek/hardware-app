@@ -1,13 +1,6 @@
-// Every request the app makes, in one place.
-//
-// Same origin (ADR-0001): no host, no CORS, no configuration to get wrong. The
-// session cookie rides along because it is a cookie on this origin, so nothing here
-// handles tokens.
-//
-// The 401 contract (ADR-0006): every data route refuses a caller without a session,
-// so any request can be the one that discovers the session is gone. `onUnauthorized`
-// is called for all of them, and the app turns that into the login screen rather than
-// each caller writing its own redirect.
+// Every request the app makes, in one place. Same origin (ADR-0001), so nothing
+// here handles tokens. Any request can be the one that discovers the session is
+// gone; `onUnauthorized` turns that into the login screen once, for all of them.
 
 let onUnauthorized = () => {}
 
@@ -30,11 +23,8 @@ async function request(method, path, body, { ownsUnauthorized = false } = {}) {
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
-  // A 401 means two different things and they must not share a message. From a data
-  // route it means the session is gone, and the app returns to the login screen. From
-  // the login route itself it means the credential was wrong — the caller is already
-  // on the login screen, and telling them their session ended when they simply
-  // mistyped a password sends them looking for a problem that does not exist.
+  // A 401 from a data route means the session is gone; from the login route it
+  // means the credential was wrong — two meanings that must not share a message.
   if (response.status === 401 && !ownsUnauthorized) {
     onUnauthorized()
     throw new ApiError(401, 'Your session has ended. Sign in again.')
@@ -93,18 +83,14 @@ export const api = {
   returnItem: (id, issue = null) =>
     request('POST', `/api/hardware/${id}/return`, issue ? { issue } : {}),
   forceReturn: (id, reason) => request('POST', `/api/hardware/${id}/force-return`, { reason }),
-  // The release carries the change it certifies (ADR-0017 as amended): one request,
-  // one transaction, one audit row. `edits` holds only the fields the admin actually
-  // changed — sending an unchanged field would look like a deliberate rewrite in the
-  // trail, and sending them all would blank anything the form did not know about.
+  // The release carries the change it certifies (ADR-0017): one request, one audit
+  // row. `edits` holds only the fields the admin actually changed.
   clearReview: (id, reason, edits = {}, outcome = 'released') =>
     request('POST', `/api/hardware/${id}/clear-review`, { reason, outcome, ...edits }),
   editHardware: (id, edits) => request('PATCH', `/api/hardware/${id}`, edits),
   flagReview: (id, reason) => request('POST', `/api/hardware/${id}/flag-review`, { reason }),
 
-  // The query is the caller's input; the filter object is the model's output and
-  // never crosses this boundary (ADR-0015). `mode` says which path answered — the
-  // UI shows it rather than hiding the fallback (ADR-0016).
+  // The filter object is the model's output and never crosses this boundary (ADR-0015).
   search: (query) => request('POST', '/api/search', { query }),
   runAudit: () => request('GET', '/api/admin/audit'),
 
