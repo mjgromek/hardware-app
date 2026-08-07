@@ -2058,3 +2058,12 @@ company domain — a stricter client-side refusal than `type="email"` gave. Veri
 browser: caret 0, typing `j.doe` yields `j.doe@booksy.com`, the suffix attack and
 off-domain addresses fail `checkValidity`, mixed case passes.
 Commit: feat(phase-4): only company addresses may be created (pending)
+
+---
+
+## [P4 · c27] Failing specs for the second review outcome
+
+Six red. Two of them passed on the first run for the wrong reason — the flag itself blocks
+rental and the reason itself failed the `fixed:` check, so neither could see the outcome
+it was named after. Strengthened until they can only pass for the reason claimed.
+Commit: test(phase-4): failing specs for concluding a review in Repair (pending)
