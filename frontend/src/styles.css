@@ -1083,10 +1083,10 @@ th[aria-sort] .sort-arrow {
   font-size: 14px;
 }
 
-.search-bar input[type='search']:focus-visible {
-  border-color: var(--line-strong);
-  background: var(--surface);
-}
+/* The focused state of this field lives in the Phase 4 finish section below, with the
+ * measurement it has to satisfy. A `--line-strong` version stood here and was shadowed
+ * by that later rule, so it styled nothing — removed rather than left as a second
+ * answer to the same question. */
 
 /* Magnifier left, sparkle right — both inside the pill, neither clickable. The sparkle
  * is the one accent-coloured mark in the table view, and it is there because "Ask AI"
@@ -1206,15 +1206,33 @@ th[aria-sort] .sort-arrow {
  * Sharing the page's grey made it read as a row sitting above the list rather than as a
  * different kind of thing — it asks a question of the inventory, it is not part of it. */
 .search-bar input[type='search'] {
-  border: 0;
+  /* Transparent rather than `0`, so focus can colour this border without the bar
+   * changing height. `box-sizing: border-box` and the fixed 52px keep the geometry
+   * identical in both states. */
+  border: 2px solid transparent;
   background: var(--ask-fill);
 }
 
+/* The one place the global focus ring is deliberately replaced rather than inherited.
+ *
+ * A 2px outline offset 2px from a 999px pill reads as a detached ring floating around
+ * the bar — the shape the wireframe's search field does not have. The indicator moves
+ * onto the bar itself: the border takes `--focus` and the fill lifts to the card
+ * surface, so the whole control changes state instead of acquiring a halo.
+ *
+ * `outline: none` is load-bearing and is the only such reset in this stylesheet, so the
+ * replacement has to carry WCAG 2.4.11 on its own. It does, and the numbers are in
+ * `docs/ACCESSIBILITY.md`: the border is 4.53:1 against the bar's own fill and 4.86:1
+ * against the page behind it, both over the 3:1 required.
+ *
+ * The fill shift is deliberately *not* doing that work — measured on its own it is
+ * 1.14:1 in light and 1.11:1 in dark, far under 3:1. It is supporting feedback; the
+ * border is the indicator. Removing the border and keeping only the fill would look
+ * tidier and would fail. */
 .search-bar input[type='search']:focus-visible {
-  border: 0;
-  background: var(--ask-fill);
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  border-color: var(--focus);
+  background: var(--surface);
+  outline: none;
 }
 
 /* Two adjacent toggles, not a dropdown. Both options visible, the same size, so picking

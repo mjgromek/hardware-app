@@ -2137,3 +2137,33 @@ four rows landed — but a count checked afterwards is not the loud failure the 
 gives before the fact, and "it worked this time" is precisely the reasoning that produced
 the non-negotiable.
 Commit: feat(phase-4): return with an issue, centred status, table ink with headroom (pending)
+
+---
+
+## [P4 · c31] The Ask AI focus indicator, and the collision audit
+
+Fixed the later rule rather than adding a third: `outline: none`, a 2px border in
+`--focus` and a fill lift to the card surface. The base rule's border became
+`2px solid transparent` so focus colours it without moving anything — verified in the
+browser, 52px in both states.
+
+**The measurement changed the design.** The fill shift alone is **1.14:1** light and
+**1.11:1** dark, nowhere near SC 2.4.11's 3:1 — a fill-only treatment would have looked
+tidier and failed. The border carries it: measured on *both* edges, since the adjacent
+colours are the focused fill inside and the page outside. Light 5.17:1 / 4.86:1, dark
+6.99:1 / 7.37:1. My first pass into ACCESSIBILITY.md measured against the *unfocused*
+fill, which is the state being replaced rather than the state being judged; corrected,
+and that row kept under its own honest label.
+
+**The collision audit found no second one.** Five `:focus-visible` rules exist and only
+the search bar's was declared twice. No rule anywhere resets `outline` — the one I just
+added is the only `outline: none` in the stylesheet, which is why it had to carry its own
+proof. Twenty-seven selectors are declared twice, but they are the "Phase 4, finish"
+override blocks doing what they were written to do; none of them touches a focus
+indicator. The dead `--line-strong` half of the search-bar pair was deleted rather than
+left as a second answer to the same question.
+
+**Logo and padding left alone**, per the standing instruction: 44px and 40px are already
+deliberate values, and "still looks small" without a number is not an instruction I can
+execute without inventing the target.
+Commit: fix(phase-4): the Ask AI focus indicator carries its own contrast (pending)

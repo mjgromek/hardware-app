@@ -40,6 +40,10 @@ without the numbers changing too.
 | Primary button label | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
 | Destructive button label | `#dc2626` | `#ffffff` | **4.83:1** | 4.5:1 | ✅ |
 | Focus ring | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
+| Ask AI focus border — inside edge, on the focused fill | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
+| Ask AI focus border — outside edge, on the page | `#2563eb` | `#f7f8fa` | **4.86:1** | 3.0:1 | ✅ |
+| Ask AI focus border vs the unfocused fill it replaces | `#2563eb` | `#eef0f4` | **4.53:1** | 3.0:1 | ✅ |
+| Ask AI fill shift *alone* | `#eef0f4` | `#ffffff` | **1.14:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 
 Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
@@ -63,6 +67,10 @@ Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
 | Primary button label | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
 | Destructive button label | `#f87171` | `#16181d` | **6.42:1** | 4.5:1 | ✅ |
 | Focus ring | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
+| Ask AI focus border — inside edge, on the focused fill | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
+| Ask AI focus border — outside edge, on the page | `#60a5fa` | `#101216` | **7.37:1** | 3.0:1 | ✅ |
+| Ask AI focus border vs the unfocused fill it replaces | `#60a5fa` | `#1e222a` | **6.27:1** | 3.0:1 | ✅ |
+| Ask AI fill shift *alone* | `#1e222a` | `#16181d` | **1.11:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 
 Amber `!` against the red In Repair pill: **1.82:1** — see the note below.
@@ -127,6 +135,14 @@ none of them to be colour.
 - **Focus visibility** is asserted by a `:focus-visible` rule with a 2px ring at 5.17:1
   (light) and 6.99:1 (dark), but the *2px* thickness and offset are not measured against
   SC 2.4.11's minimum-area requirement.
+- **The Ask AI bar is the one element that replaces that ring** rather than inheriting
+  it: `outline: none`, with a 2px border in `--focus` and a fill lift to the card
+  surface. It is the only `outline` reset in the stylesheet. The border's contrast is
+  measured in both tables above on **both** of its edges — the focused fill inside and
+  the page outside — because those are the adjacent colours SC 2.4.11 names, and clears
+  3:1 on each. The fill shift is supporting feedback only, at 1.14:1 / 1.11:1, and would
+  fail SC 2.4.11 if it were left to carry the state alone. Its area is not measured
+  against the minimum-area requirement, same gap as the global ring.
 - **`prefers-reduced-motion`** is respected in the two places motion exists (toast entry,
   tooltip fade), but no automated check enforces that a future animation honours it.
 - No **screen-reader pass**. The table has a `<caption>`, `scope="col"` headers and
