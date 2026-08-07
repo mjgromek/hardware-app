@@ -3,7 +3,7 @@
 // date. Both are server-side (`?status=`, `?sort=`) rather than client-side, because
 // those query parameters are the tested contract — filtering in the browser would
 // leave the endpoint's own filter unexercised by the product that depends on it.
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
 import Icon from './Icon.vue'
@@ -89,6 +89,14 @@ watch(query, (text) => {
     asked.value = null
     emit('clear-search')
   }
+})
+
+// The same rule at mount. This component unmounts on every tab switch while the
+// answer lives above it in App state — so returning to the inventory produced an
+// empty bar over a table still narrowed by a question nobody could see any more.
+// The bar is the source of truth: empty bar, no question, whole table.
+onMounted(() => {
+  if (props.searchResults) emit('clear-search')
 })
 </script>
 

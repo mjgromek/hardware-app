@@ -2565,3 +2565,13 @@ from the Documentation table. WIREFRAME_JUSTIFICATION: the nav labels, the defau
 order as a product opinion, and the final-polish deviations. AI_LOG's last (pending)
 SHAs were swept on the polish branch.
 Commit: docs: final polish — README at true scale, wireframe entries, retrospective (self)
+
+## [review · c1] The answer outlived the question
+
+User-found: ask the AI, switch tabs, come back — empty bar, table still narrowed by
+the stale answer. DashboardView remounts on every tab switch (`v-if` per view) while
+`searchResults` lives above it in App state; the remount reset the question but not
+the answer. The mount now applies the same rule typing does: the bar is the source of
+truth, so an empty bar drops the answer. Also: the reviewer-facing quota note beside
+the demo credentials, and the commit-count entry reworded to name the gate.
+Commit: fix(review): a remount drops the answer the bar no longer shows (self)

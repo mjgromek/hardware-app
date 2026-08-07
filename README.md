@@ -50,6 +50,13 @@ nothing. Deleting it deliberately keeps it deleted; a restart does not resurrect
 This is a separate account from the deployment's own bootstrap admin, whose credential
 stays in Railway's environment and is not published (ADR-0005).
 
+**If the AI answers in keyword mode:** the AI layer runs on Gemini's free tier, which
+rate-limits daily. When the quota is spent, semantic search hands over to the keyword
+fallback and *says so* on a labelled chip, and the auditor answers `503` with the reason
+rather than silently returning fewer findings. That is the design working, not a fault:
+ADR-0016 requires degradation to be announced, both behaviours are tested, and the quota
+resets on its own — ask again tomorrow and the same bar answers semantically.
+
 ### Restoring the demo
 
 Demonstrating the live instance consumes it: renting an item, recalling item 7 or clearing
@@ -215,9 +222,10 @@ Each of these works, and each cost something. The full table with reasoning is i
   checkout deterministically in the meantime.
   **Future:** point the trigger at `main` in the dashboard, then delete this entry
   and the CLAUDE.md warning that orders a `railway up` after every variable change.
-- **119 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
-  six times it, so it is acknowledged here rather than left for a reviewer to count.
-  (The number counts itself: this README line lands in commit 119.)
+- **119 commits at the final-polish gate, against a 15–20 target.** The target is in
+  `CLAUDE.md` and this is six times it, so it is acknowledged here rather than left for
+  a reviewer to count. (Fixes found in review after that gate add a few more; the figure
+  names the gate rather than chasing the tip.)
   **Why:** the same reasoning that produced 41 by Phase 2 holds at the true scale. TDD
   means two commits per slice by construction — a `test:` red and a `feat:` green — and
   the events that could not be batched each demanded their own cycle: a security fix
