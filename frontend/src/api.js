@@ -90,7 +90,13 @@ export const api = {
   rent: (id) => request('POST', `/api/hardware/${id}/rent`),
   returnItem: (id) => request('POST', `/api/hardware/${id}/return`),
   forceReturn: (id, reason) => request('POST', `/api/hardware/${id}/force-return`, { reason }),
-  clearReview: (id, reason) => request('POST', `/api/hardware/${id}/clear-review`, { reason }),
+  // The release carries the change it certifies (ADR-0017 as amended): one request,
+  // one transaction, one audit row. `edits` holds only the fields the admin actually
+  // changed — sending an unchanged field would look like a deliberate rewrite in the
+  // trail, and sending them all would blank anything the form did not know about.
+  clearReview: (id, reason, edits = {}) =>
+    request('POST', `/api/hardware/${id}/clear-review`, { reason, ...edits }),
+  editHardware: (id, edits) => request('PATCH', `/api/hardware/${id}`, edits),
   flagReview: (id, reason) => request('POST', `/api/hardware/${id}/flag-review`, { reason }),
 
   // The query is the caller's input; the filter object is the model's output and

@@ -235,6 +235,16 @@ function shown(value) {
 
           <td v-else-if="props.manage" class="cell-actions">
             <button
+              type="button"
+              class="icon-button"
+              :disabled="props.busyId === item.id"
+              :title="`Edit ${item.name}`"
+              :aria-label="`Edit ${item.name}`"
+              @click="emit('edit-hardware', item)"
+            >
+              <Icon name="pencil" />
+            </button>
+            <button
               v-if="item.status === 'In Use'"
               type="button"
               class="icon-button"

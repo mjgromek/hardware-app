@@ -1664,3 +1664,32 @@ synthetic-click "sort bug" — three now, all of them me believing a convenient 
 noisy signal.
 
 Commit: docs: park the suite slowdown as two findings, one unexplained (pending)
+
+---
+
+## [P4 · c15] The review dialog edits what it certifies
+
+`ReasonDialog` becomes an edit-plus-certification form: the six editable fields prefilled
+from the item, plus the mandatory `fixed:` note. The admin panel gets a pencil over the
+same fields with `requireReason: false`, and the Phase 1 comment at `AdminPanel.vue:5`
+explaining why edit was absent is deleted — it had been false since `0e0be61`.
+
+Only changed fields are sent, so an untouched empty field is not the same request as a
+deliberately cleared one, and the trail does not record a rewrite nobody made.
+
+**Verified:** the form prefills correctly — `Logitech MX Master 3`, `Logitech`,
+`10/10/2027` — which is ADR-0017's amendment reachable for the first time.
+**Not verified:** that submitting actually persists. Three scripted attempts to drive the
+submit failed for their own reasons and the item is still `2027-10-10`, unflagged nothing.
+The backend path is covered by `test_review_edits_the_item` and `test_notes_are_editable`,
+so what is unproven is the wiring between this form and that endpoint, not the endpoint.
+
+**Correction candidate — three instrument errors, one family.** The eyeballed contrast
+check reported as passing; the synthetic-click "sort bug" reported as a defect in shipped
+code; and a `str.replace` that matched nothing, wrote an identical file, built green, and
+led me to publish two wrong theories about Vue reactivity. Each is the same mistake: an
+observation reported as a finding without first checking the instrument that produced it.
+The third is the worst, because the instrument was my own edit and verifying it cost one
+`assert`.
+
+Commit: feat(phase-4): the review dialog edits what it certifies (pending)

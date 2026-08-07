@@ -276,6 +276,9 @@ function askClearReview(item) {
   override.value = {
     kind: 'clear-review',
     item,
+    //: The form is prefilled from the item, so the release can correct the record it
+    //: certifies (ADR-0017 as amended).
+    editable: true,
     title: 'Review this item',
     subject: `${item.name} — ${item.review_reason || 'flagged at import'}`,
     prompt: 'What was fixed? The note must start with "fixed:".',
@@ -316,17 +319,36 @@ function askFlagReview(finding) {
   }
 }
 
-function submitOverride(reason) {
+function askEditHardware(item) {
+  override.value = {
+    kind: 'edit',
+    item,
+    editable: true,
+    requireReason: false,
+    title: 'Edit item',
+    subject: item.name,
+    prompt: '',
+    confirm: 'Save changes',
+  }
+}
+
+function submitOverride(reason, edits = {}) {
   const { kind, item } = override.value
   override.value = null
   busyId.value = item.id
-  if (kind === 'force-return') {
+  if (kind === 'edit') {
+    if (!Object.keys(edits).length) {
+      busyId.value = null
+      return say('Nothing changed.')
+    }
+    act(() => api.editHardware(item.id, edits), `${item.name} updated`, sound.returned)
+  } else if (kind === 'force-return') {
     act(() => api.forceReturn(item.id, reason), `${item.name} recalled`)
   } else if (kind === 'flag-review') {
     act(() => api.flagReview(item.id, reason), `${item.name} is flagged and unrentable`)
   } else {
     act(async () => {
-      await api.clearReview(item.id, reason)
+      await api.clearReview(item.id, reason, edits)
       markResolved(item)
     }, `${item.name} released — resolved`)
   }
@@ -488,6 +510,7 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         @delete-hardware="deleteHardware"
         @force-return="askForceReturn"
         @clear-review="askClearReview"
+        @edit-hardware="askEditHardware"
         @flag-finding="askFlagReview"
         @run-audit="runAudit"
         @add-account="addAccount"
@@ -499,6 +522,8 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
 
   <ReasonDialog
     :open="override !== null"
+    :item="override?.editable ? override.item : null"
+    :require-reason="override?.requireReason !== false"
     :title="override?.title ?? ''"
     :subject="override?.subject ?? ''"
     :prompt="override?.prompt ?? ''"

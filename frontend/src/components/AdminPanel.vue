@@ -2,9 +2,12 @@
 // Admin: hardware and accounts on one screen, in that order, because hardware is what
 // the job is about and accounts are how people get in to do it.
 //
-// The wireframe's row actions are edit / repair / delete. Edit is not here — there is
-// no endpoint that changes a name or brand, and inventing one for a button would be a
-// control that fails. See WIREFRAME_JUSTIFICATION.md.
+// The wireframe's row actions are edit / repair / delete, and all three are here as of
+// Phase 4: `PATCH /api/hardware/{id}` covers name, brand, purchase date, serial,
+// category and notes. The Phase 1 comment explaining why edit was absent stood after
+// the endpoint shipped and is deleted rather than edited — it had been false since
+// 0e0be61.
+//
 import { ref } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
