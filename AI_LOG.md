@@ -1367,3 +1367,15 @@ and asserts a logged-in request serves the three new columns — the blind spot 
 cost two production defects, covered before the code exists. Seed id 10's backfill
 value deliberately left a product call; two findings filed in BACKLOG.
 Commit: test(phase-4): failing specs for the schema slice (pending)
+
+---
+
+## [P4 · c3] Schema slice green
+
+`/tdd` against the red pass, 134/134 in one green run. The migration mirrors the
+`users` pattern (PRAGMA inspection + ALTER, backfill guarded by `IS NULL`), and
+`date_added` is written from three directions that never disagree: boot backfill for
+rows that predate the column, `persist` for seeded rows, `add_item` as today for new
+devices. Seed id 10 stays null — an honest unknown, per the red pass's open pin.
+Add-device modal gains Serial number and the closed Category dropdown (wireframe).
+Commit: feat(phase-4): serial number, category and date added (pending)

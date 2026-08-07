@@ -333,6 +333,9 @@ def _items(session: Session, query) -> tuple[HardwareItem, ...]:
             notes=row["notes"],
             history=row["history"],
             assigned_to=row["assigned_to"],
+            serial_number=row["serial_number"],
+            category=row["category"],
+            date_added=row["date_added"],
         )
         for row in rows
     )

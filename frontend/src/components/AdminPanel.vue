@@ -46,7 +46,11 @@ function itemFor(finding) {
 }
 
 const addingHardware = ref(false)
-const newItem = ref({ name: '', brand: '', purchase_date: '' })
+const newItem = ref({ name: '', brand: '', purchase_date: '', serial_number: '', category: '' })
+
+//: The closed set the server enforces (422 outside it). Listed here only so the
+//: dropdown can render it — the server is the guard, this is the affordance.
+const CATEGORIES = ['Laptop', 'Mobile', 'Tablet', 'Monitor', 'Accessory']
 
 const newAccount = ref({ email: '', password: '', role: 'user' })
 
@@ -57,8 +61,10 @@ function submitHardware() {
     // both, and `""` would render as a brand that exists and is blank.
     brand: newItem.value.brand.trim() || null,
     purchase_date: newItem.value.purchase_date || null,
+    serial_number: newItem.value.serial_number.trim() || null,
+    category: newItem.value.category || null,
   })
-  newItem.value = { name: '', brand: '', purchase_date: '' }
+  newItem.value = { name: '', brand: '', purchase_date: '', serial_number: '', category: '' }
   addingHardware.value = false
 }
 
@@ -224,8 +230,19 @@ function submitAccount() {
           <input v-model="newItem.name" required autofocus placeholder="MacBook Pro 16&quot;" />
         </label>
         <label class="field">
+          <span>Serial number <span class="hint">optional</span></span>
+          <input v-model="newItem.serial_number" placeholder="MBP-2024-001" />
+        </label>
+        <label class="field">
           <span>Brand <span class="hint">optional</span></span>
           <input v-model="newItem.brand" placeholder="Apple" />
+        </label>
+        <label class="field">
+          <span>Category <span class="hint">optional</span></span>
+          <select v-model="newItem.category">
+            <option value="">Select a category</option>
+            <option v-for="value in CATEGORIES" :key="value" :value="value">{{ value }}</option>
+          </select>
         </label>
         <label class="field">
           <span>Purchase date <span class="hint">optional</span></span>

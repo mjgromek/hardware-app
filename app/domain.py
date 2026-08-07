@@ -46,12 +46,29 @@ class Account:
     role: Role
 
 
+class Category(str, Enum):
+    """The closed set of device categories (brainstorm §3 Phase 4).
+
+    Closed for the reason `Status` is: a sixth value is not a new option, it is a
+    bug — a category no screen renders and no filter matches makes the item
+    invisible rather than wrong, which is worse.
+    """
+
+    LAPTOP = "Laptop"
+    MOBILE = "Mobile"
+    TABLET = "Tablet"
+    MONITOR = "Monitor"
+    ACCESSORY = "Accessory"
+
+
 @dataclass(frozen=True)
 class HardwareItem:
     """A single piece of company equipment.
 
     ``source_id`` preserves the original seed ``id`` when a record had to be
     re-keyed. ``needs_review`` is a rentability guard, not a badge (ADR-0003).
+    The Phase 4 trio — ``serial_number``, ``category``, ``date_added`` — are all
+    nullable because the seed's eleven records carry none of them.
     """
 
     id: int
@@ -65,6 +82,9 @@ class HardwareItem:
     notes: str | None = None
     history: str | None = None
     assigned_to: str | None = None
+    serial_number: str | None = None
+    category: str | None = None
+    date_added: date | None = None
 
 
 @dataclass(frozen=True)

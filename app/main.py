@@ -22,7 +22,7 @@ from pydantic import BaseModel, StringConstraints
 
 from app import accounts, ai, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
-from app.domain import Account, Role, Status, visible_to
+from app.domain import Account, Category, Role, Status, visible_to
 from app.storage import (
     add_item,
     persist,
@@ -78,6 +78,11 @@ class NewHardware(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     brand: str | None = None
     purchase_date: date | None = None
+    serial_number: str | None = None
+    #: The closed set (brainstorm §3 Phase 4). Pydantic's enum validation is the
+    #: 422 — an off-enum category never reaches the database to become an item no
+    #: filter matches and no screen renders.
+    category: Category | None = None
 
 
 class StatusChange(BaseModel):
@@ -492,6 +497,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 name=new_item.name,
                 brand=new_item.brand,
                 purchase_date=new_item.purchase_date,
+                serial_number=new_item.serial_number,
+                category=new_item.category.value if new_item.category else None,
             )
             session.commit()
         return asdict(item)
