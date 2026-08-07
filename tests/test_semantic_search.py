@@ -378,3 +378,29 @@ def test_llm_key_absent_from_frontend_bundle(
             f"{response.request.method} {response.request.url.path} echoed the API "
             "key back to the browser"
         )
+
+
+def test_search_reuses_the_models_reply_for_a_repeated_query(
+    monkeypatch, app, admin_client: TestClient
+) -> None:
+    """The same question, asked twice, costs one model call — and whitespace or
+    casing differences are the same question.
+
+    What is cached is the model's *reply* (the filter object), never the rows: a
+    rental between two identical searches must show in the second answer, so the SQL
+    runs fresh every time and only the LLM round-trip is saved.
+    """
+    model = enable_ai(monkeypatch, app, reply={"brand": "Apple", "status": "Available"})
+
+    first = search(admin_client, "apple gear available today")
+    second = search(admin_client, "  Apple   GEAR available today ")
+
+    assert first.status_code == 200 and second.status_code == 200
+    assert mode_of(first) == mode_of(second) == "semantic"
+    assert ids_in(first) == ids_in(second)
+    assert len(model.prompts) == 1, (
+        "a repeated query (normalised: casing and whitespace) must be served from "
+        "the cached reply — the free tier rate-limits, and every duplicate call "
+        f"spends quota to learn nothing. The model was asked {len(model.prompts)} "
+        "times"
+    )
