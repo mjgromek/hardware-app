@@ -2575,3 +2575,20 @@ the answer. The mount now applies the same rule typing does: the bar is the sour
 truth, so an empty bar drops the answer. Also: the reviewer-facing quota note beside
 the demo credentials, and the commit-count entry reworded to name the gate.
 Commit: fix(review): a remount drops the answer the bar no longer shows (self)
+
+## [review · c2-red] The ambiguous date the self-grilling found
+
+Red first: "05-04-2023" must quarantine with both readings named, date None, flagged;
+"22-05-2023" and "04-04-2023" still parse — one legal reading each. The old suite
+pinned "01-02-2020 → 1 February" as a feature; that case now asserts the refusal.
+Commit: test(review): ambiguous dates refuse to choose (self)
+
+## [review · c2] A parse with exactly one legal reading
+
+The grilling's Q1 landed: normalise_purchase_date silently chose day-first on
+"05-04-2023" — the ADR's own showpiece making the judgment the ADR forbids, held up
+only by the seed containing an unambiguous date. The suite had pinned the guess as a
+feature. Now: two legal readings quarantine with both named, no date stored, flagged
+for a human; one reading (22-05, 04-04) still imports. ADR-0002 amended with the
+sharpened rule; DATA_AUDIT's boundary paragraph corrected. 196 green.
+Commit: feat(review): an ambiguous date quarantines instead of choosing (self)

@@ -94,8 +94,10 @@ free-text `notes` and `history` is explicitly outside its remit.
 Three rows were left alone on that basis.
 
 **`brand: "Appel"` (id 9).** Parsing a field is structural; correcting a value is
-not. Reading `"22-05-2023"` as a date is deterministic — the field has a defined
-type and two candidate formats, and normalising it loses nothing. Reading
+not. Reading `"22-05-2023"` as a date is deterministic — 22 cannot be a month, so
+the string has exactly one legal reading, and normalising it loses nothing. (The
+rule is one-legal-reading, not two-candidate-formats: a date like `"05-04-2023"`
+reads both ways and quarantines instead — ADR-0002 as amended.) Reading
 `"Appel"` as `"Apple"` is a guess about intent, correct only because a human
 recognises the brand. The typo is the Inventory Auditor's to surface.
 `test_seed_imports_non_iso_date_without_quarantining` pins both halves on this one

@@ -24,7 +24,7 @@ from typing import Any, Mapping
 import pytest
 
 from app.domain import HardwareItem, QuarantineRecord, Status
-from scripts.seed import ingest, normalise_purchase_date
+from scripts.seed import AmbiguousDate, ingest, normalise_purchase_date
 
 # Injected rather than read from the clock, so plausibility checks are deterministic.
 TODAY = date(2026, 8, 6)
@@ -119,15 +119,63 @@ def test_seed_rekeys_duplicate_id() -> None:
     ("raw", "expected"),
     [
         ("2023-05-22", date(2023, 5, 22)),  # already ISO
-        ("22-05-2023", date(2023, 5, 22)),  # the seed's stray DD-MM-YYYY
-        ("01-02-2020", date(2020, 2, 1)),   # day-first, not month-first
+        ("22-05-2023", date(2023, 5, 22)),  # the seed's stray DD-MM-YYYY: 22 forces day-first
+        ("13-01-2020", date(2020, 1, 13)),  # first field above 12 — one reading
+        ("04-04-2023", date(2023, 4, 4)),   # transposition yields the same date — one reading
         (None, None),                       # id 10's null date
         ("", None),                         # empty is absent, not invalid
     ],
 )
 def test_seed_normalises_date_formats(raw: str | None, expected: date | None) -> None:
-    """A seed purchase date parses from either format; absence yields None."""
+    """A purchase date with exactly one legal reading parses; absence yields None."""
     assert normalise_purchase_date(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["05-04-2023", "01-02-2020", "12-11-2021"])
+def test_ambiguous_date_refuses_to_choose(raw: str) -> None:
+    """Both fields could be the month, the readings differ — parsing stops.
+
+    A parse with exactly one legal reading is structural; picking between two is
+    the same guess about intent ADR-0002 refuses over ``"Appel"``. The earlier
+    version of this suite pinned ``01-02-2020 → 1 February`` as a feature — the
+    silent day-first judgment the self-grilling caught.
+    """
+    with pytest.raises(AmbiguousDate) as excinfo:
+        normalise_purchase_date(raw)
+    assert len(excinfo.value.readings) == 2, (
+        "the refusal names both candidate readings so the quarantine reason can"
+    )
+
+
+def test_seed_quarantines_ambiguous_date() -> None:
+    """An ambiguous date quarantines with both readings named, like an off-enum status.
+
+    ``"05-04-2023"`` is 5 April read day-first and 4 May read month-first. The item
+    imports with no date — the weakest claim the evidence supports — the original
+    value survives verbatim in the quarantine payload, and ``needs_review`` hands
+    the ruling to a human (ADR-0003 blocks rental meanwhile).
+    """
+    records = [_record(id=3, name="Kindle Oasis", purchaseDate="05-04-2023")]
+
+    report = ingest(records, today=TODAY)
+
+    item = _imported_by_name(report, "Kindle Oasis")
+    assert item.purchase_date is None, (
+        "an ambiguous date must not be stored under either reading; storing one "
+        f"is the judgment ADR-0002 forbids — got {item.purchase_date!r}"
+    )
+    assert item.needs_review is True, (
+        "which date is true is an open question only a human can settle"
+    )
+
+    record = _quarantine_for(report, 3)
+    assert "2023-04-05" in record.reason and "2023-05-04" in record.reason, (
+        "the reason must name both readings so the admin ruling on it does not "
+        f"have to re-derive the ambiguity; got {record.reason!r}"
+    )
+    assert record.payload["purchaseDate"] == "05-04-2023", (
+        "the original value survives verbatim as evidence"
+    )
 
 
 def test_seed_imports_non_iso_date_without_quarantining() -> None:
