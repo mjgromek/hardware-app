@@ -1,8 +1,8 @@
-# ADR-0008 — The atomic claim, and what a refusal says
+# ADR-0008: The atomic claim, and what a refusal says
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
-- **Source:** Grilling 2, Q5/Q9/Q14 — `docs/PROMPT_TRAIL.md` Session 9
+- **Source:** Grilling 2, Q5/Q9/Q14, in `docs/PROMPT_TRAIL.md` Session 9
 
 ## Context
 
@@ -19,7 +19,7 @@ an `UPDATE hardware SET status='In Use' WHERE id=:id AND status='Available'` plu
 `409`. Guards keep the pre-checks that produce readable reasons.
 
 `rentals.py` owns the SQL rather than delegating to `app/storage.py`, whose docstring says
-it "makes no decisions" — a `WHERE status='Available'` clause is a decision.
+it "makes no decisions": a `WHERE status='Available'` clause is a decision.
 
 **Refusal reasons are one per cause, not one per timing.** `Repair`, `In Use`,
 `needs_review` each get their own readable `409`. The race loser receives the `In Use`
@@ -34,6 +34,6 @@ reason.
 - A caller who loses a race is told "somebody else has it", which by the time it is told
   is simply the current state. A client rendering "another user claimed this microsecond
   before you" would leak implementation detail as UX.
-- **Trade-off accepted:** the pre-check and the atomic write can disagree under load — a
+- **Trade-off accepted:** the pre-check and the atomic write can disagree under load, so a
   guard can pass and the `UPDATE` still match zero rows. That is correct and is the point;
   the pre-check exists for the message, not for the decision.

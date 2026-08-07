@@ -2698,3 +2698,11 @@ handful of shrinks); the over-build is the elective sound system and the 4:1
 doc-to-code ratio, both of which this brief grades. Nothing applied within the hour
 before submission, deliberately.
 Commit: docs: over-engineering audit findings, unapplied (self)
+
+## [curation · c4] Em dashes out of the reference docs
+
+All 20 ADRs, CONTEXT, AGENT_PIPELINE, DATA_AUDIT and ACCESSIBILITY rewritten to
+zero, sentence by sentence rather than by swapping punctuation. Four protected sets
+found and preserved: the glyph the table renders in empty cells, quoted git subjects,
+and PROMPT_TRAIL's verbatim prompts.
+Commit: docs(curation): em dashes out of the ADRs and reference docs (self)

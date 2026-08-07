@@ -1,8 +1,8 @@
-# ADR-0019 — Every account is on the company domain
+# ADR-0019: Every account is on the company domain
 
 - **Status:** Accepted
 - **Date:** 2026-08-07
-- **Source:** Phase 4 — the lockout check performed before implementing domain validation
+- **Source:** Phase 4, the lockout check performed before implementing domain validation
 
 ## Context
 
@@ -33,7 +33,7 @@ Two properties make that safe rather than merely lucky:
   `POST /api/users`, so it never traverses the validated path. The exemption is structural
   rather than a special case somebody has to remember.
 - With the defaults now on-domain, there is no address anywhere in the project that the
-  rule would reject — so the exemption is not load-bearing even where it exists.
+  rule would reject, so the exemption is not load-bearing even where it exists.
 
 **Not at login.** A login check validates an address that was already validated when the
 account was made, and its only distinctive power is to lock out accounts that predate the
@@ -45,7 +45,7 @@ rule. That is the failure mode, not the feature.
   Changing `ADMIN_EMAIL` alone does nothing to an existing volume: `bootstrap_admin` runs
   only when no admin exists, so a redeploy will *not* create `admin@booksy.com` beside it.
   Migrating means creating the new admin through the API and soft-deleting the old one.
-- Once soft-deleted, ADR-0013 **permanently reserves** `admin@hardwarehub.internal` — the
+- Once soft-deleted, ADR-0013 **permanently reserves** `admin@hardwarehub.internal`: the
   row is retained, so the address can never be reissued and the audit trail keeps naming
   the actor it always named.
 - A fresh local database now bootstraps `admin@booksy.com` / `admin`, so a clone plus
@@ -55,5 +55,5 @@ rule. That is the failure mode, not the feature.
   to be written.
 - **Trade-off accepted:** a deployment for a different company cannot use this default and
   must set `ADMIN_EMAIL`. It is a demo instance for one named company, and the alternative
-  — a domain in configuration, validated against itself — is a generality nothing here
+  of a domain in configuration, validated against itself, is a generality nothing here
   needs.

@@ -1,8 +1,8 @@
-# ADR-0012 — Who sees what on a hardware item
+# ADR-0012: Who sees what on a hardware item
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
-- **Source:** Grilling 2, Q15 — `docs/PROMPT_TRAIL.md` Session 9
+- **Source:** Grilling 2, Q15, in `docs/PROMPT_TRAIL.md` Session 9
 
 ## Context
 
@@ -32,8 +32,8 @@ which colleague is holding which laptop.
   without service" lives, and Phase 3's auditor writes findings into the same fields.
 - **`GET /api/hardware`'s payload now depends on the caller's role**, which changes the
   contract table in `tests/conftest.py` and needs a test that a `user` does not receive
-  the restricted fields — a serialiser that forgets is invisible to every existing test.
+  the restricted fields, because a serialiser that forgets is invisible to every existing test.
 - **Trade-off accepted:** a `user` can no longer see why an item is flagged, only that it
   is. The review queue becomes an admin screen in substance. That is consistent with
-  ADR-0003 — the flag's job for a non-admin is to explain why they cannot rent it, and
+  ADR-0003: the flag's job for a non-admin is to explain why they cannot rent it, and
   the `409` reason already does that.

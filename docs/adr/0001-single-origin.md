@@ -1,4 +1,4 @@
-# ADR-0001 — Single-origin deployment
+# ADR-0001: Single-origin deployment
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
@@ -15,7 +15,7 @@ difference is load-bearing: it decides whether the frontend and API share a host
 which in turn decides the CORS story, the cookie policy available to the auth
 layer, and how many deploy pipelines exist.
 
-Left undecided, this blocks the auth mechanism decision — a same-site cookie is
+Left undecided, this blocks the auth mechanism decision: a same-site cookie is
 trivial on one origin and requires `SameSite=None; Secure` plus CSRF handling
 across two.
 
@@ -33,7 +33,7 @@ single origin.
 - **This deletes `test_cors_rejects_unknown_origin` from the §11 test list.** No
   cross-origin path exists for the application to reject, so the test would assert
   a condition the architecture already makes unreachable. A test that cannot
-  meaningfully fail is worse than an absent one — it reads as cargo cult to anyone
+  meaningfully fail is worse than an absent one: it reads as cargo cult to anyone
   reviewing the suite. It is replaced by an authorization test that exercises a
   path that genuinely exists.
 

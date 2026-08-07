@@ -1,4 +1,4 @@
-# ADR-0002 — Ingestion validates structure only
+# ADR-0002: Ingestion validates structure only
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
@@ -7,7 +7,7 @@
 ## Context
 
 §7.1 catalogues ten defect classes across the 11 seed records. Eight are
-structural — a duplicate primary key (`id: 4` twice), a status outside the enum
+structural: a duplicate primary key (`id: 4` twice), a status outside the enum
 (`"Unknown"`), a purchase date in the future (`2027-10-10`), a `DD-MM-YYYY` date
 among ISO ones, an empty brand, a null date, an orphan rental, a non-uniform
 schema.
@@ -20,7 +20,7 @@ the database deliberately, as material for the MVP 3 Inventory Auditor to find.
 The grilling identified a fork that had not been faced. "Battery swelling" and
 "liquid damage" are keyword-findable. If ingestion *could* have detected them and
 was written not to, then the problem the AI layer solves was manufactured for it
-to solve — the most damaging available reading of an AI-centred submission.
+to solve, the most damaging available reading of an AI-centred submission.
 
 ## Decision
 
@@ -32,11 +32,11 @@ The boundary is deterministic-versus-judgment, and it is declared here rather th
 discovered later.
 
 **Parsing a field is structural; correcting a value is judgment.** Reading
-`"22-05-2023"` as a date is deterministic — the field has a defined type and two
+`"22-05-2023"` as a date is deterministic: the field has a defined type and two
 candidate formats, and normalising it loses nothing. Reading `brand: "Appel"` as
 `"Apple"` is a guess about intent, correct only because a human recognises the
 brand. Ingestion therefore normalises date formats and leaves `"Appel"` exactly as
-the seed wrote it. The typo is the auditor's to surface — and as of Phase 2's planning
+the seed wrote it. The typo is the auditor's to surface, and as of Phase 2's planning
 that is written into `brainstorm.md` §3 Phase 3 scope and pinned by
 `test_auditor_flags_misspelled_brand`, so the deferral has a named owner rather than
 being a decision nobody follows up. An unfixed typo that nothing ever finds is
@@ -45,26 +45,26 @@ indistinguishable from an oversight.
 **An off-enum status maps to `Available` + `needs_review`, not `Repair`.** The
 seed's `"Unknown"` tells us the record is unidentifiable, not that the item is
 broken; `Repair` would assert a physical fact ingestion has no evidence for.
-Rentability does not depend on the choice — the ADR-0003 guard blocks a flagged
-item under either status — so the status should carry the weakest claim the
+Rentability does not depend on the choice, since the ADR-0003 guard blocks a flagged
+item under either status, so the status should carry the weakest claim the
 evidence supports.
 
-## Amended 2026-08-07 — the parse rule, sharpened by its own example
+## Amended 2026-08-07: the parse rule, sharpened by its own example
 
 A self-grilling for the submission defense found this ADR's showpiece enforcing less
 than the ADR claimed. The text says parsing `"22-05-2023"` is deterministic; the parser
 as written tried ISO then day-first and **silently accepted day-first on ambiguous
-input** — `"05-04-2023"` returned 5 April, a guess about intent made by the exact
+input**: `"05-04-2023"` returned 5 April, a guess about intent made by the exact
 function this document holds up as the structural side of the line. The suite pinned
 the guess as a feature (`01-02-2020 → 1 February`). The boundary held only because the
 seed happened to contain a date whose day cannot be a month.
 
 The rule, stated as a principle of the system rather than a property of the input:
 **a parse with exactly one legal reading is structural; a value with two quarantines,
-with both readings named in the reason** — the same treatment as an off-enum status.
+with both readings named in the reason**, the same treatment as an off-enum status.
 No date is stored (the weakest claim), the original survives verbatim in the payload,
-and `needs_review` hands the choice to a human. `"22-05-2023"` still imports — 22
-cannot be a month. `"04-04-2023"` still imports — the transposition lands on the same
+and `needs_review` hands the choice to a human. `"22-05-2023"` still imports because 22
+cannot be a month. `"04-04-2023"` still imports because the transposition lands on the same
 day, so nothing is being chosen.
 
 Pinned by `test_ambiguous_date_refuses_to_choose` and
@@ -81,8 +81,8 @@ Pinned by `test_ambiguous_date_refuses_to_choose` and
 
 - **The auditor now has to earn its place.** If it only ever flags the two records
   a keyword scan would catch, this boundary was a rationalisation. It is therefore
-  required to flag record 10 — empty brand, null purchase date, `"Unknown"` status,
-  no notes at all — as unidentifiable and needing physical audit. That is a
+  required to flag record 10 (empty brand, null purchase date, `"Unknown"` status,
+  no notes at all) as unidentifiable and needing physical audit. That is a
   judgment with no keyword signature, and it is the test of whether the AI layer
   does anything a regex could not.
 

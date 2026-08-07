@@ -1,4 +1,4 @@
-# Accessibility — measured, not asserted
+# Accessibility: measured, not asserted
 
 Contrast ratios for every text-on-surface and indicator-on-surface pair in both themes,
 computed from the WCAG 2.1 relative-luminance formula against the token values in
@@ -13,7 +13,7 @@ is falsifiable, so these are numbers somebody can recompute.
 **Thresholds.** WCAG 2.1 AA: **4.5:1** for body text, **3:1** for non-text indicators
 (the focus ring, the amber border) under SC 1.4.11. Every pair below meets its threshold.
 
-Statuses are **filled pills**, not dots — the dot experiment was reverted to match the
+Statuses are **filled pills**, not dots; the dot experiment was reverted to match the
 wireframe, so each status pair below is *text on a fill* and carries the 4.5:1 text
 threshold rather than the 3:1 indicator one. That is the stricter test, and all six pass.
 
@@ -32,22 +32,22 @@ without the numbers changing too.
 | Muted text on page | `#6a7283` | `#f7f8fa` | **4.55:1** | 4.5:1 | ✅ |
 | **Table content** (dates, holder, `—`) | `#4a5160` | `#ffffff` | **7.96:1** | 4.5:1 | ✅ |
 | **Table content on page** | `#4a5160` | `#f7f8fa` | **7.49:1** | 4.5:1 | ✅ |
-| Pill — Available | `#ffffff` | `#15803d` | **5.02:1** | 4.5:1 | ✅ |
-| Pill — Rented | `#454b58` | `#eceef2` | **7.53:1** | 4.5:1 | ✅ |
-| Pill — In Repair | `#ffffff` | `#dc2626` | **4.83:1** | 4.5:1 | ✅ |
+| Pill: Available | `#ffffff` | `#15803d` | **5.02:1** | 4.5:1 | ✅ |
+| Pill: Rented | `#454b58` | `#eceef2` | **7.53:1** | 4.5:1 | ✅ |
+| Pill: In Repair | `#ffffff` | `#dc2626` | **4.83:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#7c4a02` | `#fef3c7` | **6.65:1** | 4.5:1 | ✅ |
 | Amber `!` border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 | Primary button label | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
 | Destructive button label | `#dc2626` | `#ffffff` | **4.83:1** | 4.5:1 | ✅ |
 | Focus ring | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
-| Ask AI focus ring — inside edge, on the focused fill | `#7f8694` | `#ffffff` | **3.66:1** | 3.0:1 | ✅ |
-| Ask AI focus ring — outside edge, on the page | `#7f8694` | `#f7f8fa` | **3.44:1** | 3.0:1 | ✅ |
+| Ask AI focus ring, inside edge, on the focused fill | `#7f8694` | `#ffffff` | **3.66:1** | 3.0:1 | ✅ |
+| Ask AI focus ring, outside edge, on the page | `#7f8694` | `#f7f8fa` | **3.44:1** | 3.0:1 | ✅ |
 | Ask AI focus halo *alone*, 0.22 alpha | `#e2e4e8` | `#ffffff` | **1.27:1** | 3.0:1 | ❌ decoration |
 | Ask AI focus halo *alone*, at 0.60 alpha | `#a6abb5` | `#ffffff` | **2.03:1** | 3.0:1 | ❌ cannot reach 3:1 at any alpha |
 | Ask AI fill shift *alone* | `#eef0f4` | `#ffffff` | **1.14:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 
-Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
+Amber `!` against the red In Repair pill: **1.52:1**. See the note below.
 
 ### Dark theme
 
@@ -60,27 +60,27 @@ Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
 | Muted text on page | `#79818f` | `#101216` | **4.78:1** | 4.5:1 | ✅ |
 | **Table content** (dates, holder, `—`) | `#b9c0cc` | `#16181d` | **9.70:1** | 4.5:1 | ✅ |
 | **Table content on page** | `#b9c0cc` | `#101216` | **10.24:1** | 4.5:1 | ✅ |
-| Pill — Available | `#052e16` | `#4ade80` | **8.55:1** | 4.5:1 | ✅ |
-| Pill — Rented | `#b3bac6` | `#23262d` | **7.76:1** | 4.5:1 | ✅ |
-| Pill — In Repair | `#1c0e0e` | `#f87171` | **6.79:1** | 4.5:1 | ✅ |
+| Pill: Available | `#052e16` | `#4ade80` | **8.55:1** | 4.5:1 | ✅ |
+| Pill: Rented | `#b3bac6` | `#23262d` | **7.76:1** | 4.5:1 | ✅ |
+| Pill: In Repair | `#1c0e0e` | `#f87171` | **6.79:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#fbbf24` | `#2c2312` | **9.28:1** | 4.5:1 | ✅ |
 | Amber `!` border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 | Primary button label | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
 | Destructive button label | `#f87171` | `#16181d` | **6.42:1** | 4.5:1 | ✅ |
 | Focus ring | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
-| Ask AI focus ring — inside edge, on the focused fill | `#6f7787` | `#16181d` | **3.94:1** | 3.0:1 | ✅ |
-| Ask AI focus ring — outside edge, on the page | `#6f7787` | `#101216` | **4.16:1** | 3.0:1 | ✅ |
+| Ask AI focus ring, inside edge, on the focused fill | `#6f7787` | `#16181d` | **3.94:1** | 3.0:1 | ✅ |
+| Ask AI focus ring, outside edge, on the page | `#6f7787` | `#101216` | **4.16:1** | 3.0:1 | ✅ |
 | Ask AI fill shift *alone* | `#1e222a` | `#16181d` | **1.11:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 
-Amber `!` against the red In Repair pill: **1.82:1** — see the note below.
+Amber `!` against the red In Repair pill: **1.82:1**. See the note below.
 
 ---
 
 ## The one thing the numbers changed
 
 Two pairs failed on first measurement, both `--ink-faint`, and both were fixed by shifting
-the token rather than the layout — hue and saturation held, lightness walked until the
+the token rather than the layout: hue and saturation held, lightness walked until the
 threshold cleared on **both** the card and the page surface:
 
 | | Was | Ratio | Now | Ratio |
@@ -93,7 +93,7 @@ the sort arrows and the signed-in address in the sidebar. All of it was below AA
 themes, which is the kind of failure that never gets reported because the people who can
 read it never notice and the people who cannot assume the fault is theirs.
 
-## The amber `!` beside the red In Repair pill — the check that did not pass
+## The amber `!` beside the red In Repair pill: the check that did not pass
 
 I claimed this one passed by eye. Measured, the two colours sit **1.52:1** apart in light
 and **1.82:1** in dark. That is a luminance ratio, and a low one: the amber mark and the
@@ -105,27 +105,27 @@ same colour.
 `!` and the red pill are both signals that an item cannot be taken, and pulling them apart
 in lightness would either make the amber compete with the Repair red for "stop" or push it
 toward Available's fill. WCAG does not require two adjacent indicators to contrast with
-each other — it requires each to be legible in itself, and both are.
+each other; it requires each to be legible in itself, and both are.
 
 **The narrowest margin in the system is the In Repair pill in light mode: white on
 `#dc2626`, 4.83:1 against a 4.5:1 requirement.** It passes, with 0.33 to spare. Worth
-knowing before anybody nudges that red darker for aesthetic reasons — there is very little
+knowing before anybody nudges that red darker for aesthetic reasons, because there is very little
 room, and the same red is the destructive-button ink at exactly the same ratio.
 
 What makes it safe is that **colour is never the only signal**, which is SC 1.4.1's actual
 requirement:
 
-- the two live in **different columns** — the `!` in Actions, the pill in Status
+- the two live in **different columns**, the `!` in Actions, the pill in Status
 - they are **different shapes**: a 32px bordered square carrying a glyph, versus a
   fixed-width filled pill
-- the pill **is its word** — "Available", "Rented", "In Repair" — so the status never
+- the pill **is its word**, "Available", "Rented", "In Repair", so the status never
   depends on colour at all
 - the flagged row carries a **`Needs review` chip in the Review column** and an amber edge
   marker on the row itself
 - the `!` has an `aria-label` naming the review reason, and is keyboard-focusable so the
   tooltip is reachable without a pointer
 
-So the honest statement is not "the amber reads clearly against the red" — it is that a
+So the honest statement is not "the amber reads clearly against the red". It is that a
 reader who cannot tell them apart by colour still has four other ways to know, and needs
 none of them to be colour.
 
@@ -137,7 +137,7 @@ none of them to be colour.
   SC 2.4.11's minimum-area requirement.
 - **The Ask AI bar is the one element that replaces that ring** rather than inheriting
   it: `outline: none`, with a **two-layer box-shadow** and a fill lift to the card
-  surface. The indicator is layer 1 — an opaque 2px ring at zero blur, which is
+  surface. The indicator is layer 1, an opaque 2px ring at zero blur, which is
   geometrically a ring but a solid colour with a hard edge, and therefore measurable.
   Layers 2 and 3 are a translucent halo with blur; they are what make it read as soft and
   they carry nothing.
@@ -148,13 +148,13 @@ none of them to be colour.
   alpha and still only 2.03:1 at 0.60. There is no alpha at which a pale ring reaches
   3:1. The design keeps the soft appearance by pairing the halo with an opaque ring
   rather than by making the whole indicator pale. It is the only `outline` reset in the stylesheet. The border's contrast is
-  measured in both tables above on **both** of its edges — the focused fill inside and
-  the page outside — because those are the adjacent colours SC 2.4.11 names, and clears
+  measured in both tables above on **both** of its edges, the focused fill inside and
+  the page outside, because those are the adjacent colours SC 2.4.11 names, and clears
   3:1 on each. The fill shift is supporting feedback only, at 1.14:1 / 1.11:1, and would
   fail SC 2.4.11 if it were left to carry the state alone. Its area is not measured
   against the minimum-area requirement, same gap as the global ring.
 - **`prefers-reduced-motion`** is respected in the two places motion exists (toast entry,
   tooltip fade), but no automated check enforces that a future animation honours it.
 - No **screen-reader pass**. The table has a `<caption>`, `scope="col"` headers and
-  `aria-sort` on the sortable columns, and the row actions carry `aria-label`s — none of
+  `aria-sort` on the sortable columns, and the row actions carry `aria-label`s, and none of
   which has been driven with an actual screen reader.

@@ -1,13 +1,13 @@
-# ADR-0013 — Accounts are soft-deleted, and sessions name a token
+# ADR-0013: Accounts are soft-deleted, and sessions name a token
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
-- **Source:** `/security-review` at the Phase 2 gate — two findings, both reproduced
+- **Source:** `/security-review` at the Phase 2 gate, two findings, both reproduced
 
 ## Context
 
 `users.id` is declared `Integer, primary_key=True, autoincrement=True`, which SQLAlchemy
-compiles for SQLite as a plain rowid alias — **no `AUTOINCREMENT` keyword**. Deleting the
+compiles for SQLite as a plain rowid alias, with **no `AUTOINCREMENT` keyword**. Deleting the
 highest-id account frees its number, and the next account created is handed it.
 
 Three things were keyed on that number, and all three broke:
@@ -17,7 +17,7 @@ Three things were keyed on that number, and all three broke:
    *new admin's* identity. Offboarding was silently undone and escalated.
 2. **`rentals.account_id`.** A departed employee's active rental appeared in their
    successor's `?held_by=me`, and the successor could close it through the ordinary
-   renter verb — the guard ADR-0009 calls "absolute".
+   renter verb, the guard ADR-0009 calls "absolute".
 3. **`audit_events.actor_account_id`.** A clear-flag decision made by one admin became
    attributable to whoever inherited their id.
 
@@ -27,8 +27,8 @@ this and it is fit to issue" can be interrogated later. That trail is only truth
 
 ## Decision
 
-**Sessions name a per-account `session_token`** — 256 bits from `secrets`, issued once,
-never reissued — signed into the cookie instead of the row id. A row id is a storage
+**Sessions name a per-account `session_token`**: 256 bits from `secrets`, issued once and
+never reissued, signed into the cookie instead of the row id. A row id is a storage
 detail, and using it as session identity made storage decisions into security decisions.
 
 **Accounts are soft-deleted.** `deleted_at` is set, the row stays, and every read on the
@@ -46,7 +46,7 @@ This is what makes an inherited rental unreachable: no active rental outlives it
   `CREATE TABLE` and so would not have fixed the deployed database at all.
 - **Existing sessions invalidate** on the deploy that lands this. Accepted: there is no
   logout route, so an old-scheme cookie had no other way to end.
-- **A deleted address cannot be reissued** — recreating it answers `409`. Correct rather
+- **A deleted address cannot be reissued**, and recreating it answers `409`. Correct rather
   than incidental: the audit trail names actors by email as well as id, and reusing an
   address recreates the ambiguity this ADR removes, one field over.
 - `count_admins` excludes soft-deleted rows, or the last-admin guard (ADR-0005) would be

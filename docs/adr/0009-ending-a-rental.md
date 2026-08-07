@@ -1,8 +1,8 @@
-# ADR-0009 — Who may end a rental, and Repair against a held item
+# ADR-0009: Who may end a rental, and Repair against a held item
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
-- **Source:** Grilling 2, Q3/Q4 — `docs/PROMPT_TRAIL.md` Session 9
+- **Source:** Grilling 2, Q3/Q4, in `docs/PROMPT_TRAIL.md` Session 9
 
 ## Context
 
@@ -11,7 +11,7 @@ unreachable. Phase 1 already ships the route that reaches it: `PATCH /api/hardwa
 calls `set_status` with no guard, so an admin can flip seed id 7 from `In Use` to `Repair`
 today.
 
-Separately, renter-only returns strand every item whose holder leaves the company — and
+Separately, renter-only returns strand every item whose holder leaves the company, and
 this system has no logout, let alone offboarding.
 
 ## Decision
@@ -28,11 +28,11 @@ and writes an `audit_events` row (ADR-0010). The rental records which one closed
 
 - `test_cannot_return_someone_elses_rental` keeps the meaning its name promises. Folding
   admins into the ordinary verb would have made it pass for a `user` and mean nothing for
-  an admin — and reviewers read test names.
+  an admin, and reviewers read test names.
 - **Phase 1's `test_admin_can_toggle_repair_status` needs a companion**, not a change: it
   toggles an `Available` item and stays true. The new test is that the same toggle against
   a held item is refused.
-- A swelling battery on a held laptop takes an admin two deliberate actions — force-return,
-  then `Repair` — instead of one silent one. That buys an audit trail that is not fiction:
+- A swelling battery on a held laptop takes an admin two deliberate actions, force-return
+  then `Repair`, instead of one silent one. That buys an audit trail that is not fiction:
   no rental ends without a record of who ended it. Seed id 7 can only ever be ended this
   way, since nobody can authenticate as `j.doe@booksy.com` (ADR-0007).

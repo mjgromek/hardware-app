@@ -1,4 +1,4 @@
-# ADR-0004 — Structured filter extraction over prompt-stuffing
+# ADR-0004: Structured filter extraction over prompt-stuffing
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
@@ -7,7 +7,7 @@
 ## Context
 
 Semantic search turns a natural-language query into a filtered inventory view. At
-roughly a dozen records, retrieval is not the problem — the entire catalogue fits
+roughly a dozen records, retrieval is not the problem: the entire catalogue fits
 in a single prompt, so embeddings are dominated before the argument starts.
 
 That makes the live question not embeddings-versus-filters but: why extract a
@@ -16,7 +16,7 @@ it answer?
 
 The v1 justification was "with ~12 records, embeddings are theatre." That is a
 scale argument, and scale arguments collapse the moment someone asks what happens
-at 12,000 records — the answer would be "I would have chosen differently", which
+at 12,000 records, since the answer would be "I would have chosen differently", which
 means the decision was contingent rather than principled.
 
 ## Decision
@@ -42,7 +42,7 @@ Scale is a footnote, not the argument.
 - Search must degrade rather than break: on API error or timeout the system falls
   back to keyword search (`test_semantic_search_falls_back_on_api_error`).
 
-- Filter output is subject to the same guards as everything else —
+- Filter output is subject to the same guards as everything else, pinned by
   `test_semantic_search_never_returns_unrentable_items` (ADR-0003). The AI layer
   is not a route around the state machine.
 
@@ -53,8 +53,8 @@ Scale is a footnote, not the argument.
 - **This deletes "AI-native" as an architectural claim.** Two features hanging off
   a CRUD app is AI-*featured*, and asserting otherwise invites a reviewer to test
   the claim against the architecture. The README states the engineering positively
-  instead — schema-validated output, guaranteed-real results, graceful fallback,
-  deterministic tests — without editorialising about the brief's wording.
+  instead, listing schema-validated output, guaranteed-real results, graceful
+  fallback and deterministic tests, without editorialising about the brief's wording.
 
 - **Trade-off accepted:** any query that cannot be expressed as a filter over the
   existing columns degrades to keyword search. A question like "which laptop should

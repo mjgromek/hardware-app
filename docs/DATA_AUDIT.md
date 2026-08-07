@@ -1,4 +1,4 @@
-# Data Audit — what the seed contained and what ingestion did
+# Data Audit: what the seed contained and what ingestion did
 
 The brief supplied 11 records in `data/seed.json`, committed **verbatim and never
 modified**: every defect in it is intentional input. This document records what was
@@ -23,13 +23,13 @@ Numbered as in `brainstorm.md` §2.
 |---|---|---|---|
 | 1 | `id: 4` appears twice | Primary-key collision | Second occurrence re-keyed to **12**, original kept as `source_id: 4`. Both rows imported. |
 | 2 | `id: 8` absent | Sequence gap | Nothing. A gap is not a defect in any row. |
-| 3 | `id: 6` — `purchaseDate: "2027-10-10"` | Date in the future | **Quarantined** with a reason; item imported and flagged `needs_review`. |
-| 4 | `id: 9` — `"22-05-2023"` | `DD-MM-YYYY` among ISO dates | Normalised to `2023-05-22`. Not quarantined, not flagged. |
-| 5 | `id: 9` — `brand: "Appel"` | Typo | **Left exactly as written.** See the boundary below. |
-| 6 | `id: 10` — `""`, `null`, `"Unknown"` | Empty brand, null date, off-enum status | **Quarantined** with a reason; imported as `Available` + `needs_review`. Empty brand and null date are nullable, not errors. |
-| 7 | `id: 5` Dell XPS 15 9510 — `Available` with notes reading "Battery swelling, do not issue without service." | Semantic contradiction | **Nothing.** See the boundary below. |
-| 8 | `id: 11` MacBook Air M2 — `Available` with a history of liquid damage | Semantic contradiction | **Nothing.** Same. |
-| 9 | `id: 2` — `In Use` with no `assignedTo` | Orphan rental | Released to `Available` and **quarantined** with a reason. Not flagged. |
+| 3 | `id: 6`, `purchaseDate: "2027-10-10"` | Date in the future | **Quarantined** with a reason; item imported and flagged `needs_review`. |
+| 4 | `id: 9`, `"22-05-2023"` | `DD-MM-YYYY` among ISO dates | Normalised to `2023-05-22`. Not quarantined, not flagged. |
+| 5 | `id: 9`, `brand: "Appel"` | Typo | **Left exactly as written.** See the boundary below. |
+| 6 | `id: 10`, `""`, `null`, `"Unknown"` | Empty brand, null date, off-enum status | **Quarantined** with a reason; imported as `Available` + `needs_review`. Empty brand and null date are nullable, not errors. |
+| 7 | `id: 5` Dell XPS 15 9510, `Available` with notes reading "Battery swelling, do not issue without service." | Semantic contradiction | **Nothing.** See the boundary below. |
+| 8 | `id: 11` MacBook Air M2, `Available` with a history of liquid damage | Semantic contradiction | **Nothing.** Same. |
+| 9 | `id: 2`, `In Use` with no `assignedTo` | Orphan rental | Released to `Available` and **quarantined** with a reason. Not flagged. |
 | 10 | `notes` / `assignedTo` / `history` present on some rows only | Non-uniform schema | Nullable columns. Absence is not an error. |
 
 ---
@@ -54,7 +54,7 @@ diverged from the seed, and here is why*. `needs_review` says *a human must deci
 something before this item can be rented*, and under ADR-0003 it is a rentability
 guard returning `409`.
 
-An orphan rental is **fully repaired** by releasing it — there is nothing left for
+An orphan rental is **fully repaired** by releasing it: there is nothing left for
 anyone to rule on, so flagging it would make a working MacBook unrentable over
 missing paperwork. A future purchase date and an unidentifiable device both leave a
 real open question, so they are flagged as well as recorded.
@@ -67,20 +67,20 @@ Four rows. Everything else round-trips unchanged.
 
 | Seed id | Change |
 |---|---|
-| 2 | `status` `"In Use"` → `"Available"` — orphan rental released |
+| 2 | `status` `"In Use"` → `"Available"`, orphan rental released |
 | 4 (second occurrence) | `id` `4` → `12`, with `source_id: 4` |
-| 9 | `purchaseDate` `"22-05-2023"` → `2023-05-22` — format normalised |
+| 9 | `purchaseDate` `"22-05-2023"` → `2023-05-22`, format normalised |
 | 10 | `status` `"Unknown"` → `"Available"` |
 
 Two notes on this table, both load-bearing:
 
-- **The re-key produces no quarantine record.** Nothing was rejected — the row was
+- **The re-key produces no quarantine record.** Nothing was rejected: the row was
   repaired and both copies survive with their provenance intact.
   `test_seed_rekeys_duplicate_id` asserts the quarantine table stays empty for it.
 - **`"Unknown"` maps to `Available`, never `Repair`.** The seed tells us the record
   is unidentifiable, not that the item is broken, and `Repair` would assert a
-  physical fact nothing evidences. Rentability does not depend on the choice —
-  `needs_review` blocks the item either way — so the status carries the weakest
+  physical fact nothing evidences. Rentability does not depend on the choice, since
+  `needs_review` blocks the item either way, so the status carries the weakest
   claim the evidence supports (ADR-0002).
 
 ---
@@ -94,10 +94,10 @@ free-text `notes` and `history` is explicitly outside its remit.
 Three rows were left alone on that basis.
 
 **`brand: "Appel"` (id 9).** Parsing a field is structural; correcting a value is
-not. Reading `"22-05-2023"` as a date is deterministic — 22 cannot be a month, so
+not. Reading `"22-05-2023"` as a date is deterministic because 22 cannot be a month, so
 the string has exactly one legal reading, and normalising it loses nothing. (The
 rule is one-legal-reading, not two-candidate-formats: a date like `"05-04-2023"`
-reads both ways and quarantines instead — ADR-0002 as amended.) Reading
+reads both ways and quarantines instead, per ADR-0002 as amended.) Reading
 `"Appel"` as `"Apple"` is a guess about intent, correct only because a human
 recognises the brand. The typo is the Inventory Auditor's to surface.
 `test_seed_imports_non_iso_date_without_quarantining` pins both halves on this one
@@ -116,15 +116,15 @@ the problem the AI layer solves would have been manufactured for it to solve.
 
 So the division of labour is stated up front: deterministic validation handles
 structure, judgement is a separate layer that can fail, time out, or be wrong. The
-cost is accepted openly — a structural validator passes any record whose fields are
+cost is accepted openly: a structural validator passes any record whose fields are
 individually well-formed but collectively nonsensical.
 
 That commits the auditor to something harder than the two obvious rows. **Record 10
-is the test.** Empty brand, null purchase date, `"Unknown"` status, no notes at all
-— unidentifiable, needing a physical audit. That judgement has no keyword
+is the test.** Empty brand, null purchase date, `"Unknown"` status, no notes at all:
+unidentifiable, and needing a physical audit. That judgement has no keyword
 signature, and it is what shows whether the AI layer does anything a regex
 could not. *(It did: v3's live auditor reports record 10 as `unidentifiable` and
-id 9's `"Appel"` as `probable_misspelling` — the finding this document deferred
+id 9's `"Appel"` as `probable_misspelling`, the finding this document deferred
 to it and the one ADR-0002 deliberately left unfixed.)*
 
 ### Safety is not addressed by this boundary

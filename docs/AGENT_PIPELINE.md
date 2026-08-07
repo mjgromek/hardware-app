@@ -1,11 +1,11 @@
-# Agent Pipeline — Hardware Hub
+# Agent Pipeline: Hardware Hub
 
 Copy the four `.md` agent files into `.claude/agents/` in the project repo.
 
 ## The chain
 
 ```
-STAGE 0   /grill-me                 YOU, main thread — never delegated
+STAGE 0   /grill-me                 YOU, main thread, never delegated
 STAGE 1   project-architect         agent, once      → PROJECT_SPEC.md
   │
   ├─ per MVP ──────────────────────────────────────────────────────────
@@ -22,11 +22,11 @@ STAGE 7   HUMAN GATE                YOU              → approve, merge, tag
 
 **1. Every handoff is a file.** Agents share no memory. A handoff that exists only
 in conversation is a handoff that was dropped. Each stage reads a file and writes
-a file — that is why every agent above names its input and output explicitly.
+a file, which is why every agent above names its input and output explicitly.
 
 **2. Authorship and verification never share a context.** `test-author` cannot
 write `src/`. The implementer cannot edit `tests/`. `architecture-scout` and
-`mvp-reviewer` have no Write tool at all. That separation is the entire point —
+`mvp-reviewer` have no Write tool at all. That separation is the entire point:
 without it you have one agent grading its own homework in four costumes.
 
 > The `src/` vs `tests/` split is enforced by instruction, not by the tool layer.
@@ -35,12 +35,12 @@ without it you have one agent grading its own homework in four costumes.
 
 ## What is deliberately NOT an agent
 
-- **Grilling** — needs a human with opinions. A subagent interviewing itself
+- **Grilling**: needs a human with opinions. A subagent interviewing itself
   reaches the conclusion it already held.
-- **The AI log** — per commit, by you. Batched at the end by an agent, it reads
+- **The AI log**: per commit, by you. Batched at the end by an agent, it reads
   exactly like it was batched at the end by an agent, which is the specific thing
   Booksy is scanning for.
-- **The gate** — the human decision this whole structure exists to protect.
+- **The gate**: the human decision this whole structure exists to protect.
 
 ## Skills at each stage
 
@@ -56,6 +56,6 @@ without it you have one agent grading its own homework in four costumes.
 
 Four opus agents per MVP across six MVPs is not cheap, and each one starts cold.
 If you need to economise, `test-author` and `mvp-reviewer` are the two that earn
-their keep — they are the genuine authorship/verification splits. `architecture-scout`
+their keep: they are the genuine authorship/verification splits. `architecture-scout`
 can be replaced by invoking `/improve-codebase-architecture` in the main thread,
 and `project-architect` runs only once anyway.

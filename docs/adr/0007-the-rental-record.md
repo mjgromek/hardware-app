@@ -1,8 +1,8 @@
-# ADR-0007 — The rental record
+# ADR-0007: The rental record
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
-- **Source:** Grilling 2, Q1/Q2/Q7/Q10 — `docs/PROMPT_TRAIL.md` Session 9
+- **Source:** Grilling 2, Q1/Q2/Q7/Q10, in `docs/PROMPT_TRAIL.md` Session 9
 
 ## Context
 
@@ -18,7 +18,7 @@ One table, `ended_at` nullable, active means `NULL`. A **partial unique index on
 `rentals(item_id) WHERE ended_at IS NULL`** makes "two active rentals on one item"
 unreachable in the database rather than remembered by a guard.
 
-The renter is stored **twice** — `account_id` for identity, `renter_email` as a snapshot,
+The renter is stored **twice**: `account_id` for identity, `renter_email` as a snapshot,
 so deleting an employee cannot erase the record that they held a laptop. The closer is
 stored the same way, plus `close_kind` (`return` | `force_return`), because ADR-0009 makes
 the closer possibly a different person from the renter.
@@ -28,9 +28,9 @@ the closer possibly a different person from the renter.
 
 - Deriving `status` from `rentals` was rejected: it rewrites Phase 0 and Phase 1 for
   elegance, against a column the whole product already reads. Two tables (active/history)
-  were rejected too — moving rows on return is two writes with a window where the rental
+  were rejected too: moving rows on return is two writes with a window where the rental
   is in neither or both.
-- Seed id 7 is returnable only by force-return (ADR-0009) — nobody can authenticate as its
+- Seed id 7 is returnable only by force-return (ADR-0009) because nobody can authenticate as its
   holder. This is the honest representation of a rental that predates the account system,
   and it adds no divergence to `docs/DATA_AUDIT.md`: the row is imported as the seed
   states it.
