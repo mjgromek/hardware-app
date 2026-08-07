@@ -258,7 +258,25 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
    handling. The two oldest ⚠️ entries, and the ones a reviewer hits first.
 2. **Logout and session expiry** — the remaining half of the session story: ending
    one session without retiring the account.
-3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
+3. **A user-facing "report an issue" path on return** — the last open loop in the
+   lifecycle, and the seed names it. Item 11's history reads *"Returned by user with
+   liquid damage. Keyboard sticky."* — an event this application could not have
+   produced. Only ingestion and admins can raise a flag, so an employee handing back a
+   damaged laptop has no way to say so; the note exists because somebody typed it into
+   a system that is not this one.
+
+   The report would **propose, never flag** — the same boundary ADR-0014 draws for the
+   auditor, and for the same reason: the person reporting is not the person accountable
+   for taking equipment out of service. An admin confirms it into `needs_review`, which
+   is the existing verb with the existing audit row.
+
+   That closes the loop end to end: **ingestion judges structure** (ADR-0002),
+   **the auditor judges prose** (ADR-0014), **admins decide** (ADR-0017) — and users,
+   who are the only ones who actually handle the equipment, currently cannot speak at
+   all. It is the one participant the design has no channel for, and the seed noticed
+   before we did.
+
+4. **Final polish** — one `docs:` commit on `main`: README read-through, empty
    states, favicon, and the remaining `(pending)` SHA back-annotations in
    `AI_LOG.md`.
 

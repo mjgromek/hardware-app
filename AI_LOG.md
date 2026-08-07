@@ -1792,4 +1792,32 @@ released during earlier testing, so the amber `!` at the new size is markup I ha
 not seen. In `BACKLOG.md`, pointed at the deploy verification against a reset instance,
 which restores ids 6 and 10 as flagged.
 
-Commit: feat(phase-4): uniform actions, flat search, hover-only renter (pending)
+Commit: feat(phase-4): uniform actions, flat search, hover-only renter (12104d3)
+
+---
+
+## [P4 · c18] The participant with no channel
+
+Added to the README's 🔮 section: a user-facing "report an issue" path on return.
+
+**The seed found this, not us.** Item 11's history reads *"Returned by user with liquid
+damage. Keyboard sticky."* — verified against `data/seed.json` before writing the entry.
+That sentence records an event this application cannot produce: only ingestion and admins
+can raise a flag, so an employee handing back a damaged laptop has no way to say so. The
+note exists because somebody typed it into a system that is not this one.
+
+Three phases of work went into deciding *who may judge* — ADR-0002 gave structure to
+ingestion, ADR-0014 gave prose to the auditor and stopped it acting, ADR-0017 gave the
+decision to admins — and across all of it the person actually holding the equipment was
+never a participant. Not excluded by argument; simply never considered, which is the
+quieter kind of gap.
+
+The shape follows ADR-0014 exactly: **propose, never flag.** The reporter is not the person
+accountable for taking equipment out of service, which is the same reason the auditor
+cannot flag itself. An admin confirms it through the verb and the audit row that already
+exist, so the feature adds a source of findings rather than a second way to change state.
+
+Recorded as a next step rather than built: it is a new endpoint, a new UI surface and a new
+finding source, which is a phase rather than a polish commit.
+
+Commit: docs: a report-an-issue path is the last open loop (pending)
