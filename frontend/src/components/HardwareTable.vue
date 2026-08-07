@@ -56,6 +56,61 @@ watch(
 
 const flaggedCount = computed(() => props.items.filter((item) => item.needs_review).length)
 
+// Sorting is local to the table, and all three columns use one mechanism.
+//
+// The API sorts by `purchase_date` only, in one direction (`SortKey` has a single
+// member and no `order`). Name and brand ascending *and* descending would mean four
+// new server behaviours and the tests to pin them; at eleven rows the browser can do
+// it for free and the two mechanisms would otherwise disagree about which one owns
+// order. Recorded in BACKLOG.md — the server parameter is now unused by this screen.
+const SORTABLE = {
+  name: (item) => (item.name ?? '').toLowerCase(),
+  brand: (item) => (item.brand ?? '').toLowerCase(),
+  purchase_date: (item) => item.purchase_date ?? '',
+  date_added: (item) => item.date_added ?? '',
+}
+
+const sortKey = ref(null)
+const sortAscending = ref(true)
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    sortAscending.value = !sortAscending.value
+  } else {
+    sortKey.value = key
+    sortAscending.value = true
+  }
+}
+
+const sorted = computed(() => {
+  const rows = [...props.items]
+  if (!sortKey.value) return rows
+  const read = SORTABLE[sortKey.value]
+  const direction = sortAscending.value ? 1 : -1
+  return rows.sort((a, b) => {
+    const left = read(a)
+    const right = read(b)
+    // Missing values sort last in both directions rather than flipping to the top on
+    // a descending click — seed id 10 has no brand and no date, and an empty string
+    // sorting first would put the one unidentifiable row above everything twice.
+    if (left === '' && right !== '') return 1
+    if (right === '' && left !== '') return -1
+    if (left < right) return -1 * direction
+    if (left > right) return 1 * direction
+    return 0
+  })
+})
+
+function ariaSort(key) {
+  if (sortKey.value !== key) return 'none'
+  return sortAscending.value ? 'ascending' : 'descending'
+}
+
+function sortGlyph(key) {
+  if (sortKey.value !== key) return '↕'
+  return sortAscending.value ? '↑' : '↓'
+}
+
 function move(delta, event) {
   const last = props.items.length - 1
   if (last < 0) return
@@ -99,16 +154,19 @@ function shown(value) {
       </caption>
       <thead>
         <tr>
-          <th scope="col"><span class="th-label">Name</span></th>
-          <th scope="col"><span class="th-label">Brand</span></th>
-          <th scope="col" :aria-sort="props.sort === 'purchase_date' ? 'ascending' : null">
-            <button
-              type="button"
-              class="sort-button"
-              @click="emit('sort', props.sort === 'purchase_date' ? null : 'purchase_date')"
-            >
-              Purchase date
-              <span class="sort-arrow">{{ props.sort === 'purchase_date' ? '↑' : '↕' }}</span>
+          <th scope="col" :aria-sort="ariaSort('name')">
+            <button type="button" class="sort-button" @click="toggleSort('name')">
+              Name <span class="sort-arrow">{{ sortGlyph('name') }}</span>
+            </button>
+          </th>
+          <th scope="col" :aria-sort="ariaSort('brand')">
+            <button type="button" class="sort-button" @click="toggleSort('brand')">
+              Brand <span class="sort-arrow">{{ sortGlyph('brand') }}</span>
+            </button>
+          </th>
+          <th scope="col" class="col-date" :aria-sort="ariaSort('purchase_date')">
+            <button type="button" class="sort-button" @click="toggleSort('purchase_date')">
+              Purchase date <span class="sort-arrow">{{ sortGlyph('purchase_date') }}</span>
             </button>
           </th>
           <th scope="col"><span class="th-label">Status</span></th>
@@ -121,7 +179,7 @@ function shown(value) {
 
       <tbody @keydown="onKeydown">
         <tr
-          v-for="(item, index) in props.items"
+          v-for="(item, index) in sorted"
           :key="item.id"
           ref="rows"
           :tabindex="index === focusIndex ? 0 : -1"
@@ -133,7 +191,7 @@ function shown(value) {
             <span v-if="shown(item.brand)">{{ item.brand }}</span>
             <span v-else class="missing" title="No brand recorded">—</span>
           </td>
-          <td class="cell-mono">
+          <td class="cell-date">
             <span v-if="shown(item.purchase_date)">{{ item.purchase_date }}</span>
             <span v-else class="missing" title="No purchase date recorded">—</span>
           </td>
@@ -159,6 +217,19 @@ function shown(value) {
             >
               Return
             </button>
+            <template v-else-if="item.needs_review">
+              <span class="flag-holder">
+                <span
+                  class="flag-mark"
+                  tabindex="0"
+                  role="img"
+                  :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
+                >!</span>
+                <span class="flag-tip" role="tooltip">
+                  {{ item.review_reason || 'The record could not be verified at import.' }}
+                </span>
+              </span>
+            </template>
             <template v-else-if="blockedBecause(item)">
               <span class="blocked-reason">{{ blockedBecause(item) }}</span>
             </template>

@@ -17,6 +17,28 @@ import ReviewQueue from './components/ReviewQueue.vue'
 import ToastStack from './components/ToastStack.vue'
 import { api, ApiError, handleUnauthorized } from './api.js'
 
+// Theme. **Light is the default and `prefers-color-scheme` is deliberately not read.**
+// Every visitor lands on the light theme — it is what the wireframe shows and what a
+// reviewer should see first — and dark is opt-in. Once chosen it sticks, because the
+// choice is stored rather than re-derived from the OS on each visit.
+const THEME_KEY = 'hardware-hub-theme'
+const theme = ref(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
+
+function applyTheme(next) {
+  // The attribute is what the token layer keys on; light removes it entirely so the
+  // `:root` defaults apply unmodified rather than being overridden back to themselves.
+  if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
+  else document.documentElement.removeAttribute('data-theme')
+}
+
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  localStorage.setItem(THEME_KEY, theme.value)
+  applyTheme(theme.value)
+}
+
+applyTheme(theme.value)
+
 const account = ref(null)
 const booting = ref(true)
 
@@ -340,6 +362,15 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
       </button>
 
       <span class="nav-spacer" />
+      <button
+        type="button"
+        class="theme-toggle"
+        :aria-pressed="theme === 'dark'"
+        @click="toggleTheme"
+      >
+        <Icon :name="theme === 'dark' ? 'sun' : 'moon'" />
+        {{ theme === 'dark' ? 'Light theme' : 'Dark theme' }}
+      </button>
       <p class="whoami">{{ account.email }} · {{ account.role }}</p>
       <button type="button" class="sign-out" @click="signOut">
         <Icon name="out" /> Sign out

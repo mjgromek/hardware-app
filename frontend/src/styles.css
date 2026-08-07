@@ -56,6 +56,18 @@
   --flag-edge: #d97706;
   --flag-ring: rgba(217, 119, 6, 0.35);
 
+  /* status dots (Phase 4). The wireframe's filled pills became dot + text, so each
+   * status needs a *hue* rather than a fill/ink pair: a dot is 8px of colour with no
+   * label inside it, which is the whole reason it needs to be distinguishable rather
+   * than merely legible. Two stops per hue — the dot itself and a dimmer ring — so
+   * dark mode can restop both without either washing out. */
+  --dot-available: #16a34a;
+  --dot-available-ring: rgba(22, 163, 74, 0.18);
+  --dot-rented: #2563eb;
+  --dot-rented-ring: rgba(37, 99, 235, 0.18);
+  --dot-repair: #dc2626;
+  --dot-repair-ring: rgba(220, 38, 38, 0.18);
+
   /* interaction — the only non-status colour anything gets */
   --danger: #dc2626;
   --focus: #2563eb;
@@ -93,6 +105,18 @@
   /* border */
   --line: #262a31;
   --line-strong: #363b44;
+
+  /* status dots — restopped, not inverted. The light green and red are too dark on a
+   * #16181d surface; these are lifted until each dot reads at a glance. The amber `!`
+   * (--flag-edge) is deliberately pulled toward yellow here rather than orange, so it
+   * cannot be mistaken for the red Repair dot two rows away — orange-on-dark and
+   * red-on-dark converge, which is the one pairing this table cannot afford. */
+  --dot-available: #4ade80;
+  --dot-available-ring: rgba(74, 222, 128, 0.16);
+  --dot-rented: #60a5fa;
+  --dot-rented-ring: rgba(96, 165, 250, 0.16);
+  --dot-repair: #f87171;
+  --dot-repair-ring: rgba(248, 113, 113, 0.16);
 
   /* status — restopped, not inverted */
   --ok-fill: #e8eaee;
@@ -839,4 +863,227 @@ tr.is-resolved.is-fading {
   tr.is-resolved {
     transition: none;
   }
+}
+
+
+/* ================================================================ Phase 4 finish
+ *
+ * Structure is the wireframe's; these are finish changes only. Every value resolves
+ * through the token layer above — no hex below this line.
+ */
+
+/* Comfortable density. 13px is the wireframe's table type: one step down from the
+ * body, which is what lets eleven rows and eight columns sit on one screen without
+ * the row height collapsing to something you cannot hit with a pointer. */
+.table-scroll table {
+  font-size: 13px;
+}
+
+/* Sticky header. The table is the product and it is the thing people scroll; a header
+ * that leaves the screen turns column six into a guess. */
+.table-scroll {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  /* The hairline has to travel with the header — a sticky row with a border-bottom
+   * loses it under the scrolling rows in most engines. */
+  box-shadow: inset 0 -1px 0 var(--line);
+  border-bottom: 0;
+}
+
+/* Hairline rows, and a hover state that reads without shouting. */
+.table-scroll tbody tr {
+  border-bottom: 1px solid var(--line);
+}
+
+.table-scroll tbody tr:hover {
+  background: var(--hover-wash);
+}
+
+.table-scroll td {
+  height: 40px;
+  padding: 7px 14px;
+}
+
+/* Dates right-aligned with tabular figures, so the column forms a rule you can scan
+ * down. This is the reason a date column exists rather than a date on the name. */
+.cell-date {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+th.col-date .th-label,
+th.col-date .sort-button {
+  justify-content: flex-end;
+}
+
+/* ---------------------------------------------------------------- status dots */
+
+/* Dot + text, replacing the wireframe's filled pills. The dot carries the hue and the
+ * word carries the meaning, so the status survives being printed, screenshotted in
+ * greyscale, or read by somebody who cannot separate red from green. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  /* The ring is the second stop: it keeps an 8px dot visible against both a white
+   * card and a near-black one without changing the dot's own hue. */
+  box-shadow: 0 0 0 3px var(--dot-ring);
+}
+
+.status-available {
+  --dot: var(--dot-available);
+  --dot-ring: var(--dot-available-ring);
+}
+.status-rented {
+  --dot: var(--dot-rented);
+  --dot-ring: var(--dot-rented-ring);
+}
+.status-repair {
+  --dot: var(--dot-repair);
+  --dot-ring: var(--dot-repair-ring);
+}
+
+.status-dot {
+  background: var(--dot);
+}
+
+/* ---------------------------------------------------------------- the flag mark */
+
+/* The amber `!` that stands where Rent would be on a flagged row. Not a disabled
+ * button: a disabled control says "not now" and makes you hover to find out why,
+ * while this says the row is *under review* and carries the reason in its tooltip. */
+.flag-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--flag-edge);
+  border-radius: var(--radius);
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+}
+
+/* Reachable by keyboard, not only by pointer: the tooltip below is the only place the
+ * reason appears in this table, so a keyboard user who cannot open it cannot find out
+ * why the item is blocked. */
+.flag-mark:focus-visible + .flag-tip,
+.flag-mark:hover + .flag-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.flag-holder {
+  position: relative;
+  display: inline-block;
+}
+
+.flag-tip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .flag-tip {
+    transition: opacity 90ms ease-out;
+  }
+}
+
+/* ---------------------------------------------------------------- uniform controls */
+
+/* One size for every control in a row. The wireframe's actions column mixed a filled
+ * button with bare icons at three different heights; uniform width and height is what
+ * stops the column reading as three unrelated things. */
+.button,
+.icon-button,
+.flag-mark {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.cell-actions .button {
+  min-width: 76px;
+  justify-content: center;
+  padding: 6px 12px;
+}
+
+.cell-actions .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
+/* ---------------------------------------------------------------- sort affordance */
+
+.sort-button {
+  gap: 6px;
+}
+
+.sort-arrow {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+th[aria-sort] .sort-arrow {
+  color: var(--focus);
+}
+
+/* ---------------------------------------------------------------- theme toggle */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+.theme-toggle:hover {
+  background: var(--ground);
+  color: var(--ink);
 }

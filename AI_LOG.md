@@ -1403,3 +1403,34 @@ so the Repair guard cannot be routed around; `model_fields_set` carries the part
 semantics; a nameless item and an empty edit are both 422. `StatusChange` retired —
 `HardwareEdit` subsumes it. 145/145.
 Commit: feat(phase-4): admin edit (pending)
+
+---
+
+## [P4 · c5] The visual finish pass
+
+`frontend-design` against the wireframes: dot-and-word statuses, the amber `!` where a
+greyed Rent button was, sticky header, 13px comfortable density, hairline rows, uniform
+32px controls, real Tabler paths, right-aligned tabular dates, bidirectional sort on name,
+brand and purchase date. Dark mode is opt-in from the header toggle and persisted; **light
+is the default and `prefers-color-scheme` is never read**, so every visitor lands on what
+the wireframe shows. 145/145 — no server change.
+
+Verified in the browser in both themes rather than by reading the CSS, including the one
+pairing this table cannot afford: the amber `!` two rows from the red `Repair` dot. On a
+near-black surface orange and red converge, so the dark stop pulls amber toward yellow;
+the zoom shows gold against salmon, which is the check passing rather than the check being
+skipped.
+
+**One instruction I did not carry out, and it was the right call to stop.** The brief said
+users should see "Rented" with no holder and admins the email. That contradicts ADR-0012,
+whose reasoning is that the point of `In Use` is knowing who to ask, and it would have
+turned `test_renter_identity_is_visible_to_every_signed_in_user` red. The only way to do it
+without touching the server would have been to hide the address in the UI while still
+shipping it in the JSON — an appearance of privacy rather than privacy, and worse than
+either honest option. Raised instead of implemented; the instruction was withdrawn.
+
+Five deviations recorded in `docs/WIREFRAME_JUSTIFICATION.md`, including that one — a
+wireframe omission we deliberately did not follow, which is the kind that most needs its
+argument written down.
+
+Commit: feat(phase-4): the visual finish pass and dark mode (pending)

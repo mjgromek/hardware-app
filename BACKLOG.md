@@ -381,3 +381,17 @@ search route or `parse_filter` is next touched.*
 - **No `docs/specs/phase-4.md`.** Phases 2 and 3 have one; the schema slice was written
   from the brainstorm section quoted in the task. Worth writing the spec file before the
   UI slice, so the reviewer has the same contract the tests do.
+
+**Sorting is client-side, and the server's `?sort` parameter now has no caller.** Phase 4
+gives every sortable column both directions, including alphabetical on name and brand.
+`SortKey` has one member (`purchase_date`) and no `order`, so doing that server-side meant
+four new behaviours and the tests to pin them; at eleven rows the browser sorts for free
+and gives instant reordering with no round trip. Both are kept deliberately: the
+client-side sort is what the UI uses, and the server parameter stays implemented and
+tested because it is the path that scales — sorting in the browser stops being free the
+moment the inventory outgrows one response.
+
+The cost is honest API surface without a caller: `GET /api/hardware?sort=purchase_date`
+works, is tested, and nothing in the product calls it. *Urgent when: the inventory needs
+pagination — at which point sorting has to move back to the server, and the parameter is
+already there and already proven.*

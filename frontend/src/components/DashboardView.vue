@@ -40,13 +40,12 @@ function clearSearch() {
 </script>
 
 <template>
-  <h1>Inventory</h1>
-  <p class="lede">
-    Every item the company owns, with the state it is in right now.
-    <template v-if="flagged">
-      {{ flagged }} of these need review before they can be rented.
-    </template>
-  </p>
+  <!-- Heading alone, search directly beneath it, as the wireframe has it. The lede
+       that used to sit between them is gone: it described what a table of hardware is
+       to somebody already looking at one, and it pushed the search box below the fold
+       on a laptop. The review count it carried now lives on the nav item, where it is
+       a link to the queue rather than a sentence about it. -->
+  <h1>Hardware list</h1>
 
   <form class="panel panel-head search-bar" @submit.prevent="submitSearch">
     <label class="field" style="flex: 1 1 320px">

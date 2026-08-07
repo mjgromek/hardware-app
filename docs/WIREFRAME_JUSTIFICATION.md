@@ -24,6 +24,13 @@ controls that would fail, and phases that have not happened yet.
 
 ### Table — status labels are the enum's words, not the wireframe's
 
+> **Superseded in Phase 4** by *"Rented" is the label; `In Use` is still the value*
+> below. The reasoning here — that renaming the enum makes every bug report a
+> translation exercise — still holds and is why the *value* never changed; Phase 4
+> separated the display label from it rather than choosing one word for both. Left in
+> place because the reversal is the record.
+
+
 **The wireframe showed:** three status chips reading `Available`, `Rented`,
 `In Repair` — black, grey and red respectively.
 **What was built:** the same three chips with the same three tones, labelled
@@ -216,3 +223,75 @@ opens the existing reason dialog *prefilled from the finding but editable* (ADR-
 exist for the acting, and the admin panel is where every other override lives. The
 prefill is a convenience; the edit is the point — the recorded reason is the human's
 claim, not the model's.
+
+## Phase 4 — the visual finish pass
+
+Structure follows the wireframe throughout; everything below is finish. Each entry says
+what the wireframe showed before saying what was built, because the images are not in
+this repository and the document has to stand without them.
+
+### Status pills became a dot and a word
+
+**The wireframe showed:** a filled pill per status — black `Available`, grey `Rented`,
+red `In Repair` — the whole chip carrying the status colour with the label reversed out
+of it.
+**What was built:** an 8px dot in the status hue followed by the word in ordinary body
+ink. Green `Available`, blue `Rented`, red `Repair`.
+**Why:** the pill makes the *label* the thing carrying the hue, so a row reads as three
+coloured blocks and the eye has to decode a colour to find the word inside it. Splitting
+them gives each job one element: the dot is the glanceable signal, the word is the
+meaning. The word still works in greyscale, in a screenshot, and for anyone who cannot
+separate red from green — which the pill's reversed-out label does not, because there the
+colour *is* the background the text depends on for contrast. Each hue carries two stops
+so the dot stays distinguishable on a dark surface without changing hue.
+
+### "Rented" is the label; `In Use` is still the value
+
+**The wireframe showed:** `Rented`.
+**What was built:** `Rented` on screen, over an enum whose value is unchanged.
+**Why:** the status enum is exactly `Available | In Use | Repair` (`CONTEXT.md`, and a
+`CLAUDE.md` non-negotiable) — it is what the API returns, what the guards match on, and
+what every test names. But `Rented` is the wireframe's word and the one an employee says
+out loud. Phase 1 resolved this tension by showing the enum's word everywhere; Phase 4
+splits presentation from value instead, which is the smaller lie: the label is a
+rendering choice, and renaming the enum would have made every bug report a translation
+exercise. The mapping lives in one component (`StatusChip.vue`) so there is exactly one
+place where the two vocabularies meet.
+
+### An amber `!` replaces the Rent button on flagged rows
+
+**The wireframe showed:** a `Rent` button on every row, greyed out where the item cannot
+be taken.
+**What was built:** on a flagged row, an amber `!` where the button would be, with the
+review reason in a tooltip on hover *and* on keyboard focus.
+**Why:** a greyed button says "not now" and makes you hover to learn why. A flagged item
+is not temporarily unavailable — it is *under review*, which is a different fact, and the
+row already knows the reason. Phase 2 rendered that reason as inline text; the wireframe's
+actions column is too narrow for a sentence, so the mark carries it in a tooltip and an
+`aria-label` instead. It is `tabindex="0"` deliberately: the tooltip is the only place the
+reason appears in this table, so a keyboard user who could not open it could not find out
+why the item is blocked.
+
+### The heading stands alone, with search directly beneath
+
+**The wireframe showed:** the page title, then the search field.
+**What was built:** the same, after removing a paragraph that had grown between them.
+**Why:** the lede described what a table of hardware is to somebody already looking at
+one, and it pushed the search box toward the fold on a laptop. The one piece of live
+information it carried — how many items need review — now sits on the `Needs review` nav
+item as a count, where it is a link to the queue rather than a sentence about it.
+
+### The holder is shown, though the wireframe omits it
+
+**The wireframe showed:** a `Status` column with no holder — `Rented` and nothing else.
+**What was built:** the renter's address beside the `Rented` dot, reading "you" when it is
+yours. Visible to every signed-in account, not just admins.
+**Why:** this is the deviation with an argument rather than an oversight, and it was
+re-examined in Phase 4 before being kept. ADR-0012 decided it deliberately: the point of
+`In Use` on an internal tool is knowing who to ask for the headphones, and hiding it moves
+that conversation to Slack where the tool cannot see it. Hiding it from non-admins was
+considered and dropped — the server would have had to stop serialising `assigned_to` for
+`user` accounts, which contradicts ADR-0012 and turns
+`test_renter_identity_is_visible_to_every_signed_in_user` red; and hiding it in the UI
+while still shipping the address in the JSON would be an appearance of privacy rather than
+privacy. Either the field is theirs to see or it is not, and ADR-0012 says it is.
