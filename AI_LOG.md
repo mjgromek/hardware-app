@@ -1883,4 +1883,27 @@ deliberate. Verified: the inline form is gone, the modal opens, both toggles ren
 
 Five deviations recorded.
 
-Commit: feat(phase-4): product copy, fixed rail, account modal (pending)
+Commit: feat(phase-4): product copy, fixed rail, account modal (58e248c)
+
+---
+
+## [P4 · c21] Closing the two verification gaps I left open
+
+**The account modal, end to end.** Filled it, picked the Admin toggle, submitted:
+`aria-pressed` flipped correctly, the modal closed, `newjoiner@booksy.example` appears in
+the account list as `admin`, and `POST /api/login` with those credentials returns `200`
+with `role: admin`. A form that renders is not a form that works — the pencil taught that
+two commits ago, and this is the same check applied before being asked twice.
+
+**Light theme.** Every visual check this session ran in dark, because the browser had it
+persisted from the toggle test — so the two newest styles had never been seen in the
+default theme a reviewer lands on. Both hold: `--ask-fill` `#eef0f4` is a genuine third
+step between `--ground` `#f7f8fa` and `--surface` `#fff`, and the toggles resolve to
+already-measured tokens — muted-on-white at 6.13:1 unpressed, `#0b0c10`-on-white at
+19.55:1 pressed.
+
+Worth naming as a hazard rather than a one-off: a persisted preference makes the *other*
+theme the untested one, silently, for as long as the tab lives. Light is the default for
+every real visitor and was the last thing I looked at.
+
+Commit: docs: verify the account modal and the light theme (pending)
