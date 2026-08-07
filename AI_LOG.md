@@ -1296,3 +1296,15 @@ present, ⚡ all carry Why+Future, AI_LOG covers Tooling / Data strategy / Promp
 / five Corrections, setup runs from a fresh clone with no new dependencies (the AI
 client is stdlib). No gap left open.
 Commit: docs(phase-3): bring every document to v3 reality (pending)
+
+---
+
+## [P3 · c15] Both gates answered — one blocker, already satisfied
+
+`mvp-reviewer`: PASS WITH NOTES; its sole blocker (rerun `/security-review`, which had
+only seen the docs+refactor state) was already met — the second run covered the full
+diff at HEAD, zero findings. Filed per the blockers-only rule: the README's overstated
+"add form rejects" chain claim corrected, post-import semantic-validation gap and the
+flag-review race added to ⚠️ (same class as the last-admin race), the empty-filter
+`semantic` label to BACKLOG. AI_LOG's remaining `(pending)` stays owed to final polish.
+Commit: docs(phase-3): file the gate findings (pending)

@@ -361,3 +361,13 @@ The CLI cannot change the tracked branch; the dashboard can. *Urgent when: anyon
 touches a variable, which is why CLAUDE.md now orders a `railway up` after every
 variable change — and permanently fixed only by pointing the trigger at `main` in the
 dashboard, a human-only action.*
+
+---
+
+## Phase 3 — `mvp-reviewer` at the gate
+
+**A valid-but-empty filter returns the whole catalogue labelled `semantic`, pinned by
+no test.** Observed live (the oracle probe's zero-selectivity answer, n=12). Correct
+behaviour — the model legitimately said "no constraints" — but nothing asserts it, so
+a regression that errored on `{}` or mislabelled it would be green. *Urgent when: the
+search route or `parse_filter` is next touched.*

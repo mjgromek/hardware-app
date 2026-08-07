@@ -121,7 +121,7 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
   event, `409` when already flagged (ADR-0017); the loop ADR-0002 opened is closed
   end to end — ingestion declined to judge, the auditor judges, an admin decides.
   **How anything enters review after import** (the full chain, since ingestion flags
-  only at import, the add form rejects rather than flags, and the auditor cannot
+  only at import, the add form neither flags nor validates semantics, and the auditor cannot
   flag by design): *auditor proposes → admin flags → item unrentable (`409`) → admin
   later clears, with a reason recorded at both ends.* Phase 4 tightens the clearing
   reason to a mandatory `fixed:` note — what changed, not merely that somebody looked
@@ -210,6 +210,13 @@ Each of these works, and each cost something. The full table with reasoning is i
 ### ⚠️ Partial / Missing
 
 - Editing an item's name, brand or date — only status changes and deletion exist
+- **Post-import data is validated structurally, not semantically** — a manually added
+  item with a 2027 purchase date is caught by nothing: ingestion only sees the seed,
+  the add form checks shape, and the auditor's closed enum has no future-date kind
+  (mvp-reviewer, Phase 3 gate; live item 14 is the proof)
+- **`flag-review` shares the last-admin guard's read-then-write race** — two
+  concurrent flags both pass the `409` check and write two audit events; same
+  documented class as below, same conditional-`UPDATE` fix when it matters
 - **The last-admin guard is not race-safe** — it reads the admin count and writes in a
   separate statement, so two simultaneous demotions of the final two admins both pass and
   reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
