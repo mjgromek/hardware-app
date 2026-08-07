@@ -283,8 +283,13 @@ import.
   Rent button would be — no button at all; the **!** is the affordance, a tooltip
   explains. Keyboard-reachable and screen-reader labelled, not hover-only.
   *(Supersedes the earlier "badge before the device name" placement.)*
-- Rented rows: users see "Rented" with no holder; admins see the holder's email.
-  Keeps the ADR-0012 amendment; "somebody else has it" is gone either way.
+- ~~Rented rows: users see "Rented" with no holder; admins see the holder's email.~~
+  **Withdrawn, not built.** It contradicted ADR-0012's reasoning — the point of `In Use`
+  on an internal tool is knowing who to ask — and would have turned
+  `test_renter_identity_is_visible_to_every_signed_in_user` red. ADR-0012 stands
+  unamended and every signed-in account still receives the holder. What shipped instead
+  is presentation: the holder moved off the row onto the `Rented` control, via `title`
+  and `aria-label`. "Somebody else has it" is gone either way.
 - Display `In Use` as "Rented". **Display label only** — the stored enum stays
   `Available | In Use | Repair` per the brief and every ADR. Map at the view layer.
 - Every button the same width, height and font size — Rent, Repair, Edit, Remove.
@@ -337,7 +342,9 @@ item; ADR-0012 decided the opposite, with reasoning (knowing who to ask). Write 
 amendment rather than silently reversing: the item still shows Rented, the holder is
 admin-only (which is what the table rules above implement).
 
-**Sounds and toasts — four events:**
+**Sounds and toasts — six events as shipped** (planned as four; `repair` and `resolve`
+were added so the diff covers every transition an admin cares about, and so `flag` has an
+answering voice — ADR-0018):
 
 - Admin, rent happened: toast + soft chime.
 - Admin, item entered review: toast + distinct, slightly more urgent tone.

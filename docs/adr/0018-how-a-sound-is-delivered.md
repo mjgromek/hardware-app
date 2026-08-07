@@ -80,6 +80,6 @@ Every voice finishes inside 400 ms — the second note starts at 70 ms and decay
   about whether they want audio, and treating it as a proxy for "no feedback" would silently
   remove a channel from people who asked about a different one. Sound is governed by its
   own explicit opt-in, which is the only preference that actually expresses the choice.
-- **Trade-off accepted:** the frontend still has no tests, so these four events are
+- **Trade-off accepted:** the frontend still has no tests, so these six events are
   verified by using them rather than by a suite. Consistent with the documented shortcut,
   and it is the largest untested surface in the project (`BACKLOG.md`).

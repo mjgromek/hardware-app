@@ -1820,4 +1820,32 @@ exist, so the feature adds a source of findings rather than a second way to chan
 Recorded as a next step rather than built: it is a new endpoint, a new UI surface and a new
 finding source, which is a phase rather than a polish commit.
 
-Commit: docs: a report-an-issue path is the last open loop (pending)
+Commit: docs: a report-an-issue path is the last open loop (b4a27e0)
+
+---
+
+## [P4 · c19] The deliberate sweep for stale claims
+
+Five stale claims had surfaced by accident across the project, so this time I looked on
+purpose rather than waiting for a sixth. **Four more**, all found in one pass:
+
+- `README` described a planned "ADR-0012 amendment hiding renter identity". It was
+  withdrawn and never built; ADR-0012 stands unamended.
+- `brainstorm.md` §3 said the same thing and added "keeps the ADR-0012 amendment".
+- `brainstorm.md` §3 said "four events" for sounds; six shipped.
+- `ADR-0018`'s own trade-off bullet still said "these four events" — the third stale
+  count inside the ADR that documents the change.
+- `docs/ACCESSIBILITY.md` still described statuses as dots after the revert to pills,
+  including its thresholds paragraph, which classified them as non-text indicators at
+  3:1. As pills they are text on a fill and carry the stricter 4.5:1 — which they pass,
+  so the numbers were right and the reasoning behind them was wrong.
+
+Two of these are worth noticing beyond the fix. The withdrawn amendment survived in **two**
+documents because withdrawing an instruction leaves no trace to grep for — nobody edits the
+plan when a thing is *not* done. And the sound count was wrong in three places across two
+files, having been amended once already; the document nearest the change is not the safest.
+
+Both stale plan entries are struck through and annotated rather than deleted, because a
+plan that quietly matches the outcome hides the decision.
+
+Commit: docs: sweep the stale claims and bring the README current (pending)

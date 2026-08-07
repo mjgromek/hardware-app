@@ -10,6 +10,14 @@ Built as a recruitment task for the Early Careers Programme.
 
 ## Live versions
 
+**v0–v3 deliver the brief in full** — the three pillars are the inventory and its dirty
+seed (v0), auth with roles and the admin surface (v1), the rental engine with its guards
+and audit trail (v2), and the AI layer (v3). **v4 is elective**: UI fidelity to the
+supplied wireframes, dark mode, notification sounds and an accessibility audit. It is work
+beyond the brief's scope, taken on because the wireframes were supplied and a close copy
+is checkable in a way "looks fine" is not. Read v0–v3 as the submission; read v4 as what
+was done with the time left.
+
 | Version | Phase | URL | Status |
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
@@ -127,7 +135,14 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
   reason to a mandatory `fixed:` note — what changed, not merely that somebody looked
 - **Health endpoint** — `GET /api/health`, sessionless by design, touches nothing
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 118 tests, all green
+- **Phase 4, elective** — the schema trio (`serial_number`, `category`, `date_added`)
+  with a migration test that boots over the previous table shape; wireframe-fidelity
+  finish with uniform action controls and fixed column widths; **dark mode**, opt-in and
+  persisted, light by default so a reviewer sees what the wireframe shows; **six
+  notification sounds** as one family, off by default (ADR-0018); admin edit and a review
+  release that carries the change it certifies (ADR-0017 as amended); and a measured
+  **WCAG contrast audit** — [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md)
+- 152 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -202,6 +217,14 @@ Each of these works, and each cost something. The full table with reasoning is i
   *account* does now revoke its sessions properly (ADR-0013) — what is missing is ending
   one session without retiring the person.
   **Future:** a logout route plus session expiry.
+- **Sorting is client-side, and the server's `?sort` parameter has no caller.** Phase 4
+  gives every sortable column both directions, in the browser.
+  **Why:** `SortKey` has one member and no direction, so doing it server-side meant four
+  new behaviours and the tests to pin them; at eleven rows the browser reorders instantly
+  with no round trip. The server path stays implemented and tested because it is the one
+  that scales.
+  **Future:** move sorting back to the endpoint when the inventory needs pagination — the
+  parameter is already there and already proven.
 - **The frontend has no tests.** vitest is still not set up, and the UI now carries
   real logic: a roving-tabindex table, the `401`-to-login-screen path, filter counts.
   **Why:** time, and the Python suite covers the contract the UI consumes.
@@ -283,9 +306,15 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
 Then **Phase 4 — wireframe fidelity** (planned 2026-08-07, does not start until
 Phase 3 ships): the UI becomes a close copy of the supplied wireframes — heading and
 label changes, the review badge, exact type scale, the Add New Device modal, three
-new schema columns with their migration test, an ADR-0012 amendment hiding renter
-identity from non-admins, and muteable notification toasts. Scope in
-`brainstorm.md` §3 Phase 4.
+new schema columns with their migration test, and muteable notification sounds. Scope
+in `brainstorm.md` §3 Phase 4.
+
+That plan also contained an ADR-0012 amendment hiding renter identity from non-admins.
+**It was withdrawn and never built**: it contradicted ADR-0012's own reasoning and would
+have turned `test_renter_identity_is_visible_to_every_signed_in_user` red. ADR-0012 stands
+unamended, the server is unchanged, and the holder is still served to every signed-in
+account — Phase 4 only moved it off the row and onto the `Rented` control
+(`docs/WIREFRAME_JUSTIFICATION.md`).
 
 ---
 
