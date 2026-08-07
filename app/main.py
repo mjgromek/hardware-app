@@ -103,6 +103,12 @@ class HardwareEdit(BaseModel):
     purchase_date: date | None = None
     serial_number: str | None = None
     category: Category | None = None
+    #: Admin-only on both axes (ADR-0012): restricted in the payload a `user` receives,
+    #: and behind `current_admin` here. Editable because `notes` is often the fault
+    #: itself — seed id 5 reads "Battery swelling, do not issue without service", and a
+    #: release certifying "fixed: replaced the battery" against that standing text is
+    #: the false record ADR-0017 was amended to close, one field over.
+    notes: str | None = None
 
 
 class ReviewRelease(HardwareEdit):
@@ -580,6 +586,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     ("purchase_date", change.purchase_date),
                     ("serial_number", change.serial_number),
                     ("category", change.category.value if change.category else None),
+                    ("notes", change.notes),
                 )
                 if key in sent
             }
@@ -745,6 +752,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     ("purchase_date", body.purchase_date),
                     ("serial_number", body.serial_number),
                     ("category", body.category.value if body.category else None),
+                    ("notes", body.notes),
                 )
                 if key in edited
             }

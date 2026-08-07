@@ -1545,3 +1545,28 @@ through. `WIREFRAME_JUSTIFICATION.md` marks the pills→dots entry superseded an
 survived the detour: label separated from enum value, and two stops per tone.
 
 Commit: feat(phase-4): filled status pills, measured in both themes (pending)
+
+---
+
+## [P4 · c10] `notes` becomes editable, and stays admin-only
+
+Red first — it changes an endpoint's contract. Three tests: an admin can correct the note,
+a `user` can neither read nor write it, and a release can carry a notes edit into the same
+`audit_events` row as its reason. 152/152.
+
+The middle test **passed on the first run**, which is the useful signal: ADR-0012 already
+restricted `notes` in the serialiser and `current_admin` already guarded the route, so
+making the field writable widened nothing. It is pinned now precisely because that is the
+mistake available here — widening the write axis while quietly widening the read axis with
+it, and nothing would have failed.
+
+Why it belongs with ADR-0017's amendment rather than in the finish pass: seed id 5 reads
+"Battery swelling, do not issue without service", and a release certifying "fixed: replaced
+the battery" against that standing text is the same false record, one field over. Worse,
+actually — the stale note is what the Phase 3 auditor reads and what the next admin sees
+when deciding whether to issue the device.
+
+`edit_item` needed no change; it takes `**fields` and was already a pure row-mover, so this
+was a boundary change only.
+
+Commit: feat(phase-4): notes are editable by admins (pending)
