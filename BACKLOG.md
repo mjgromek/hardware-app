@@ -16,26 +16,26 @@ without limit on a deployment that publishes demo credentials. The cookie is an 
 a per-account token (ADR-0013) with no server-side session record, so a *leaked* cookie
 stays valid until the account is deleted or `SECRET_KEY` changes.
 
-**Narrowed by ADR-0013:** deleting an account now genuinely revokes its sessions —
+**Narrowed by ADR-0013:** deleting an account now genuinely revokes its sessions, since
 `deleted_at` is set, the token is cleared, and the id is never reissued, so the cookie
 matches nothing. Before that, `/security-review` showed a deleted account's cookie
 reviving as whoever inherited its recycled id. What remains is the weaker original
 property: no way to end *your own* session, and no expiry. *Urgent when: a per-session
-revocation is needed — logging out one device rather than retiring the account.*
+revocation is needed, logging out one device rather than retiring the account.*
 
 **No per-user-salt test, now that there is a users table to write one against.**
 `test_password_is_hashed_not_stored_plaintext` asserts no stored value equals the
-plaintext, its hex or base64 encoding, or an unsalted MD5/SHA-1/SHA-256 of it — which
+plaintext, its hex or base64 encoding, or an unsalted MD5/SHA-1/SHA-256 of it, which
 catches the rainbow-table case. The direct statement, *two accounts with the same
 password store different digests*, was unwritable while the table shape did not exist.
 It exists now (`app/accounts.py` salts per call), and nothing asserts it. *Urgent when:
-the next test commit — this is cheap and the claim is load-bearing.*
+the next test commit, because this is cheap and the claim is load-bearing.*
 
 ---
 
 ## Owned by Phase 2
 
-**Clearing `needs_review` — assigned, not outstanding.** Nothing clears the flag, so a
+**Clearing `needs_review`, assigned rather than outstanding.** Nothing clears the flag, so a
 flagged item is unrentable indefinitely (two of eleven in the seed). This sat here as
 "urgent before the Phase 1 gate" and was resolved *by assignment* at that gate instead:
 ADR-0003 now names Phase 2 as the owner, because clearing a rentability guard is a
@@ -43,7 +43,7 @@ transition in the rental state machine rather than an admin-panel field edit. Ph
 delivers an admin-only action with an audit trail, gated on `app/guards.py`, pinned by
 `test_admin_can_clear_needs_review` and `test_cleared_item_becomes_rentable`.
 
-The Phase 1 queue also has no test at either layer — writing one would have meant
+The Phase 1 queue also has no test at either layer, because writing one would have meant
 inventing the clear-flag semantics, which is the product decision above. It arrives with
 the mechanism. *No longer overdue; it has an owner and two named tests.*
 
@@ -53,34 +53,34 @@ the mechanism. *No longer overdue; it has an owner and two named tests.*
 
 **ADR-0003 names the wrong item.** It says `test_cannot_rent_flagged_hardware` asserts
 "the Dell XPS specifically remains unrentable", and the Dell XPS (seed id 5) is **not
-flagged** — ADR-0002 makes ingestion structural only, so "battery swelling" is left for
+flagged**, because ADR-0002 makes ingestion structural only, so "battery swelling" is left for
 the Phase 3 auditor and the item imports `Available` and unflagged. The rows ingestion
 actually flags are id 6 (2027 purchase date) and id 10 (off-enum status). The test as
 written derives the flagged set from the inventory instead of naming a row, so it covers
 both and stays correct if Phase 3's auditor starts setting the flag. Nothing is broken;
 the ADR's example sentence is just false and a reviewer reading it will look for a test
-that cannot exist. *Urgent when: ADR-0003 is next edited, or the Phase 2 gate — a
+that cannot exist. *Urgent when: ADR-0003 is next edited, or the Phase 2 gate, since a
 one-line correction, not a decision.*
 
 **Slice A and B ship no read surface for `rentals` or `audit_events`.** Three tests
 (`test_rental_history_records_both_ends`, `test_seed_id_7_imports_as_an_accountless_rental`,
 the two in `test_audit_events.py`) therefore read SQLite with raw SQL through
 `app.state.engine`, which pins the column names from `docs/specs/phase-2.md` rather than
-an API contract. Deliberate — importing `app.rentals` would have made every Phase 2 test
-*broken* rather than *red* before the module existed — but it means a schema rename turns
+an API contract. Deliberate, because importing `app.rentals` would have made every Phase 2
+test *broken* rather than *red* before the module existed, but it means a schema rename turns
 four tests red for a reason that is not about behaviour. *Urgent when: Slice C's
 `GET /api/hardware?held_by=me` lands, at which point the rental half can go through the
 boundary and only the audit reads need the helper.*
 
 **`audit_events` has no read surface at all, in any slice.** ADR-0010 builds the table
-because "cleared by admin, no reason given" would be indefensible at an incident — but
+because "cleared by admin, no reason given" would be indefensible at an incident, but
 nothing in the product displays it, so the answer to that incident is a `sqlite3` prompt.
 Honest and disclosable; worth naming in the README trade-offs table rather than leaving
 implied. *Urgent when: the audit trail is offered to anyone as a feature.*
 
 **`persist` refusing is a decision inside a module whose docstring says it makes none.**
 ADR-0011 puts the refusal in `app/storage.py` while `app/storage.py` and ADR-0008 both
-say that module decides nothing — which is why `rentals` SQL was kept out of it. The
+say that module decides nothing, which is why `rentals` SQL was kept out of it. The
 tests pin the ADR's behaviour, not the docstring's claim, so this is a wording conflict
 rather than a bug. The alternative placement (refuse in `scripts/seed.py`, next to where
 the seed id 7 rental is written) would leave a caller who imports `persist` directly
@@ -95,7 +95,7 @@ caller of `persist` appears, or `PROJECT_SPEC.md` is written.*
 in `brainstorm.md` or the ADRs names a route, a request body or a success code for
 login, account management or the dashboard's query parameters; the fixture module's
 docstring carries that table, so the tests are the spec. The implementation now matches
-it, which means the contract is real — it is just not written anywhere a reader would
+it, which means the contract is real and simply not written anywhere a reader would
 look first. *Urgent when: `PROJECT_SPEC.md` is written.*
 
 **Descending sort is unpinned.** `test_dashboard_sorts_by_purchase_date` asserts
@@ -119,24 +119,24 @@ data couples "the process started" to "the data changed": it runs on every repli
 every restart, in every environment, and it puts a write path in the one code path that
 must run when the database is in an unknown state.
 
-It is here because the deploy target gave no alternative — Railway's API exposes no
+It is here because the deploy target gave no alternative, since Railway's API exposes no
 exec or SSH, `preDeployCommand` silently did not execute across two deploys, and
 `railway ssh` needs an SSH key the machine did not have. The emptiness guard is what
 makes it safe rather than merely convenient: once rentals exist the table is never
 empty, so the branch can never run again and can never destroy one. That invariant is
-pinned by `test_boot_leaves_a_populated_database_untouched` — but it protects a design
+pinned by `test_boot_leaves_a_populated_database_untouched`, but it protects a design
 that should not need protecting. Admin bootstrap now rides the same boot path, for the
 same reason, though it is idempotent and additive rather than destructive.
 
 *Urgent when:* a second replica exists (two processes racing to seed one empty
-database), or a real migration story is needed — whichever comes first.
+database), or a real migration story is needed, whichever comes first.
 
 **Nothing proves that boot-seeded rows reach the wire.** Fallout from ADR-0006.
 `test_boot_seeds_an_empty_database` and `test_boot_leaves_a_populated_database_untouched`
 used to fetch `/api/hardware`, so they incidentally showed that what boot wrote was
 servable; they now read through `app.storage`, and `test_api_returns_hardware_items`
 seeds its own database rather than booting into one. Each half is covered and the join
-is not — and the join is what runs on the deploy path. One `load_items` call wide, so
+is not, and the join is what runs on the deploy path. One `load_items` call wide, so
 the risk is low and the asymmetry is worth knowing. *Urgent when: a serialisation change
 lands, or the deployed instance is seen empty while the table is not.*
 
@@ -152,13 +152,13 @@ pool. Fine under `tmp_path` in tests; the app will want one for clean shutdown.
 ## Test-suite debts
 
 **`test_serves_built_bundle_at_root` requires `npm run build` before `pytest`.** It
-asserts against the real gitignored `frontend/dist`, deliberately — a fixture directory
+asserts against the real gitignored `frontend/dist`, deliberately, because a fixture directory
 would prove the mount works, not that the *built bundle* is served. CI must build the
 frontend before the Python suite. *Urgent when: CI is set up.*
 
 **vitest is not set up, and the condition it was waiting for has arrived.** `brainstorm.md`
 §3 lists "pytest + vitest" as Phase 0 scope. This entry used to say "urgent when the
-frontend grows logic worth testing" — it has: `HardwareTable`'s roving tabindex, the api
+frontend grows logic worth testing", and it has: `HardwareTable`'s roving tabindex, the api
 client turning a `401` into the login screen while a refused login stays on it, and the
 filter counts computed from a second fetch. Three pieces of real logic, none asserted.
 *Urgent when: now. It is the largest untested surface in the project.*
@@ -167,8 +167,8 @@ filter counts computed from a second fetch. Three pieces of real logic, none ass
 coverage and it has no branches. *Urgent when: it takes a flag.*
 
 **`test_persist_does_not_commit`'s docstring names Phase 2's
-`test_concurrent_rent_only_one_succeeds` directly.** Deliberate — it traces the
-constraint to the thing depending on it — but it drifts if that test is renamed. The
+`test_concurrent_rent_only_one_succeeds` directly.** Deliberate, since it traces the
+constraint to the thing depending on it, but it drifts if that test is renamed. The
 test now exists under that exact name, in `tests/test_rental_concurrency.py`, so the
 reference resolves. *No longer overdue; delete this entry if the name outlives the
 phase.*
@@ -178,71 +178,71 @@ return exist.** "These verbs wrote nothing" holds trivially of verbs that did no
 so what keeps it red today is its precondition and its control rather than its headline
 assertion. That is the correct shape for a negative claim, but it means the test is
 weaker evidence than its siblings until Slice A is green. *Urgent when: Slice A goes
-green — re-read the failure output once, and confirm the control is what would catch a
+green, so re-read the failure output once and confirm the control is what would catch a
 regression.*
 
 **`review_reason` duplication is unresolved.** Items carry the reason for their own flag
-while the quarantine record carries the full narrative. Narrowed but not removed —
+while the quarantine record carries the full narrative. Narrowed but not removed, and
 removing it would turn `test_seed_quarantines_unknown_status` red, and that test is the
 human's to change. See `AI_LOG.md` [P0 · c6]. *Urgent when: the admin queue is built
 and has to decide where it reads the reason from.*
 
 ---
 
-## Phase 1 UI — found while building it
+## Phase 1 UI: found while building it
 
 **`POST /api/hardware` does not apply the checks ingestion applies.** Ingestion flags a
 future purchase date (`needs_review`, seed id 6), but an admin adding an item by hand
 can enter one and it lands unflagged. Two paths into the same table with two different
-standards for what is suspicious — and the admin path is the one a human uses. The
+standards for what is suspicious, and the admin path is the one a human uses. The
 route deliberately does not accept `status` or `needs_review`, so the fix is a shared
 validator rather than a wider request body. *Urgent when: the auditor runs in Phase 3
 and disagrees with what the admin panel allowed.*
 
-**No `Serial Number` or `Category` field exists**, and the wireframes have both — a
+**No `Serial Number` or `Category` field exists**, and the wireframes have both, which is a
 column in the admin table and a select in the add-device form. Adding them means a
 schema change, a migration on the mounted volume, and eleven rows where both are empty.
-See `docs/WIREFRAME_JUSTIFICATION.md`. *Urgent when: the domain actually gains them —
+See `docs/WIREFRAME_JUSTIFICATION.md`. *Urgent when: the domain actually gains them,
 serial numbers matter the first time two identical laptops need telling apart.*
 
 **Nothing can edit an item's name, brand or date.** Only status and deletion. The
 wireframe has an edit action; the app does not, because there is no endpoint. So a typo
-like the seed's `Appel` can only be fixed in the database — and ADR-0002 deliberately
+like the seed's `Appel` can only be fixed in the database, and ADR-0002 deliberately
 left that typo for the auditor to *find*, with no way to then act on the finding.
 *Urgent when: Phase 3's auditor produces a correction somebody wants to apply.*
 
 **A filtered dashboard fetches the inventory twice.** The filter chips show counts for
 every status, so with a filter active the app fetches the filtered list and the whole
-list — otherwise the counts would describe only what is already on screen. Eleven rows
+list, because otherwise the counts would describe only what is already on screen. Eleven rows
 makes this free. *Urgent when: the inventory outgrows one page and needs real
 pagination, at which point counts belong in the API response.*
 
 **Toasts overlap the bottom of the admin panel.** They are fixed bottom-right, and the
 create-account row sits under them until they dismiss. *Urgent when: a toast covers a
-control somebody needs while it is showing — reserve the space or move the stack.*
+control somebody needs while it is showing, so reserve the space or move the stack.*
 
 **Phase 1's admin verbs are not wired to `audit_events`.** ADR-0010 builds one table for
-admin overrides and Phase 2 writes only its own two actions into it — role changes and
+admin overrides and Phase 2 writes only its own two actions into it, so role changes and
 account deletions from Phase 1 stay unrecorded. Deliberately *not* backfilled: retro-writing
 events that were never observed would be fabricating an audit trail, which is worse than a
 disclosable gap. Wiring them going forward is a small change (two `_enforce`-adjacent call
-sites in `app/main.py`) and the table is already shaped for it — `item_id` and `rental_id`
+sites in `app/main.py`) and the table is already shaped for it, since `item_id` and `rental_id`
 are both nullable, so an account-scoped event fits without a migration. *Urgent when: the
 audit trail is ever presented as complete, or Phase 3 needs an actor on a finding.*
 
 **`PRAGMA foreign_keys=ON` if Slice A slips.** ADR-0011 layers three protections over rental
-data and the pragma is the belt behind the other two, not the mechanism — `persist` refusing
+data and the pragma is the belt behind the other two rather than the mechanism, since `persist` refusing
 and the `delete_item` guard are what actually stop the loss. If Phase 2 runs short, the
 pragma is the one of the three that can be dropped without leaving a reachable path to
 orphaned rentals, because both reachable paths are guarded above it. Dropping it means the
 declared FKs stay documentation. *Urgent when: a fourth write path to `hardware` appears
 that nobody remembers to guard.*
 
-## Phase 2 UI — found while building slice C
+## Phase 2 UI: found while building slice C
 
 **The add-hardware dialog still has the focus bug that `ReasonDialog` just fixed.**
 `autofocus` is honoured on page load, not when an element is inserted later, so opening
-either dialog left focus on the button that opened it and typing went nowhere — found by
+either dialog left focus on the button that opened it and typing went nowhere, found by
 driving the browser, not by reading the code. `ReasonDialog` now focuses explicitly on
 open and handles `Escape`; `AdminPanel`'s add-hardware dialog does neither. *Urgent when:
 the next time anybody uses the admin panel by keyboard, which is how an internal tool gets
@@ -250,12 +250,12 @@ used all day.*
 
 **`close_kind` is recorded and never shown.** ADR-0007 added the column specifically so
 `My Rentals` could say "recalled by an admin" rather than showing an item silently gone,
-and slice C shows neither — a returned item just disappears from the list. The data is
+and slice C shows neither, so a returned item just disappears from the list. The data is
 there; the surface is not. *Urgent when: the first time an admin recalls something and the
 employee asks where it went.*
 
 **Every action refetches the whole world.** `act()` reloads the inventory, My Rentals and
-the account list after each mutation — three requests per click, on eleven rows. Correct
+the account list after each mutation, three requests per click, on eleven rows. Correct
 and wasteful, and it is why the UI has no optimistic state to get wrong. *Urgent when: the
 inventory outgrows one page, at which point the refetch and the pagination question arrive
 together.*
@@ -267,21 +267,21 @@ renter column. The parameter is a closed enum for that reason (see
 has", which is a real workflow and a different authorization question.*
 
 **The demo reset deletes the audit trail, which ADR-0010 exists to protect.** `POST
-/api/admin/reset-demo` clears `audit_events` along with `rentals`, and it has to — a trail
+/api/admin/reset-demo` clears `audit_events` along with `rentals`, and it has to, because a trail
 referencing rental ids that no longer exist describes events that did not happen. But it
 means the one route that most needs an audit record is the one that erases them, and
 nothing anywhere records that a reset occurred. Defensible on a demo instance whose whole
 purpose is being restored, and indefensible on anything else. *Urgent when: this codebase
-is ever pointed at data somebody depends on — at which point the route should be gated on
+is ever pointed at data somebody depends on, at which point the route should be gated on
 `ENVIRONMENT != production`, or should write its own event to a table it does not clear.*
 
 
-## Phase 2 — `architecture-scout` at the gate
+## Phase 2: `architecture-scout` at the gate
 
 **The last-admin guard is check-then-act and a race defeats it.** `ensure_an_admin_remains`
 reads `count_admins()`; the `set_role` or `delete_account` that acts on the answer is a
 separate statement. Two concurrent demotions of the final two admins both read `2`, both
-pass, and both write — reproduced, `200` and `200`, zero live admins afterwards. ADR-0005
+pass, and both write. Reproduced, `200` and `200`, zero live admins afterwards. ADR-0005
 is amended to say so.
 
 The fix is already in the codebase's vocabulary: ADR-0008 settles that a read-then-decide
@@ -289,52 +289,52 @@ guard cannot win a race and puts the claim in a conditional `UPDATE` whose rowco
 decision. Here that is
 `UPDATE users SET role='user' WHERE id=:id AND (SELECT count(*) FROM users WHERE role='admin' AND deleted_at IS NULL) > 1`,
 in `guards.py` and `accounts.py` and nowhere else. *Urgent when: more than one person
-administers the instance, or Phase 3's production-hardening pass — whichever comes first.
+administers the instance, or Phase 3's production-hardening pass, whichever comes first.
 Not before: the trigger is two simultaneous demotions on a two-admin internal tool.*
 
 **`rentals.rent`'s honest failure message is choreography, not interface.** `rent()` raises
 a generic "already in use" on any rowcount-0, and the route rolls back, re-reads the item
-and re-runs `ensure_item_is_rentable` to recover the real cause — Repair, needs review, or
+and re-runs `ensure_item_is_rentable` to recover the real cause, whether Repair, needs review, or
 genuinely held. Deliberate (ADR-0008: reading first deadlocks six concurrent claimants),
 but it means "how to get a truthful rent-failure message" is a dance a caller must
 reproduce rather than something the module hands over. One caller today, so nothing is
-duplicated. *Urgent when: a second caller appears — Phase 3's semantic search returning
+duplicated. *Urgent when: a second caller appears, such as Phase 3's semantic search returning
 rentable items is the likely one.*
 
 **The boot sequence is ~90 lines inside `create_app`.** Schema creation, migration, seed,
 rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/main.py` at
-702 lines is otherwise legitimate composition — fifteen thin routes over deep modules, not
-a God object — and this is the one seam that is a real boundary rather than arbitrary
+702 lines is otherwise legitimate composition, fifteen thin routes over deep modules rather
+than a God object, and this is the one seam that is a real boundary rather than arbitrary
 file-splitting. *Urgent when: never, on payoff alone. Do it only if boot grows a step that
 needs its own test.*
 
 
-## Phase 2 — `mvp-reviewer` at the gate
+## Phase 2: `mvp-reviewer` at the gate
 
 **`chore(phase-2): deploy v2` (`3bce364`) ships production code under a `chore` label.**
 The reconcile fix and the seed backfill ride a commit whose type says "no production
 change". The history cannot be rewritten honestly now; the rule going forward is that a
 deploy commit that needs a code change is two commits. *Urgent when: Phase 3's deploy
-commit — the moment the same temptation recurs.*
+commit, the moment the same temptation recurs.*
 
 **`clear-review` is only ever tested against an `Available` item.** The route allows
 clearing whatever the item's status (`app/main.py`), and ADR-0010 says so, but no test
-pins it — a regression that quietly restricted clearing to `Available` items would be
+pins it, so a regression that quietly restricted clearing to `Available` items would be
 green. One test clearing a flagged `Repair` item covers the claim. *Urgent when: anyone
 touches the clear-review route or the guard layer it deliberately bypasses.*
 
 
-## Phase 3 — the red pass (test-author)
+## Phase 3: the red pass (test-author)
 
 **"Off-enum kinds are dropped *and counted*" has no surface in the spec.**
 `docs/specs/phase-3.md` says the count exists but names no field, so
-`test_auditor_drops_off_enum_finding_kinds` pins the drop and not the count — an
+`test_auditor_drops_off_enum_finding_kinds` pins the drop and not the count, so an
 implementation that discards silently is green. *Urgent when: the audit response shape is
 settled; add `{"dropped": n}` to the spec table and one assertion.*
 
 **The LLM seam is fixed by a test module, not by an ADR.** `tests/llm_seam.py` decides
 that the key is read from `os.environ` at request time and that the client lives at
-`app.state.llm` — the spec fixes only "server-side, read at request time". Same shape as
+`app.state.llm`, and the spec fixes only "server-side, read at request time". Same shape as
 `conftest.py` fixing the HTTP contract in Phase 1, and recorded here for the same reason.
 *Urgent when: a second consumer of the model appears, or the seam moves into `Settings`.*
 
@@ -350,29 +350,29 @@ first. *Urgent when: Slice C is not cut.*
 
 ---
 
-## Deploy trigger — found at the v3 deploy
+## Deploy trigger: found at the v3 deploy
 
 **The Railway service's GitHub trigger tracks the Phase 0 branch.** A branch push has
 not deployed anything since Phase 0 ended; every phase since has shipped through some
 other path, and the stale trigger sat harmless until 2026-08-07, when attaching
-`GEMINI_API_KEY` made Railway redeploy its configured source — putting v0 (no auth,
+`GEMINI_API_KEY` made Railway redeploy its configured source, putting v0 (no auth,
 open read surface) on the public URL for ~4 minutes until a `railway up` replaced it.
 The CLI cannot change the tracked branch; the dashboard can. *Urgent when: anyone
 touches a variable, which is why CLAUDE.md now orders a `railway up` after every
-variable change — and permanently fixed only by pointing the trigger at `main` in the
+variable change, and permanently fixed only by pointing the trigger at `main` in the
 dashboard, a human-only action.*
 
 ---
 
-## Phase 3 — `mvp-reviewer` at the gate
+## Phase 3: `mvp-reviewer` at the gate
 
 **A valid-but-empty filter returns the whole catalogue labelled `semantic`, pinned by
 no test.** Observed live (the oracle probe's zero-selectivity answer, n=12). Correct
-behaviour — the model legitimately said "no constraints" — but nothing asserts it, so
+behaviour, because the model legitimately said "no constraints", but nothing asserts it, so
 a regression that errored on `{}` or mislabelled it would be green. *Urgent when: the
 search route or `parse_filter` is next touched.*
 
-## Phase 4 schema slice — non-blocking
+## Phase 4 schema slice: non-blocking
 
 - **`date_added` is not pinned as server-owned.** The scope says "defaults to now on
   create" but names no test for a caller supplying it. If `NewHardware` grows a
@@ -388,12 +388,12 @@ gives every sortable column both directions, including alphabetical on name and 
 four new behaviours and the tests to pin them; at eleven rows the browser sorts for free
 and gives instant reordering with no round trip. Both are kept deliberately: the
 client-side sort is what the UI uses, and the server parameter stays implemented and
-tested because it is the path that scales — sorting in the browser stops being free the
+tested because it is the path that scales, since sorting in the browser stops being free the
 moment the inventory outgrows one response.
 
 The cost is honest API surface without a caller: `GET /api/hardware?sort=purchase_date`
 works, is tested, and nothing in the product calls it. *Urgent when: the inventory needs
-pagination — at which point sorting has to move back to the server, and the parameter is
+pagination, at which point sorting has to move back to the server, and the parameter is
 already there and already proven.*
 
 ## Suite wall time — two findings, only one of them understood

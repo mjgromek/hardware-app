@@ -555,4 +555,4 @@ supervising machinery instead of shipping, and the log is the receipt.
 | [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose; the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. The corrections index is at the top. |
-| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 20 sessions: the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one, and the index maps each session to the ADRs it produced. |
+| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 26 sessions: the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one, and the index maps each session to the ADRs it produced. |

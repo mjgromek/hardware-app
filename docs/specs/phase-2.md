@@ -1,4 +1,4 @@
-# Phase 2 — Rental Engine
+# Phase 2: Rental Engine
 
 Branch `phase-2-rental`. Settled by grilling 2 (`docs/PROMPT_TRAIL.md` Session 9) and
 ADR-0007 through ADR-0012, plus the ADR-0003 amendment.
@@ -11,12 +11,12 @@ Round 3 of the grilling was cut deliberately; its four open questions are settle
 
 ---
 
-## Slice A — the engine (must ship)
+## Slice A: the engine (must ship)
 
 ### Schema
 
 `rentals`, in a new `app/rentals.py` (its own `MetaData`, its own `create_schema`, for the
-same reason `app/accounts.py` has one — `persist`'s replace semantics must never reach it):
+same reason `app/accounts.py` has one, since `persist`'s replace semantics must never reach it):
 
 | column | type | notes |
 | --- | --- | --- |
@@ -30,22 +30,22 @@ same reason `app/accounts.py` has one — `persist`'s replace semantics must nev
 | `closed_by_email` | text, nullable | |
 | `close_kind` | text, nullable | `return` \| `force_return` |
 
-Plus **`CREATE UNIQUE INDEX … ON rentals(item_id) WHERE ended_at IS NULL`** — the partial
+Plus **`CREATE UNIQUE INDEX … ON rentals(item_id) WHERE ended_at IS NULL`**, the partial
 index is the thing that makes two active rentals on one item unreachable.
 
 `PRAGMA foreign_keys=ON` via a SQLAlchemy engine event listener in `create_engine_for`.
 
-### Transitions — `app/rentals.py` owns the SQL (ADR-0008)
+### Transitions: `app/rentals.py` owns the SQL (ADR-0008)
 
-- `rent(session, item_id, account)` — `UPDATE hardware SET status='In Use' WHERE id=:id AND
+- `rent(session, item_id, account)`: `UPDATE hardware SET status='In Use' WHERE id=:id AND
   status='Available' AND needs_review=0`, then insert the rental. **Rowcount 0 → the caller
   lost**; raise the guard violation carrying the `In Use` reason.
-- `return_(session, item_id, account)` — renter only. Wrong renter → `409`.
-- `force_return(session, item_id, admin, reason)` — any active rental, reason mandatory,
+- `return_(session, item_id, account)`: renter only. Wrong renter → `409`.
+- `force_return(session, item_id, admin, reason)`: any active rental, reason mandatory,
   writes `audit_events` (Slice B; in A it may write the rental fields only, with the
   `audit_events` insert added in B).
 
-### Guards — `app/guards.py`
+### Guards: `app/guards.py`
 
 Pure-read pre-checks whose job is the message, not the decision: `Repair`, `In Use`,
 `needs_review`, unknown item. One reason per **cause** (ADR-0008), never per timing.
@@ -62,7 +62,7 @@ Pure-read pre-checks whose job is the message, not the decision: `Repair`, `In U
 ### Seed id 7
 
 Import creates a rental row with `account_id = NULL`, `renter_email = "j.doe@booksy.com"`,
-`started_at` unknown-but-recorded. **Not** a new divergence in `docs/DATA_AUDIT.md` — the
+`started_at` unknown-but-recorded. **Not** a new divergence in `docs/DATA_AUDIT.md`, because the
 row is imported as the seed states it.
 
 ### Routes
@@ -70,13 +70,13 @@ row is imported as the seed states it.
 `POST /api/hardware/{id}/rent` · `POST /api/hardware/{id}/return` ·
 `POST /api/hardware/{id}/force-return` (admin, `{reason}`).
 
-### Tests — Slice A
+### Tests: Slice A
 
 From `brainstorm.md` §3, plus what the grilling added:
 
 ```
 test_cannot_rent_hardware_in_repair
-test_cannot_rent_flagged_hardware            # ADR-0003 — Dell XPS stays unrentable
+test_cannot_rent_flagged_hardware            # ADR-0003, Dell XPS stays unrentable
 test_cannot_rent_hardware_already_in_use
 test_cannot_return_hardware_not_rented
 test_cannot_return_someone_elses_rental      # the wrong-user guard, absolute
@@ -93,7 +93,7 @@ test_seed_id_7_imports_as_an_accountless_rental
 **`test_rental_history_records_both_ends` asserts** (Round 3, settled here): after a
 rent→return cycle the `rentals` row has a non-null `started_at` *and* `ended_at`, the
 renter fields match who rented, the `closed_by` fields match who returned, and
-`close_kind='return'`. One row, not two — the log is the rental, not an event stream.
+`close_kind='return'`. One row, not two: the log is the rental, not an event stream.
 Its discriminating half is that a second rent→return on the same item produces a **second
 row**, so a `UPDATE`-in-place implementation that loses the first cycle fails.
 
@@ -104,17 +104,17 @@ its body.
 
 ---
 
-## Slice B — clearing the flag, and who sees what (must ship)
+## Slice B: clearing the flag, and who sees what (must ship)
 
 ### Schema
 
 `audit_events` (ADR-0010), alongside `rentals`:
 `(id, actor_account_id, actor_email, action, item_id, rental_id, reason, created_at)`.
-`action` is a closed enum — `force_return`, `clear_review_flag`. `reason` is not null.
+`action` is a closed enum: `force_return`, `clear_review_flag`. `reason` is not null.
 
 ### Behaviour
 
-- `POST /api/hardware/{id}/clear-review` — admin only, `{reason}` mandatory. Allowed
+- `POST /api/hardware/{id}/clear-review`: admin only, `{reason}` mandatory. Allowed
   regardless of status. `409` if the item is not flagged. Clears `needs_review` and
   `review_reason`, writes the audit event.
 - `force_return` writes its audit event here.
@@ -122,7 +122,7 @@ its body.
   for admins only. Renter identity stays visible to every signed-in user. This changes the
   contract table in `tests/conftest.py`.
 
-### Tests — Slice B
+### Tests: Slice B
 
 ```
 test_admin_can_clear_needs_review            # ADR-0003
@@ -139,18 +139,18 @@ still blocks rental is the decoration ADR-0003 exists to prevent, in a new place
 
 ---
 
-## Slice C — the UI (first to cut)
+## Slice C: the UI (first to cut)
 
 In cut order, last listed goes first:
 
 1. **`Rent` / `Return` on the dashboard.** A `Rent` button on `Available` unflagged rows; a
    `Return` on rows the signed-in user holds. Refusals surface the `409` reason in the
    existing toast, which already renders guard reasons verbatim.
-2. **Force-return and clear-flag in the admin panel.** Both need a reason prompt — a
+2. **Force-return and clear-flag in the admin panel.** Both need a reason prompt, and a
    dialog, not a `window.confirm`, since a reason has to be typed.
 3. **`My Rentals`** (cut first). The wireframe is drawn and `docs/WIREFRAME_JUSTIFICATION.md`
    already records why it was absent in Phase 1. **Payload** (Round 3, settled here): no new
-   endpoint — `GET /api/hardware?held_by=me`, one filter on the route the dashboard already
+   endpoint, `GET /api/hardware?held_by=me`, one filter on the route the dashboard already
    calls, because a separate `/api/rentals/mine` would duplicate the serialiser that
    ADR-0012 just made role-dependent.
 
@@ -166,4 +166,4 @@ a rental · ADR-0010 audit events · ADR-0011 protecting rental data · ADR-0012
 visibility · plus an amendment to ADR-0003 for the guard-layer placement.
 
 No further ADR is expected in this phase. One arriving mid-build means something was
-decided that the grilling missed — which is worth noticing, not hiding.
+decided that the grilling missed, which is worth noticing, not hiding.
