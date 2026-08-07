@@ -16,6 +16,7 @@ import ReasonDialog from './components/ReasonDialog.vue'
 import ReviewQueue from './components/ReviewQueue.vue'
 import ToastStack from './components/ToastStack.vue'
 import { api, ApiError, handleUnauthorized } from './api.js'
+import { sound } from './sound.js'
 
 // Theme. **Light is the default and `prefers-color-scheme` is deliberately not read.**
 // Every visitor lands on the light theme — it is what the wireframe shows and what a
@@ -38,6 +39,17 @@ function toggleTheme() {
 }
 
 applyTheme(theme.value)
+
+// Sound is off until asked for, and the toggle sits beside the theme one. The four
+// events are in ADR-0018; each is paired with a toast at its call site, so muting
+// removes a channel rather than the information.
+const soundOn = ref(sound.enabled)
+
+function toggleSound() {
+  soundOn.value = !soundOn.value
+  sound.enabled = soundOn.value
+  if (soundOn.value) sound.confirmed()   // one tone, so "on" is audible immediately
+}
 
 const account = ref(null)
 const booting = ref(true)
@@ -97,7 +109,14 @@ async function loadInventory() {
     api.hardware({ status: statusFilter.value, sort: sortKey.value }),
     statusFilter.value ? api.hardware({ sort: sortKey.value }) : null,
   ])
+  // Two of ADR-0018's four events are about somebody *else's* action — a user rents an
+  // item, an item enters review — and there is no realtime channel to learn them from.
+  // So they are derived by diffing this fetch against the previous one: an admin hears
+  // them the next time their client refetches, which is after every action they take.
+  // Notification on refresh, not realtime, and ADR-0018 says so rather than implying it.
+  const previous = items.value
   items.value = visible
+  if (isAdmin.value && previous.length) announceChanges(previous, visible)
   const all = everything ?? visible
   counts.value = all.reduce(
     (tally, item) => ({ ...tally, [item.status]: (tally[item.status] ?? 0) + 1 }),
@@ -107,6 +126,24 @@ async function loadInventory() {
 
 async function loadMine() {
   mine.value = await api.hardware({ heldBy: 'me' })
+}
+
+function announceChanges(before, after) {
+  const was = new Map(before.map((item) => [item.id, item]))
+  for (const item of after) {
+    const prior = was.get(item.id)
+    if (!prior) continue
+    // Somebody took something out. Not fired for the admin's own rent — that path
+    // already reported itself as a confirmed action.
+    if (prior.status !== 'In Use' && item.status === 'In Use' && item.assigned_to !== account.value?.email) {
+      sound.rent()
+      say(`${item.name} was taken by ${item.assigned_to ?? 'somebody'}`)
+    }
+    if (!prior.needs_review && item.needs_review) {
+      sound.review()
+      say(`${item.name} entered review`)
+    }
+  }
 }
 
 async function loadAccounts() {
@@ -147,8 +184,14 @@ async function act(work, done) {
   try {
     await work()
     await refresh()
-    if (done) say(done)
+    if (done) {
+      sound.confirmed()
+      say(done)
+    }
   } catch (e) {
+    // A 409 is a guard refusing with a readable reason (CONTEXT.md) — a different
+    // event from a network failure, and the only error worth its own voice.
+    if (e instanceof ApiError && e.status === 409) sound.refused()
     say(e.detail ?? 'Something went wrong.', 'error')
   } finally {
     busyId.value = null
@@ -362,6 +405,15 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
       </button>
 
       <span class="nav-spacer" />
+      <button
+        type="button"
+        class="theme-toggle"
+        :aria-pressed="soundOn"
+        @click="toggleSound"
+      >
+        <Icon :name="soundOn ? 'bell' : 'bell-off'" />
+        {{ soundOn ? 'Sounds on' : 'Sounds off' }}
+      </button>
       <button
         type="button"
         class="theme-toggle"

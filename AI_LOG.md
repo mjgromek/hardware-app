@@ -1465,3 +1465,32 @@ is now written down as an argument with numbers attached instead of a sentence a
 it looks.
 
 Commit: fix(phase-4): raise muted text to AA and measure every pair (pending)
+
+---
+
+## [P4 · c7] Four sounds, and the honest word for what they are
+
+Web Audio oscillators rather than four `.mp3` files: no binary in the repo, nothing added
+to the bundle, no MIME configuration on the static mount, and — the reason that decides it
+— no request. ADR-0001 put the app on one origin so the API is the only traffic; audio
+files would have been the single exception. ADR-0018 records it.
+
+**The part worth arguing was not the format.** Two of the four events are about somebody
+*else's* action — a user rents an item, an item enters review — and there is no websocket
+or SSE to learn them from. They are derived by diffing each inventory fetch against the
+previous one, which means an admin hears them *the next time their client refetches*, not
+when they happen. That is notification on refresh, and the ADR calls it that. The
+alternative was a polling timer on every client to serve four sounds.
+
+**One conflation I refused.** The brief said "respects `prefers-reduced-motion`". Applied
+to the toast animation, yes. Applied to *sound*, no: that setting says a person is affected
+by movement and says nothing about audio, and treating it as a proxy for "wants less
+feedback" would silently remove a channel from people who asked about a different one.
+Sound is off by default behind its own opt-in, which is the only preference that actually
+expresses the choice. Written into ADR-0018 rather than done quietly.
+
+No test covers any of this — the frontend still has no vitest, which is the documented
+shortcut and the largest untested surface in the project. Said plainly rather than left for
+a reviewer to notice.
+
+Commit: feat(phase-4): four notification sounds over the toast layer (pending)
