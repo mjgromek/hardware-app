@@ -205,7 +205,9 @@ function shown(value) {
                control in Actions, reachable by pointer *and* by keyboard and screen
                reader — ADR-0012 is untouched, the field is still served and still
                visible, just not as a column that only some rows fill. -->
-          <td class="cell-status"><StatusChip :status="item.status" /></td>
+          <td class="cell-status">
+            <StatusChip :status="item.status" :needs-review="item.needs_review" />
+          </td>
           <td v-if="props.rentable" class="cell-actions">
             <button
               v-if="heldByMe(item)"

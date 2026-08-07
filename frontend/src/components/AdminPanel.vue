@@ -152,8 +152,7 @@ function submitAccount() {
          it in the reader's terms — but the reasoning for it lives in docs/adr/, not on
          a screen somebody is trying to use. -->
     <p v-else-if="props.findings === null" class="empty">
-      Reviews the catalogue and suggests items worth checking. Flagging is yours — each
-      finding becomes an action.
+      Reviews the catalogue and suggests items worth checking.
     </p>
     <p v-else-if="!props.findings.length" class="empty">
       The model reported nothing it is allowed to say. A clean catalogue and a model

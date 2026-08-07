@@ -1220,17 +1220,24 @@ th[aria-sort] .sort-arrow {
  * onto the bar itself: the border takes `--focus` and the fill lifts to the card
  * surface, so the whole control changes state instead of acquiring a halo.
  *
+ * The border is `--ink`, not `--focus`. Blue is a real token, but it appears nowhere
+ * else in this palette — the tool is black, white, grey, with amber and red reserved for
+ * states that mean something — so a blue edge on the one element that replaces the ring
+ * read as borrowed from another product. `--ink` is the same black the Available pill
+ * and the primary button already use, so the focused bar looks like it belongs to the
+ * page it sits on. Only the hue changed; the treatment and its job did not.
+ *
  * `outline: none` is load-bearing and is the only such reset in this stylesheet, so the
- * replacement has to carry WCAG 2.4.11 on its own. It does, and the numbers are in
- * `docs/ACCESSIBILITY.md`: the border is 4.53:1 against the bar's own fill and 4.86:1
- * against the page behind it, both over the 3:1 required.
+ * replacement has to carry WCAG 2.4.11 on its own. It does, by a wider margin than the
+ * blue did: 19.55:1 against the focused fill and 18.40:1 against the page in light,
+ * 14.74:1 and 15.56:1 in dark, all in `docs/ACCESSIBILITY.md`.
  *
  * The fill shift is deliberately *not* doing that work — measured on its own it is
  * 1.14:1 in light and 1.11:1 in dark, far under 3:1. It is supporting feedback; the
  * border is the indicator. Removing the border and keeping only the fill would look
  * tidier and would fail. */
 .search-bar input[type='search']:focus-visible {
-  border-color: var(--focus);
+  border-color: var(--ink);
   background: var(--surface);
   outline: none;
 }

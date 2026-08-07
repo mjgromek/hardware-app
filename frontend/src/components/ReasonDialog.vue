@@ -113,11 +113,13 @@ const reasonRequired = computed(() => {
 // "fixed: battery is swelling" — the false record wearing the other outcome's words.
 // Only an *untouched* prefill is swapped; anything the admin typed is theirs and stays.
 watch(outcome, (now, before) => {
-  const wasPrefilled = reason.value === props.prefill
-  const nowNeedsOwnWords = chosen.value?.prompt !== undefined
-  if (nowNeedsOwnWords && wasPrefilled) reason.value = ''
-  else if (!nowNeedsOwnWords && before && !reason.value.trim()) {
-    reason.value = props.prefill
+  const untouched =
+    reason.value === props.prefill ||
+    props.outcomes.some((o) => o.prefill !== undefined && reason.value === o.prefill)
+  // Only an untouched field is swapped. Anything the admin typed is theirs and stays,
+  // even across a change of mind about the outcome.
+  if (untouched) {
+    reason.value = chosen.value?.prefill ?? props.prefill
   }
   if (reasonRequired.value) nextTick(() => field.value?.focus())
 })

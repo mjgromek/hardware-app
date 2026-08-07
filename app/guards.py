@@ -96,6 +96,52 @@ def ensure_item_is_rentable(item: HardwareItem) -> None:
         )
 
 
+def ensure_item_can_be_flagged(item: HardwareItem) -> None:
+    """Refuse a review flag on an item already in Repair (ADR-0003, amended).
+
+    Review and Repair answer different questions with different owners. `Repair` says an
+    admin has taken the item out of service and knows why; `needs_review` says nobody has
+    decided yet. An item asserting both tells a reader neither — and it puts an entry in
+    the review queue that cannot be concluded, because releasing it would return a device
+    somebody deliberately withdrew.
+
+    The other direction is already closed: concluding a review in Repair clears the flag,
+    since a review that reaches a conclusion is over. Together the two make the states
+    mutually exclusive **by construction** rather than by convention, which is what lets
+    the display precedence be a presentation rule instead of a tie-break over a
+    combination the data should never hold.
+
+    Deliberately narrow: `In Use` and `needs_review` still coexist. Somebody holding a
+    device can be told it is under review, and the flag is what stops the *next* rental.
+    """
+    if item.status is Status.REPAIR:
+        raise GuardViolation(
+            f"{item.name} is already in Repair, so it cannot also be flagged for "
+            "review — an admin has taken it out of service and the reason belongs "
+            "there. Release it from Repair first if the record itself is in doubt."
+        )
+
+
+def ensure_repair_does_not_bury_a_review(item: HardwareItem) -> None:
+    """Refuse a plain status change to Repair on an item still under review.
+
+    The mirror of `ensure_item_can_be_flagged`, and the half that was actually reachable:
+    admin edit could set `Repair` on a flagged row and produce exactly the pair ADR-0003's
+    amendment forbids. The `flag-review` guard alone did not close it, which is what
+    "mutually exclusive by construction" has to mean — every route, not the obvious one.
+
+    Refused rather than silently clearing the flag. Clearing it here would conclude a
+    review with no reason and no audit row, which is the thing `clear-review` exists to
+    make impossible (ADR-0010, ADR-0017), so the message points at that verb instead.
+    """
+    if item.needs_review:
+        raise GuardViolation(
+            f"{item.name} is under review, so it cannot be moved straight to Repair. "
+            "Conclude the review with the Repair outcome instead — that records why, "
+            "against your name, and sets the status in the same action."
+        )
+
+
 def ensure_no_active_rental(rental, item: HardwareItem, action: str) -> None:
     """Refuse an admin action that would strand somebody's active rental.
 

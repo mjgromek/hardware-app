@@ -636,6 +636,12 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     item,
                     "sent to Repair",
                 )
+                # The second route into the review/Repair pair, and the one that actually
+                # produced it — guarding `flag-review` alone left this open (ADR-0003,
+                # amended). Refused rather than silently clearing the flag: that would
+                # conclude a review with no reason and no audit row, and the verb that
+                # concludes one properly is a single call away.
+                _enforce(guards.ensure_repair_does_not_bury_a_review, item)
             if change.status is not None:
                 set_status(session, item_id, change.status)
             fields = {
@@ -927,6 +933,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     detail=f"{item.name} is already flagged for review — clear the "
                     "existing flag first if the reason has changed.",
                 )
+            # Checked before the write and before the audit row: a refusal is a
+            # non-event, and filing a mandatory reason against one is the mistake
+            # ADR-0010 refused when it made `clear-review` `409` on an unflagged item.
+            _enforce(guards.ensure_item_can_be_flagged, item)
             flag_review(session, item_id, body.reason)
             audit.record(
                 session,

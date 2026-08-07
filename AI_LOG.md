@@ -2271,3 +2271,39 @@ and 0014 was not in my list. One `grep` before the sentence rather than after it
 seventh instrument error would have been in a document telling reviewers about the first
 six.
 Commit: docs: the final documentation pass (8964c08)
+
+---
+
+## [P4 · c34] The exclusion, the display rule, and the route I missed
+
+`needs_review` stays a flag, orthogonal to a status enum the brief fixes and ADR-0002
+depends on staying closed. The chip gains a display rule —
+`In Repair > Rented > In Review > Available` — resolved in `StatusChip`, the one component
+where the API's vocabulary already meets the employee's. `chip-flag` turned out to be
+styled and rendered by nothing, so In Review reuses a measured token pair rather than
+introducing a fourth status colour.
+
+**The guard shipped, and the dashboard immediately showed the state it forbids.** I added
+`ensure_item_can_be_flagged` to `flag-review`, ran the suite green, then looked at the
+screen: row 1 was `In Repair` *with* the amber flag marker. Admin edit reaches Repair too,
+and `PATCH {"status": "Repair"}` on a flagged row wrote the pair with nothing in the way.
+My own test — "no seeded item is both" — passed because the seed cannot contain it.
+
+That is the amendment's phrase turned back on me. "Mutually exclusive **by construction**"
+is a claim about every route that reaches the state, and I checked one. Second guard,
+`ensure_repair_does_not_bury_a_review`, red first. Refused rather than silently clearing
+the flag: clearing it there would conclude a review with no reason and no audit row, which
+is the thing `clear-review` exists to make impossible, so the message points at that verb.
+
+The Repair reason now prefills from `review_reason`. **Deviation, stated:** the request
+said "when the review came from a return-with-issue report", and the row does not record a
+flag's origin — there is no per-item audit read and adding a `review_source` column is a
+schema change with a migration test. It prefills for every flagged item instead. For a
+return that is the returner's note, which is the case the request was about; for an
+auditor flag it is the finding, which the admin is equally confirming or correcting.
+
+Focus border moved from `--focus` blue to `--ink`. Blue is a real token but appears
+nowhere else in this palette, so the one element replacing the global ring looked borrowed
+from another product. Margins went up, not down: 19.55:1 and 18.40:1 light, 14.74:1 and
+15.56:1 dark. Auditor copy cut to one sentence.
+Commit: feat(phase-4): review and repair exclude each other, by construction (pending)

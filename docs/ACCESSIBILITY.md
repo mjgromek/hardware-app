@@ -40,9 +40,9 @@ without the numbers changing too.
 | Primary button label | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
 | Destructive button label | `#dc2626` | `#ffffff` | **4.83:1** | 4.5:1 | ✅ |
 | Focus ring | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
-| Ask AI focus border — inside edge, on the focused fill | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
-| Ask AI focus border — outside edge, on the page | `#2563eb` | `#f7f8fa` | **4.86:1** | 3.0:1 | ✅ |
-| Ask AI focus border vs the unfocused fill it replaces | `#2563eb` | `#eef0f4` | **4.53:1** | 3.0:1 | ✅ |
+| Ask AI focus border — inside edge, on the focused fill | `#0b0c10` | `#ffffff` | **19.55:1** | 3.0:1 | ✅ |
+| Ask AI focus border — outside edge, on the page | `#0b0c10` | `#f7f8fa` | **18.40:1** | 3.0:1 | ✅ |
+| Ask AI focus border vs the unfocused fill it replaces | `#0b0c10` | `#eef0f4` | **17.13:1** | 3.0:1 | ✅ |
 | Ask AI fill shift *alone* | `#eef0f4` | `#ffffff` | **1.14:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 
@@ -67,9 +67,9 @@ Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
 | Primary button label | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
 | Destructive button label | `#f87171` | `#16181d` | **6.42:1** | 4.5:1 | ✅ |
 | Focus ring | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
-| Ask AI focus border — inside edge, on the focused fill | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
-| Ask AI focus border — outside edge, on the page | `#60a5fa` | `#101216` | **7.37:1** | 3.0:1 | ✅ |
-| Ask AI focus border vs the unfocused fill it replaces | `#60a5fa` | `#1e222a` | **6.27:1** | 3.0:1 | ✅ |
+| Ask AI focus border — inside edge, on the focused fill | `#e8eaee` | `#16181d` | **14.74:1** | 3.0:1 | ✅ |
+| Ask AI focus border — outside edge, on the page | `#e8eaee` | `#101216` | **15.56:1** | 3.0:1 | ✅ |
+| Ask AI focus border vs the unfocused fill it replaces | `#e8eaee` | `#1e222a` | **13.23:1** | 3.0:1 | ✅ |
 | Ask AI fill shift *alone* | `#1e222a` | `#16181d` | **1.11:1** | 3.0:1 | ❌ not the indicator |
 | Amber ! border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 
@@ -136,8 +136,10 @@ none of them to be colour.
   (light) and 6.99:1 (dark), but the *2px* thickness and offset are not measured against
   SC 2.4.11's minimum-area requirement.
 - **The Ask AI bar is the one element that replaces that ring** rather than inheriting
-  it: `outline: none`, with a 2px border in `--focus` and a fill lift to the card
-  surface. It is the only `outline` reset in the stylesheet. The border's contrast is
+  it: `outline: none`, with a 2px border in `--ink` and a fill lift to the card surface.
+  The border is the palette's own black rather than `--focus` blue, which appears nowhere
+  else in this tool and read as borrowed from another product; the treatment is unchanged
+  and the margins went up, not down. It is the only `outline` reset in the stylesheet. The border's contrast is
   measured in both tables above on **both** of its edges — the focused fill inside and
   the page outside — because those are the adjacent colours SC 2.4.11 names, and clears
   3:1 on each. The fill shift is supporting feedback only, at 1.14:1 / 1.11:1, and would

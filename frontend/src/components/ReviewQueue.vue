@@ -70,7 +70,7 @@ const emit = defineEmits(['review'])
               <span v-if="item.brand" class="hint">{{ item.brand }}</span>
               <span v-else class="missing" title="No brand recorded">— no brand</span>
             </td>
-            <td><StatusChip :status="item.status" /></td>
+            <td><StatusChip :status="item.status" :needs-review="item.needs_review" /></td>
             <td>{{ item.review_reason ?? 'No reason recorded.' }}</td>
             <td v-if="props.isAdmin" class="cell-actions">
               <button

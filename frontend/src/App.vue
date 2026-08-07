@@ -329,6 +329,13 @@ function askClearReview(item) {
         hint: 'The fault is real. The item stays unrentable until it is fixed.',
         prompt: 'What is wrong with it?',
         placeholder: 'Battery is swelling, confirmed by inspection',
+        // The reason already on the record, carried into the field the admin is about
+        // to fill. When the flag came from a return-with-issue this is the returner's
+        // own note (ADR-0020), and the admin is confirming or correcting first-hand
+        // observation rather than retyping it — a blank field invites a thinner reason
+        // than the one somebody already wrote. Editable, always: what gets recorded is
+        // whatever the admin leaves in the field, same rule as the auditor prefill.
+        prefill: item.review_reason || '',
       },
     ],
     // The server refuses anything that does not state a change (ADR-0017 as
