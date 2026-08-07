@@ -30,6 +30,7 @@ const emit = defineEmits([
   'toggle-repair',
   'delete-hardware',
   'force-return',
+  'edit-hardware',
   'flag-finding',
   'run-audit',
   'add-account',
@@ -98,6 +99,7 @@ function submitAccount() {
       @toggle-repair="emit('toggle-repair', $event)"
       @delete="emit('delete-hardware', $event)"
       @force-return="emit('force-return', $event)"
+      @edit-hardware="emit('edit-hardware', $event)"
     />
   </div>
 

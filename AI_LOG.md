@@ -1727,4 +1727,37 @@ green build meant "it worked"; an unchanged UI meant "Vue is misbehaving"; a swa
 meant "shipped code is broken". The instrument was never the thing I doubted, and it should
 have been the first.
 
-Commit: docs: never patch files with str.replace or sed (pending)
+Commit: docs: never patch files with str.replace or sed (214fe19)
+
+---
+
+## [P4 · c16] The edit wiring, fixed with the Edit tool and verified by clicking it
+
+Three declarations were missing, not one: `edit-hardware` absent from `HardwareTable`'s
+`defineEmits` (so Vue dropped the pencil's event), absent from `AdminPanel`'s, and never
+forwarded from its `<HardwareTable>`. Reading the files first also turned up a fourth
+casualty of the same batch — `clear-review` was missing from the table's emits too.
+
+Made with the Edit tool under the new non-negotiable. Every one reported applying cleanly,
+and one carried a warning that the file had changed on disk since I last read it — which is
+information `str.replace` never gave me once all session.
+
+**Verified by hand, which is the part that counts.** Admin edit: clicked the pencil on
+Apple iPhone 13 Pro Max, set serial `IPH-13-TEST-001` and a note, saved, read the item back
+— both landed, and name, brand and purchase date were untouched, so the partial-edit
+contract holds through the form and not just in the tests. Review release: opened the
+dialog on seed id 10, corrected the date to 2021-10-10 and wrote the `fixed:` note, released
+— the item came back `purchase_date: 2021-10-10`, `needs_review: false`, `review_reason:
+null`. ADR-0017's amendment now works end to end: the note describes a change the same
+action performed.
+
+Two things the clicking exposed that reading could not. The dashboard's first click after a
+`navigate` is still swallowed by the automation, so the Admin tab did not switch until I
+clicked through JS — the same artifact I once reported as a shipped sort bug. And my earlier
+failed attempts had already released the Logitech and left its purchase date at today's
+date; the local scratch database is now inconsistent with the seed. It is scratch, not the
+deployed volume, but it is worth saying rather than leaving for someone to find.
+
+152/152.
+
+Commit: fix(phase-4): declare the edit-hardware event so the pencil works (pending)

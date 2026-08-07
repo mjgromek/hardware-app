@@ -24,7 +24,19 @@ const props = defineProps({
   busyId: { type: [Number, null], default: null },
 })
 
-const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', 'force-return'])
+// Every event the table can raise must be declared here or Vue drops it silently — the
+// pencil called `emit('edit-hardware')` for a release without `edit-hardware` in this
+// list, so the click went nowhere and the feature looked built.
+const emit = defineEmits([
+  'sort',
+  'toggle-repair',
+  'delete',
+  'rent',
+  'return',
+  'force-return',
+  'clear-review',
+  'edit-hardware',
+])
 
 //: Why this row cannot be rented, in the words the API would use. Shown *before* the
 //: click rather than only after it: the reason is already in the row, and making
