@@ -8,7 +8,7 @@ Internal tool for Booksy employees to manage company hardware safely — with ro
 
 <br>
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://hardware-hub-production-24b7.up.railway.app)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://booksy-hardware-hub.up.railway.app/)
 [![Tests](https://img.shields.io/badge/Tests-198_passing-success?style=for-the-badge)](#-status)
 [![AI Log](https://img.shields.io/badge/AI_Log-Development_Process-blueviolet?style=for-the-badge)](AI_LOG.md)
 [![ADRs](https://img.shields.io/badge/Architecture-20_ADRs-blue?style=for-the-badge)](docs/adr/)
@@ -32,7 +32,7 @@ Internal tool for Booksy employees to manage company hardware safely — with ro
 
 ### 🔗 Live Demo
 
-**[Open Hardware Hub](https://hardware-hub-production-24b7.up.railway.app)**
+**[Open Hardware Hub](https://booksy-hardware-hub.up.railway.app/)**
 
 |  | Demo access |
 | :--- | :--- |
