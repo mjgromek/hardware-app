@@ -1,25 +1,52 @@
-# Hardware Hub
+<div align="center">
 
-Internal tool for Booksy employees to manage, rent and maintain company equipment.
+# 🧰 Hardware Hub
 
-**Stack:** FastAPI, SQLite, Vue 3, deployed on Railway as a single service
-**Method:** TDD, one branch per phase, a human review gate between each
+### AI-assisted equipment management, rental, and maintenance platform
 
-### 🔗 Live demo
+Internal tool for Booksy employees to manage company hardware safely — with role-based access, rental workflows, audit trails, AI-powered search, and inventory review.
 
-**https://hardware-hub-production-24b7.up.railway.app**
+<br>
 
-|          |                                              |
-| -------- | -------------------------------------------- |
-| Email    | `demo@booksy.com`                            |
-| Password | `hardware-hub-demo`                          |
-| Role     | `user`, read only. Admin routes answer `403` |
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://hardware-hub-production-24b7.up.railway.app)
+[![Tests](https://img.shields.io/badge/Tests-198_passing-success?style=for-the-badge)](#-status)
+[![AI Log](https://img.shields.io/badge/AI_Log-Development_Process-blueviolet?style=for-the-badge)](AI_LOG.md)
+[![ADRs](https://img.shields.io/badge/Architecture-20_ADRs-blue?style=for-the-badge)](docs/adr/)
 
-Only admin-created accounts can sign in. There is no public read surface (ADR-0006).
+<br>
 
-> If the search bar says **keyword mode**, the Gemini free tier's daily quota is spent.
-> Search falls back and says so, the auditor answers `503` with a reason. That is
-> ADR-0016 working, not a fault. It resets daily.
+## 🛠️ Tools & Stack
+
+<p>
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Vue_3-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white" alt="Vue 3">
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white" alt="Railway">
+  <img src="https://img.shields.io/badge/Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white" alt="Gemini">
+  <img src="https://img.shields.io/badge/Claude_Code-D97757?style=flat-square&logo=anthropic&logoColor=white" alt="Claude Code">
+</p>
+
+**Engineering workflow:** TDD · phase-based delivery · human review gates · custom subagents · MCP tooling
+
+<br>
+
+### 🔗 Live Demo
+
+**[Open Hardware Hub](https://hardware-hub-production-24b7.up.railway.app)**
+
+|  | Demo access |
+| :--- | :--- |
+| **Email** | `demo@booksy.com` |
+| **Password** | `hardware-hub-demo` |
+| **Role** | `user` — read only |
+
+<sub>Only admin-created accounts can sign in. There is no public read surface.</sub>
+
+</div>
+
+> [!NOTE]
+> If the search bar shows **keyword mode**, the Gemini free-tier quota has been reached.  
+> Semantic search falls back transparently, while the auditor returns `503` with a reason. This is intentional graceful degradation defined in ADR-0016.
 
 ---
 
