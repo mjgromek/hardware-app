@@ -2270,4 +2270,4 @@ them without looking. Grepping found the real set — 0003, 0005, 0014, and 0017
 and 0014 was not in my list. One `grep` before the sentence rather than after it; the
 seventh instrument error would have been in a document telling reviewers about the first
 six.
-Commit: docs: the final documentation pass (pending)
+Commit: docs: the final documentation pass (8964c08)
