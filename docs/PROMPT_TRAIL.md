@@ -1001,3 +1001,118 @@ Final state, all three checks green: `mode: "semantic"` on the live search, audi
 `(10, unidentifiable)`, `(11, status_contradiction)` — and the oracle probe returning
 the *whole catalogue* for the battery query (n=12, zero selectivity), confirming
 ADR-0015's structural claim on the real model: it cannot leak what it never sees.
+
+---
+
+## Session 16 — 2026-08-07 — Phase 4 UI: the flag verb's home, sounds, and what a release certifies — *verbatim*
+
+> Sounds and toasts, four events … ADR for delivery choice
+
+> Item 2: notes in HardwareEdit. Red test first.
+
+> Item 3: ADR-0018 four events become six
+
+> ADR-0018's Consequences still says "four sounds" …
+
+**Produced ADR-0018 and its amendment.** The delivery question was asked before the
+feature: synthesised Web Audio over shipped assets, so nothing enters the bundle and
+nothing has to be licensed — six voices from one oscillator and envelope, differing only
+in pitch contour and gain. The amendment is the honest half: the ADR shipped saying
+"four sounds" in its Consequences after the sixth had already been built, and the user
+caught the stale claim rather than the code.
+
+**Produced the first ADR-0017 amendment.** A release must state what *changed* —
+`fixed:`, validated server-side, the bare prefix refused as an empty reason in costume.
+ADR-0010 accepted "ok" as the floor for overrides generally; a release is the one override
+whose claim an incident interrogates directly, so its floor is higher.
+
+**And the defect that amendment exposed.** Demanding `fixed:` while offering no way to fix
+anything made the note certify work the system had not done — an admin resolving seed id 6
+wrote "fixed: corrected the purchase date" and the date stayed `2027-10-10`. The edit
+fields now travel with the reason in one transaction and one audit row. `notes` joined
+them because `notes` is often the fault itself.
+
+---
+
+## Session 17 — 2026-08-07 — Measure it, do not look at it — *verbatim*
+
+> Compute WCAG contrast ratios rather than eyeballing them
+
+> Fix the edit-hardware wiring with the Edit tool … Do not report it done without that click.
+
+The two instructions that changed how the rest of the project was verified, and both were
+corrections. The first produced `docs/ACCESSIBILITY.md` and found two real failures I had
+reported as fine. The second produced the `str.replace` non-negotiable in `CLAUDE.md`.
+
+Consolidated as **Correction #7** in `AI_LOG.md`; the mechanism is one line — a reading
+taken from an instrument nobody checked, reported as a finding about the system.
+
+---
+
+## Session 18 — 2026-08-07 — The company domain, and the lockout check that preceded it — *verbatim*
+
+> Change ADMIN_EMAIL development default to admin@booksy.com … document the migration
+
+> Correction: the live instance IS migrated … You inferred the state from bootstrap_admin's
+> behaviour rather than querying it — the same instrument error as the AI_LOG entry you
+> just wrote, one turn later.
+
+**Produced ADR-0019.** The decision was made *after* checking the rule against the data:
+two of four existing addresses failed it, and enforcing at login would have locked the only
+admin out of the live instance with no way back. So validation applies at **creation**,
+uniformly, with the bootstrap admin exempt *structurally* — it never crosses the API
+boundary — rather than by a conditional somebody has to remember.
+
+The correction quoted above is instrument error #4, and it landed one turn after I had
+written up instrument error #3. The migration was then performed by query rather than
+inference: create the new admin, confirm it logs in and reaches `GET /api/users`,
+soft-delete the old one *as the new one*, so the zero-admin guard was never near firing.
+
+---
+
+## Session 19 — 2026-08-07 — A review concludes; it does not only absolve — *verbatim*
+
+> an admin inspecting a flagged item must be able to send it to Repair, not only release
+> it. Right now the only exit is "fixed:" — so an admin who inspects the Dell XPS, confirms
+> the battery is swelling, and concludes it is NOT fixed has no honest action available.
+> Releasing it would be a false record, which is the exact defect ADR-0017's amendment
+> closed one move earlier.
+
+**Produced the second ADR-0017 amendment.** The observation is the argument: the first
+amendment demanded a claim about what changed, and left the admin who found a *real* fault
+with no way to say so. `outcome` now takes `released` or `repair`; the repair reason is
+deliberately exempt from `fixed:`, because it describes what is wrong, and requiring the
+prefix would readmit the false record through the new door. A third outcome, `dismissed`,
+was considered and refused — it clears the flag while asserting nothing, which is the
+finding-shaped hole ADR-0017 exists to close.
+
+The same session asked for the `!` tooltip, and the diagnosis corrected the request: the
+`title` and `aria-label` had shipped in `76bb467`. What had not shipped was any markup for
+`.flag-tip`, whose styles — including `:focus-visible` — were already in `styles.css`
+matching nothing. Dead CSS on one side, an unreachable reason on the other, and a real gap
+underneath, since a native `title` never appears on keyboard focus.
+
+---
+
+## Session 20 — 2026-08-07 — The returner gets a channel, and the checks that find defects — *verbatim*
+
+> Return with an issue, plus ADR-0020 … The ADR argues that a returner may set needs_review
+> where the auditor may not: the auditor reasons over text, the returner handled the
+> equipment, and direct observation justifies direct action.
+
+> Fresh-clone check — clone to a new directory, follow the README exactly, report the first
+> step that fails. This is the only remaining item that can find a defect rather than tidy one.
+
+**Produced ADR-0020**, whose whole job is drawing one line: not human against model, but
+direct observation against inference. An admin acting on an auditor *finding* still goes
+through the admin verb; authority did not move, first-hand observation just acquired
+somewhere to go. It reverses this project's own plan — README 🔮 item 3 had specified
+"propose, never flag" — and the reversal is recorded beside the shipped entry.
+
+**And the prediction was right for the wrong item.** The fresh-clone check was expected to
+trip on `dist/` being gitignored. It instead found `python -m scripts.seed` — the README's
+fourth setup step — dead on `NameError` for every reader, because the `__main__` block sat
+above two functions `main()` calls. Importing binds names in any order, so 181 tests were
+green. The same blind spot as the deploy smoke check, one layer down: **the suite tests
+what it imports**, and the two things a reader actually runs were the two things nothing
+exercised.

@@ -2247,3 +2247,27 @@ of repeating it:
 The pattern that connects the last two: **the suite tests what it imports.** The deployed
 URL and the setup script were the two things a reader actually runs, and the two things
 nothing exercised. Both defects were found by a human asking for a check.
+
+---
+
+## [P4 · c33] Batch C — the docs pass
+
+30 `(pending)` SHAs back-annotated, one Edit call each; the three remaining mentions are
+prose about the practice, not owed annotations. PROMPT_TRAIL 15 → 20, covering ADR-0017
+and both its amendments, ADR-0018 and its stale-Consequences correction, ADR-0019's
+lockout check, and ADR-0020. Correction #7 consolidates six instrument errors with the
+tell stated once — including the counter-case, where checking the instrument first turned
+a stale-server mystery into a two-minute diagnosis.
+
+**Two ⚠️ entries had gone false and were still being served to a reviewer.** "Editing an
+item's name, brand or date — only status changes and deletion exist" was contradicted by
+`0e0be61`; the stale-build detection gap was closed by the smoke check. Both rewritten to
+what is now true, the second keeping the honest remainder: nothing runs the check
+*automatically*, it is a documented step rather than an enforced gate.
+
+**And a claim I invented mid-edit.** I wrote that four ADRs carry amendments and named
+them without looking. Grepping found the real set — 0003, 0005, 0014, and 0017 twice —
+and 0014 was not in my list. One `grep` before the sentence rather than after it; the
+seventh instrument error would have been in a document telling reviewers about the first
+six.
+Commit: docs: the final documentation pass (pending)

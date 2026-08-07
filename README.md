@@ -24,7 +24,7 @@ was done with the time left.
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
 | v2 | Phase 2 — rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
 | **v3** | Phase 3 — semantic search, Inventory Auditor, flag-review | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v4 | Phase 4 — wireframe fidelity | — | 🔮 planned, after v3 |
+| **v4** | Phase 4 — wireframe fidelity, dark mode, return-with-issue, two-outcome review | *(deploys to the v3 URL above)* | ⏳ built and green, not yet deployed |
 
 ### Signing in
 
@@ -127,6 +127,13 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **Field-level authorization** — `notes`, `history` and `review_reason` reach admins
   only; a `user` session gets `null` (ADR-0012, closing the `/security-review`
   finding Phase 1 carried)
+- **Company-domain accounts** — only `@booksy.com` addresses can be created, validated
+  on the request model and matched on the whole suffix, so `booksy.com.evil.net` and
+  `notbooksy.com` are both refused. Applied at **creation**, never at login: a login
+  check re-validates what creation already checked, and its one distinctive power is
+  locking out accounts that predate the rule. The bootstrap admin is exempt
+  *structurally* — it is created from the environment and never crosses the API
+  boundary — rather than by a conditional somebody has to remember (ADR-0019)
 - **`?held_by=me`** — the dashboard's "My Rentals" view, server-side
 - **Demo reset** — one confirmed admin route restores the seed's fingerprints
   (see "Restoring the demo" above)
@@ -253,7 +260,8 @@ Each of these works, and each cost something. The full table with reasoning is i
 
 ### ⚠️ Partial / Missing
 
-- Editing an item's name, brand or date — only status changes and deletion exist
+- Bulk actions, and any edit history beyond the audit trail's one row per override —
+  an admin can see *that* a field changed and who changed it, not its previous value
 - **Post-import data is validated structurally, not semantically** — a manually added
   item with a 2027 purchase date is caught by nothing: ingestion only sees the seed,
   the add form checks shape, and the auditor's closed enum has no future-date kind
@@ -271,9 +279,14 @@ Each of these works, and each cost something. The full table with reasoning is i
   anonymously, including the `notes` and `history` ADR-0006 exists to protect. It was
   caught by a manual query during an unrelated check; the suite passes against source, and
   the health endpoint that would have failed did not exist in the rolled-back image. Fixed
-  by redeploying, but the gap is the detection, not the incident: no smoke check runs
-  against the deployed URL after a deploy, so the next rollback is equally invisible. See
-  `AI_LOG.md` Correction #6
+  by redeploying, and **the detection gap is now closed**:
+  `tests/test_smoke_deployed.py` asserts anonymous `GET /api/hardware` → `401`,
+  `/api/health` → `200`, that login answers, and that the inventory returns — skipped
+  unless `SMOKE_URL` is set, and `CLAUDE.md` makes a deploy incomplete until it passes
+  against the live URL. It is the only test that can fail while the code is correct,
+  which is the point. What remains partial is that nothing runs it *automatically*: it
+  is a step in a documented procedure, not a gate a machine enforces. See `AI_LOG.md`
+  Correction #6
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
 - CI and vitest
@@ -447,11 +460,11 @@ a note on when it becomes urgent.
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain language. Say "quarantine record", not "the row we couldn't import". |
 | [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
-| [`docs/adr/`](docs/adr/) | Architectural decisions, with the reasoning that produced them. |
+| [`docs/adr/`](docs/adr/) | 20 architectural decisions, with the reasoning that produced them. Four carry dated amendments, appended rather than rewritten so the revision stays visible: ADR-0003, ADR-0005, ADR-0014, and ADR-0017 twice. |
 | [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
 | [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | Measured WCAG contrast for every colour pair in both themes, and the one check that does not pass on colour alone. |
 | [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |
 | [`BACKLOG.md`](BACKLOG.md) | Findings deferred rather than acted on. |
-| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | The grilling sessions that settled the plan. |
+| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 20 sessions — the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one. |
