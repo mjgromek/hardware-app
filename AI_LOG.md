@@ -2100,3 +2100,12 @@ rendered a `.flag-tip`: dead CSS on one side, an unreachable reason on the other
 were there. Verified all three channels by hand — hover shows the tip, Tab shows a focus
 ring and the tip with no pointer, `aria-label` carries the labelled reason.
 Commit: feat(phase-4): a review concludes in Release or Repair (pending)
+
+---
+
+## [P4 · c29] Failing specs for return-with-issue
+
+Five red. The three already green are the guards the new field must not loosen: a plain
+return stays unflagged, ADR-0009 still refuses closing somebody else's rental, and an
+already-flagged item still returns. Asserted through the renting seam, not the column.
+Commit: test(phase-4): failing specs for reporting a problem on return (pending)
