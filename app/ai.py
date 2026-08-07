@@ -23,6 +23,7 @@ Three decisions from grilling 3 live here:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -41,8 +42,11 @@ __all__ = [
     "FINDING_KINDS",
     "FilterObject",
     "ModelUnavailable",
+    "ResponseCache",
     "audit_catalogue",
+    "catalogue_fingerprint",
     "keyword_search",
+    "normalise_query",
     "resolve_client",
     "semantic_filter",
     "select_items",
@@ -72,6 +76,48 @@ GEMINI_MODEL_VAR = "GEMINI_MODEL"
 GEMINI_DEFAULT_MODEL = "gemini-flash-latest"
 
 
+class ResponseCache:
+    """The model's replies, remembered — never the rows.
+
+    The free tier rate-limits, and a duplicate call spends quota to learn nothing.
+    Two maps, two keys, both chosen so staleness is structurally impossible rather
+    than merely unlikely:
+
+    - `search_filters`: normalised query → the filter the model emitted (or ``None``
+      for a reply the schema refused). The *SQL runs fresh on every request* — a
+      rental between two identical searches shows in the second answer.
+    - `audit_findings`: catalogue fingerprint → findings. Keyed on the inventory
+      state, not on time: a TTL would serve stale findings for its duration, where a
+      changed catalogue simply misses the cache. This is why the cache coexists with
+      ADR-0014 — "recomputed per run" becomes "recomputed per catalogue state" and
+      the no-staleness consequence survives (amendment noted in the ADR).
+
+    In-memory and per-process, deliberately: findings still die with a restart and
+    are persisted nowhere, so `test_auditor_writes_nothing`'s claim stands.
+    """
+
+    def __init__(self) -> None:
+        self.search_filters: dict[str, FilterObject | None] = {}
+        self.audit_findings: dict[str, list[dict[str, Any]]] = {}
+
+
+def normalise_query(query_text: str) -> str:
+    """Casing and whitespace differences are the same question."""
+    return " ".join(query_text.lower().split())
+
+
+def catalogue_fingerprint(items: tuple, quarantine: tuple) -> str:
+    """One hash naming the exact catalogue state an audit describes.
+
+    Built over the same payload the audit prompt carries, so "the fingerprint
+    matched" and "the model would have been shown the same thing" are one fact.
+    """
+    payload = {"items": _catalogue_payload(items), "quarantine": list(quarantine)}
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+
 class ModelUnavailable(RuntimeError):
     """The model cannot be reached — no key, or the provider failed.
 
@@ -96,6 +142,11 @@ class FilterObject(BaseModel):
     needs_review: bool | None = None
     brand: str | None = None
     name_contains: str | None = None
+    #: The model's *vocabulary*, not its results: "laptop" has no column, so the model
+    #: names concrete product terms ("MacBook", "XPS", …) and SQLite still decides
+    #: which rows exist (ADR-0004). Matched over `name` and `brand` only, so the Q2
+    #: oracle stays shut — this widens what the model may *say*, not what it may see.
+    name_matches_any: list[str] | None = None
     purchased_before: date | None = None
     purchased_after: date | None = None
     rentable_only: bool | None = None
@@ -133,6 +184,21 @@ def select_items(session: Session, filters: FilterObject) -> tuple[HardwareItem,
         query = query.where(hardware.c.brand.ilike(filters.brand))
     if filters.name_contains is not None:
         query = query.where(hardware.c.name.ilike(f"%{filters.name_contains}%"))
+    if filters.name_matches_any:
+        terms = [term for term in filters.name_matches_any if term.strip()]
+        if terms:
+            query = query.where(
+                or_(
+                    *(
+                        clause
+                        for term in terms
+                        for clause in (
+                            hardware.c.name.ilike(f"%{term}%"),
+                            hardware.c.brand.ilike(f"%{term}%"),
+                        )
+                    )
+                )
+            )
     if filters.purchased_before is not None:
         query = query.where(hardware.c.purchase_date < filters.purchased_before)
     if filters.purchased_after is not None:
@@ -301,14 +367,20 @@ def _search_prompt(query_text: str) -> str:
         "prose. Omit fields you are not using. The only legal fields are exactly "
         f"those in this schema:\n{json.dumps(schema)}\n\n"
         f'Statuses are exactly "Available", "In Use", "Repair". If the question asks '
-        "for something rentable/borrowable today, set rentable_only. If the question "
+        "for something rentable/borrowable today, set rentable_only. When the "
+        "question names a *category* of device rather than a product — laptop, "
+        "phone, headphones, tablet, mouse, monitor — populate name_matches_any with "
+        "concrete product and model terms that category implies, e.g. \"laptop\" -> "
+        '["MacBook", "XPS", "ThinkPad", "Latitude"], "headphones" -> ["WH-1000", '
+        '"AirPods", "headset"]. Prefer terms over guessing a status. If the question '
         "cannot be expressed with these fields, reply with an empty JSON object.\n\n"
         f"Question: {query_text}"
     )
 
 
-def _audit_prompt(items: tuple[HardwareItem, ...], quarantine: tuple) -> str:
-    catalogue = [
+def _catalogue_payload(items: tuple[HardwareItem, ...]) -> list[dict[str, Any]]:
+    """What the audit shows the model — and what its cache key is built over."""
+    return [
         {
             "item_id": item.id,
             "name": item.name,
@@ -321,6 +393,10 @@ def _audit_prompt(items: tuple[HardwareItem, ...], quarantine: tuple) -> str:
         }
         for item in items
     ]
+
+
+def _audit_prompt(items: tuple[HardwareItem, ...], quarantine: tuple) -> str:
+    catalogue = _catalogue_payload(items)
     return (
         "You are auditing a hardware inventory for an internal tool. Report findings "
         "as JSON: {\"findings\": [{\"item_id\": <int>, \"kind\": <kind>, \"evidence\": "

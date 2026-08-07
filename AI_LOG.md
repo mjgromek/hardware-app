@@ -1311,6 +1311,30 @@ Commit: docs(phase-3): file the gate findings (pending)
 
 ---
 
+## [P3 · c16] The model contributes vocabulary — `name_matches_any`
+
+Live gap: "laptop" and "headphones" returned nothing — no category column, no name
+containing the word. Red first (two tests: mobile-app terms, laptop terms, the mouse
+as ride-along detector), then the predicate: OR within the list, case-insensitive,
+`name`/`brand` only — the model names concrete product terms, SQLite still decides
+which rows exist. ADR-0004 intact, ADR-0015 oracle untouched. 120/120.
+Commit: feat(phase-3): the model contributes vocabulary, not results (pending)
+
+---
+
+## [P3 · c17] The model's replies are cached; the rows never are
+
+Red first (three tests: repeated query costs one call with normalisation, unchanged
+catalogue costs one call, a PATCH invalidates). Search caches the *filter* keyed on
+the normalised query — SQL still runs fresh, so rentals show between identical
+searches. The auditor caches findings keyed on the catalogue fingerprint, built over
+the same payload the prompt carries: staleness is structurally impossible, and
+ADR-0014 gains a dated amendment instead of silent drift. README ⚡ owns the
+free-tier rate limit, with the fallback named as the design working. 123/123.
+Commit: feat(phase-3): cache the model's replies, never the rows (pending)
+
+---
+
 ## [P4 · c0] The design system enters the plan
 
 Phase 4 gains the token layer (surface/text/border/status groups, dark override,
