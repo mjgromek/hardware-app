@@ -1,24 +1,9 @@
 """The AI layer — a filter schema the model must speak, and an auditor that proposes.
 
-ADR-0004 fixes the shape: the LLM emits a schema-validated filter object and SQLite
-returns the rows, so the model cannot hallucinate inventory and the layer is testable
-against a mock. This module owns both halves of that boundary — the schema and the SQL —
-for the reason `app.rentals` owns its statements (ADR-0008): splitting "what the filter
-means" from "the query it becomes" would leave two shallow modules sharing one rule.
-
-Three decisions from grilling 3 live here:
-
-- **The schema has no `notes`/`history`/`review_reason` predicate — for anyone**
-  (ADR-0015). `extra="forbid"` is the enforcement: a model reply carrying
-  `notes_contains` is rejected *wholesale*, because keeping the legal half would answer
-  the forbidden question through the permitted field. The keyword fallback searches
-  `name` and `brand` only, same rule.
-- **The auditor's vocabulary is closed** (ADR-0014): a finding whose `kind` the model
-  invented is dropped, never stored, never added to the enum. Findings are a computed
-  payload — this module writes nothing, anywhere.
-- **The client is resolved at request time** (ADR-0016): `app.state.llm` if a test put
-  one there, else a real Gemini call built from `GEMINI_API_KEY` read now — so an
-  absent key is feature-off, never a boot refusal.
+The LLM emits a schema-validated filter object and SQLite returns the rows, so the
+model cannot hallucinate inventory (ADR-0004). No restricted-field predicates for
+anyone (ADR-0015), a closed finding vocabulary that writes nothing (ADR-0014), and a
+client resolved at request time so an absent key is feature-off (ADR-0016).
 """
 
 from __future__ import annotations
@@ -55,45 +40,29 @@ __all__ = [
 #: ADR-0014's closed vocabulary — exactly the three classes ADR-0002 deferred.
 FINDING_KINDS = ("status_contradiction", "unidentifiable", "probable_misspelling")
 
-#: Then search degrades — announced (ADR-0016). The spec said 5s; the live provider
-#: spends ~7.5s thinking before one small JSON object and rejects the budget-0 knob
-#: with an opaque 400, so 5s meant the semantic path could never answer. 12s is the
-#: measured latency with headroom — a slower true answer with an honest label beats
-#: a fast one that is always the fallback.
+#: Measured: the live provider spends ~7.5s thinking before one small JSON object,
+#: so the spec's 5s meant the semantic path could never answer. 12s is latency with
+#: headroom — a slower true answer with an honest label beats a fast fallback.
 REQUEST_TIMEOUT_SECONDS = 12.0
 
-#: The audit reads the whole catalogue and writes a findings document; 5 seconds is
-#: a search budget, not an audit budget. Found live: the first audit run timed out
-#: at the search timeout and refused. Refusing *slowly* is still honest (ADR-0016);
-#: refusing because the budget was borrowed from a different feature is just wrong.
+#: An audit reads the whole catalogue; 5 seconds is a search budget, not an audit
+#: budget. The first live run timed out on the borrowed number.
 AUDIT_TIMEOUT_SECONDS = 30.0
 
 GEMINI_KEY_VAR = "GEMINI_API_KEY"
 GEMINI_MODEL_VAR = "GEMINI_MODEL"
-#: The alias, not a pinned version: `gemini-2.5-flash` answered 404 "no longer
-#: available to new users" on the deployment's key. The alias tracks whatever
-#: Google currently serves; anyone needing a pin sets `GEMINI_MODEL`.
+#: The alias, not a pin: `gemini-2.5-flash` answered 404 "no longer available to new
+#: users" on the deployment's key. Anyone needing a pin sets `GEMINI_MODEL`.
 GEMINI_DEFAULT_MODEL = "gemini-flash-latest"
 
 
 class ResponseCache:
     """The model's replies, remembered — never the rows.
 
-    The free tier rate-limits, and a duplicate call spends quota to learn nothing.
-    Two maps, two keys, both chosen so staleness is structurally impossible rather
-    than merely unlikely:
-
-    - `search_filters`: normalised query → the filter the model emitted (or ``None``
-      for a reply the schema refused). The *SQL runs fresh on every request* — a
-      rental between two identical searches shows in the second answer.
-    - `audit_findings`: catalogue fingerprint → findings. Keyed on the inventory
-      state, not on time: a TTL would serve stale findings for its duration, where a
-      changed catalogue simply misses the cache. This is why the cache coexists with
-      ADR-0014 — "recomputed per run" becomes "recomputed per catalogue state" and
-      the no-staleness consequence survives (amendment noted in the ADR).
-
-    In-memory and per-process, deliberately: findings still die with a restart and
-    are persisted nowhere, so `test_auditor_writes_nothing`'s claim stands.
+    Keys chosen so staleness is structurally impossible: search filters by
+    normalised query (the SQL still runs fresh per request), audit findings by
+    catalogue fingerprint (a changed catalogue misses the cache — the amendment in
+    ADR-0014). In-memory, so findings still die with the process.
     """
 
     def __init__(self) -> None:
@@ -130,10 +99,9 @@ class ModelUnavailable(RuntimeError):
 class FilterObject(BaseModel):
     """Everything the model is allowed to say about a search (ADR-0004, ADR-0015).
 
-    `extra="forbid"` is load-bearing, not tidiness: it is what rejects a reply carrying
-    `notes_contains` *wholesale*. Partial salvage — keep `name_contains`, drop the rest —
-    would answer the forbidden question through the permitted field
-    (`test_search_is_not_an_oracle_over_notes`).
+    `extra="forbid"` is load-bearing: a reply carrying `notes_contains` is rejected
+    wholesale — partial salvage would answer the forbidden question through the
+    permitted field.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -142,10 +110,9 @@ class FilterObject(BaseModel):
     needs_review: bool | None = None
     brand: str | None = None
     name_contains: str | None = None
-    #: The model's *vocabulary*, not its results: "laptop" has no column, so the model
-    #: names concrete product terms ("MacBook", "XPS", …) and SQLite still decides
-    #: which rows exist (ADR-0004). Matched over `name` and `brand` only, so the Q2
-    #: oracle stays shut — this widens what the model may *say*, not what it may see.
+    #: "laptop" has no column, so the model names concrete product terms and SQLite
+    #: still decides which rows exist. Matched over `name`/`brand` only — this
+    #: widens what the model may *say*, not what it may see.
     name_matches_any: list[str] | None = None
     purchased_before: date | None = None
     purchased_after: date | None = None
@@ -153,12 +120,8 @@ class FilterObject(BaseModel):
 
 
 def parse_filter(raw: str) -> FilterObject | None:
-    """The model's raw text, as a filter — or ``None``, never a partial.
-
-    A half-valid filter is a wrong filter (docs/specs/phase-3.md), and the model saying
-    something illegal is an expected event, not an error: the caller answers with the
-    keyword fallback rather than a `500`.
-    """
+    """The model's raw text, as a filter — or ``None``, never a partial. An illegal
+    reply is an expected event: the caller falls back, not 500s."""
     payload = _json_body(raw)
     if not isinstance(payload, dict):
         return None
@@ -170,11 +133,8 @@ def parse_filter(raw: str) -> FilterObject | None:
 
 def select_items(session: Session, filters: FilterObject) -> tuple[HardwareItem, ...]:
     """The filter object, applied — in SQL, over public columns only (ADR-0015).
-
-    `rentable_only` is ADR-0003 through the same rule as the rent guard, not a parallel
-    one: rentable means `Available` *and* unflagged, so the search never offers an item
-    the rent route is about to refuse.
-    """
+    `rentable_only` means Available *and* unflagged, so the search never offers an
+    item the rent route is about to refuse."""
     query = select(hardware)
     if filters.status is not None:
         query = query.where(hardware.c.status == filters.status.value)
@@ -212,12 +172,8 @@ def select_items(session: Session, filters: FilterObject) -> tuple[HardwareItem,
 
 
 def keyword_search(session: Session, query_text: str) -> tuple[HardwareItem, ...]:
-    """The degraded path: query words against `name` and `brand`. Nothing else.
-
-    The same ADR-0015 rule as the schema — a keyword fallback that grew a `LIKE` over
-    `notes` would leak exactly what the schema forbade, through the door nobody was
-    watching.
-    """
+    """The degraded path: query words against `name` and `brand`, nothing else — a
+    fallback that grew a LIKE over `notes` would leak what the schema forbids (ADR-0015)."""
     tokens = [token for token in re.findall(r"[A-Za-z0-9]+", query_text) if len(token) > 1]
     if not tokens:
         return ()
@@ -250,12 +206,8 @@ def semantic_filter(client: Callable[[str], str], query_text: str) -> FilterObje
 def audit_catalogue(
     client: Callable[[str], str], items: tuple[HardwareItem, ...], quarantine: tuple
 ) -> list[dict[str, Any]]:
-    """Run the model over the catalogue and keep only findings the enum admits.
-
-    Off-enum kinds are dropped — never stored, never invented into the vocabulary
-    (ADR-0014). Malformed entries (no item id, blank evidence) go the same way: a
-    finding an admin cannot check against a row is not a finding.
-    """
+    """Run the model over the catalogue and keep only findings the enum admits
+    (ADR-0014). A finding an admin cannot check against a row is not a finding."""
     try:
         raw = _call(client, _audit_prompt(items, quarantine))
     except ModelUnavailable:
@@ -299,12 +251,8 @@ def resolve_client(
     timeout: float = REQUEST_TIMEOUT_SECONDS,
 ) -> Callable[[str], str] | None:
     """The model behind this request, or ``None`` for feature-off (ADR-0016).
-
-    Request-time on purpose: the key is read now, not at boot, so rotating or removing
-    it changes the next request rather than requiring a restart. A test's fake on
-    `app.state.llm` wins over a real client — that is the seam the suite mocks
-    (tests/llm_seam.py), and it is honoured before any network object is built.
-    """
+    Request-time so rotating the key changes the next request, not the next boot; a
+    test's fake on `app.state.llm` wins before any network object is built."""
     env = os.environ if environ is None else environ
     key = env.get(GEMINI_KEY_VAR)
     if not key:
@@ -421,18 +369,11 @@ def _audit_prompt(items: tuple[HardwareItem, ...], quarantine: tuple) -> str:
 
 
 def _gemini_client(key: str, model: str, timeout: float) -> Callable[[str], str]:
-    """A real Gemini call, built only when no fake is on the seam.
-
-    Imported lazily so the suite — which nails the socket shut — never constructs it.
-    Raises `ModelUnavailable` for every transport or provider failure: the caller's
-    vocabulary, not httpx's.
-    """
+    """A real Gemini call, built only when no fake is on the seam."""
 
     def call(prompt: str) -> str:
-        # stdlib on purpose. The first deploy used httpx here, which is a test-extra
-        # rather than a production dependency — locally green, live the auditor's own
-        # 503 reason read "No module named 'httpx'". The refusal-with-a-reason design
-        # (ADR-0016) is what surfaced it; the fix is to depend on nothing.
+        # stdlib on purpose: the first deploy used httpx, a test-extra — locally
+        # green, live the auditor's 503 read "No module named 'httpx'".
         import urllib.error
         import urllib.request
 

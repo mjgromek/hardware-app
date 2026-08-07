@@ -1,22 +1,7 @@
-/** The one place that turns a row into the state a person sees.
- *
- * `needs_review` is a flag, orthogonal to the status enum, and the enum stays exactly
- * `Available | In Use | Repair` — the brief fixes it and ADR-0002 depends on it staying
- * closed. "In Review" therefore exists only in the display layer, which means it has no
- * natural position in a sort over stored statuses and cannot get one by adding a value.
- *
- * Two different orderings live here and they are not the same list:
- *
- * - `displayState` resolves **which state wins** when more than one is true of a row —
- *   `In Repair > Rented > In Review > Available`. A rented item that is also flagged
- *   shows as Rented, because who holds it is the more actionable fact.
- * - `SORT_ORDER` is the order those resolved states appear **down the page** on first
- *   load — `Available → Rented → In Repair → In Review`, working from what an employee
- *   can act on toward what an admin has to deal with.
- *
- * Both the chip and the table read `displayState`, so the label a row shows and the group
- * it sorts into cannot disagree. That was the actual risk: a second copy of this rule in
- * the table would have drifted the first time either list changed.
+/** The one place that turns a row into the state a person sees. "In Review" exists
+ * only in the display layer — the stored enum stays closed (ADR-0002). Two distinct
+ * orderings: PRECEDENCE resolves which state wins on a row; SORT_ORDER is the order
+ * down the page. Chip and table both read this, so they cannot disagree.
  */
 
 //: Resolution precedence. First match wins.

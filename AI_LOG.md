@@ -2622,3 +2622,14 @@ against the live URL before committing. And the README retrospective now closes 
 own arithmetic: the docs cost nothing marginal because they were written in the
 moment; the wasted hours bought the corrections log — waste versus tuition.
 Commit: chore(review): lifecycle rule, scheduled probe, honest arithmetic (self)
+
+## [curation · c1] The comment diet
+
+Backend prose 1,397 → 571 lines (59% cut, AST-fingerprint identical before and
+after, 197 green). Frontend 676 → ~520. Kept: the why-not-recoverable set (delete
+writes first, the UPDATE is the decision, no StaticPool, persist does not commit,
+readonly-not-disabled, the -webkit mask ordering), one-line ADR pointers, module
+responsibility statements, test docstrings untouched. Stopped above the ~350 target
+where the next cut would take lines the keep-rules themselves protect. Also fixed a
+stale claim found mid-pass: styles.css still said "a gradient rather than a spinner".
+Commit: refactor(curation): comments earn their place or go (self)

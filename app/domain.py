@@ -20,12 +20,7 @@ class Status(str, Enum):
 
 
 class Role(str, Enum):
-    """What an account may do. Exactly two, and the difference is authorization.
-
-    ``ADMIN`` manages hardware and accounts; ``USER`` rents. There is no
-    self-registration and no self-promotion, so a role only ever changes because an
-    admin changed it — and never to a state with no admins left (ADR-0005).
-    """
+    """Exactly two. A role only changes because an admin changed it (ADR-0005)."""
 
     ADMIN = "admin"
     USER = "user"
@@ -47,12 +42,8 @@ class Account:
 
 
 class Category(str, Enum):
-    """The closed set of device categories (brainstorm §3 Phase 4).
-
-    Closed for the reason `Status` is: a sixth value is not a new option, it is a
-    bug — a category no screen renders and no filter matches makes the item
-    invisible rather than wrong, which is worse.
-    """
+    """Closed for the reason `Status` is: an off-enum value makes an item invisible
+    rather than wrong, which is worse."""
 
     LAPTOP = "Laptop"
     MOBILE = "Mobile"
@@ -63,13 +54,8 @@ class Category(str, Enum):
 
 @dataclass(frozen=True)
 class HardwareItem:
-    """A single piece of company equipment.
-
-    ``source_id`` preserves the original seed ``id`` when a record had to be
-    re-keyed. ``needs_review`` is a rentability guard, not a badge (ADR-0003).
-    The Phase 4 trio — ``serial_number``, ``category``, ``date_added`` — are all
-    nullable because the seed's eleven records carry none of them.
-    """
+    """A single piece of company equipment. ``source_id`` preserves a re-keyed seed
+    id; ``needs_review`` is a rentability guard, not a badge (ADR-0003)."""
 
     id: int
     name: str
@@ -89,11 +75,7 @@ class HardwareItem:
 
 @dataclass(frozen=True)
 class QuarantineRecord:
-    """A seed row that failed structural validation.
-
-    Written to ``hardware_quarantine`` with a reason rather than dropped.
-    Ingestion is loss-free by design: nothing disappears silently.
-    """
+    """A seed row that diverged, kept with a reason — nothing disappears silently."""
 
     source_id: int | None
     reason: str
@@ -108,23 +90,15 @@ class IngestReport:
     quarantined: tuple[QuarantineRecord, ...] = field(default_factory=tuple)
 
 
-#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor to
-#: read — the Phase 3 auditor consumes these columns and never writes them (ADR-0014).
-#: Renter identity is *not* here: who holds a laptop is operational, and hiding it
-#: moves the question to Slack.
+#: Serialised for admins only (ADR-0012). Renter identity is deliberately not here.
 ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
 
 
 def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
-    """One item, as this caller is allowed to see it.
+    """One item, as this caller is allowed to see it (ADR-0012).
 
-    Lives here rather than in the routes module because ADR-0012's rule has three
-    callers in Phase 3 — the item list, semantic search, and the auditor — and a rule
-    every caller must import from `app.main` is a dependency pointing the wrong way
-    (`architecture-scout`, filed at the Phase 2 gate).
-
-    The restricted fields are set to `None` rather than dropped, so the payload keeps
-    one shape and the client does not have to branch on which role it is.
+    Restricted fields are set to `None` rather than dropped, so the payload keeps
+    one shape and the client never branches on role.
     """
     if account.role is Role.ADMIN:
         return item

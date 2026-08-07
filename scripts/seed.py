@@ -39,17 +39,10 @@ SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "seed.json"
 
 
 class _Divergence(NamedTuple):
-    """One way an imported row differs from the seed, and who has to act on it.
-
-    Recording a divergence and blocking rental are separate questions, and
-    collapsing them is a mistake: an orphan rental is *fully repaired* at import,
-    so it belongs in the audit trail but leaves nothing for a human to rule on.
-    An off-enum status leaves a real question open, so it does both.
-
-    ``needs_decision`` is what drives ``needs_review``, which under ADR-0003 is a
-    rentability guard. Flagging a repaired row would make a usable item
-    unrentable over paperwork.
-    """
+    """One way a row differs from the seed. ``needs_decision`` drives
+    ``needs_review`` — an orphan rental is fully repaired at import and flagging it
+    would make a usable item unrentable over paperwork; an off-enum status leaves a
+    real question open, so it does both."""
 
     reason: str
     needs_decision: bool
@@ -62,24 +55,9 @@ def ingest(
 ) -> IngestReport:
     """Validate seed records structurally and sort them into imported vs quarantined.
 
-    Pure: no database, no I/O. ``today`` is injected so that plausibility checks
-    over purchase dates are deterministic under test.
-
-    Expected structural handling, per `brainstorm.md` §2:
-
-    - **Duplicate primary key** — the second occurrence is re-keyed to a fresh
-      id, with the original preserved as ``source_id``. Neither row is dropped.
-    - **Off-enum status** (the seed's ``"Unknown"``) — quarantined, and the
-      imported item carries ``needs_review`` with status ``Available``. Not
-      ``Repair``: unidentifiable is not the same claim as broken, and ADR-0003's
-      guard blocks the item either way.
-    - **Future purchase date** — quarantined, and the item carries
-      ``needs_review``.
-    - **``DD-MM-YYYY`` dates** — normalised to ISO, not rejected. Parsing a date
-      field is structural; correcting a value is not. ``brand: "Appel"`` is left
-      exactly as the seed wrote it — that typo is the auditor's (ADR-0002).
-    - **Orphan rental** (``In Use`` with no ``assignedTo``) — resolved at import.
-    - **Missing optional fields** — nullable, not an error.
+    Pure: no database, no I/O. ``today`` is injected so date-plausibility checks are
+    deterministic under test. The per-defect handling is specified by ADR-0002 and
+    enforced line by line in docs/DATA_AUDIT.md.
     """
     today = today or date.today()
     rows = [dict(record) for record in records]
@@ -110,9 +88,7 @@ def ingest(
             purchase_date = normalise_purchase_date(row.get("purchaseDate"))
         except AmbiguousDate as ambiguous:
             # Two legal readings is a choice, and choices are not ingestion's
-            # (ADR-0002, amended). No date is stored — the weakest claim — and
-            # the reason names both candidates so the ruling human does not
-            # re-derive them.
+            # (ADR-0002, amended). No date stored — the weakest claim.
             purchase_date = None
             first, second = ambiguous.readings
             divergences.append(
@@ -146,9 +122,8 @@ def ingest(
         try:
             status = Status(raw_status)
         except ValueError:
-            # Available, never Repair: the seed tells us the record is
-            # unidentifiable, not that the item is broken (ADR-0002). ADR-0003's
-            # guard blocks it from rental either way.
+            # Available, never Repair: unidentifiable is not broken (ADR-0002),
+            # and ADR-0003's guard blocks rental either way.
             status = Status.AVAILABLE
             divergences.append(
                 _Divergence(
@@ -160,10 +135,8 @@ def ingest(
 
         assigned_to = row.get("assignedTo")
         if status is Status.IN_USE and not assigned_to:
-            # An orphan rental names nobody to return the item, so the rental
-            # cannot be reconstructed. Releasing it is the only repair available
-            # — and it is a complete repair, which is why nothing is left to
-            # decide and the item stays rentable.
+            # Releasing is the only repair available, and a complete one — nothing
+            # is left to decide, so the item stays rentable.
             status = Status.AVAILABLE
             divergences.append(
                 _Divergence(
@@ -206,12 +179,9 @@ def ingest(
 
 
 class AmbiguousDate(ValueError):
-    """A date string with two legal readings, both named.
-
-    A subclass of ``ValueError`` so an uninformed caller still treats it as a bad
-    date — but ``ingest`` catches it first and quarantines with both readings,
-    because "unrecognised" and "recognised twice" earn different reasons.
-    """
+    """A date string with two legal readings, both named. A ``ValueError`` subclass
+    so an uninformed caller still treats it as a bad date; ``ingest`` catches it
+    first because "unrecognised" and "recognised twice" earn different reasons."""
 
     def __init__(self, raw: str, readings: tuple[date, date]) -> None:
         self.readings = readings
@@ -223,15 +193,10 @@ class AmbiguousDate(ValueError):
 def normalise_purchase_date(raw: str | None) -> date | None:
     """Parse a seed purchase date that has exactly one legal reading.
 
-    Accepts ISO ``YYYY-MM-DD`` and the seed's stray day-first ``DD-MM-YYYY``.
-    Returns ``None`` for a null or empty value. Raises ``ValueError`` for a
-    string matching neither format, and ``AmbiguousDate`` for one matching the
-    day-first pattern where the month-first transposition is *also* legal and
-    lands on a different day — "05-04-2023" is 5 April or 4 May, and choosing is
-    the same guess about intent ADR-0002 refuses over ``"Appel"``. "22-05-2023"
-    stays structural: 22 cannot be a month, so it has one reading. (The first
-    version of this function chose day-first silently, which enforced less than
-    the ADR claimed — caught by a self-grilling, not by the suite.)
+    ``ValueError`` for a string matching neither format; ``AmbiguousDate`` where the
+    day/month transposition is also legal and lands on a different day — choosing
+    would be the same guess about intent ADR-0002 refuses over ``"Appel"``. (The
+    first version chose day-first silently; caught by a self-grilling, not the suite.)
     """
     if raw is None:
         return None
@@ -264,13 +229,7 @@ def normalise_purchase_date(raw: str | None) -> date | None:
 
 
 def main() -> None:
-    """Ingest ``data/seed.json`` into the configured database.
-
-    Wiring only — every step is covered by its own tests. Safe to re-run: ``persist``
-    has replace semantics, so a reseed leaves the database as one seed did.
-
-        python -m scripts.seed
-    """
+    """Ingest ``data/seed.json`` into the configured database: ``python -m scripts.seed``."""
     settings = load_settings(os.environ)
     report = ingest(json.loads(SEED_PATH.read_text(encoding="utf-8")))
 
@@ -301,20 +260,9 @@ def _create_rentals_schema(engine: Engine) -> None:
 
 
 def _open_seed_rentals(report: IngestReport, session) -> int:
-    """Record the rentals the seed already describes, above `persist`.
-
-    **This lives here and not in `persist`, deliberately** — the placement is what makes
-    ADR-0007 and ADR-0011 simultaneously true. `persist` refuses once rentals exist, and
-    `test_reseed_is_idempotent` requires a second `persist` on a fresh database to
-    succeed; both hold only if `persist` never writes a rental itself. `app/storage.py`
-    also says it makes no decisions, and "an `In Use` row with an assignee is a rental"
-    is one.
-
-    Seed id 7 is `In Use` and assigned to an address with no account, so its rental gets
-    `account_id = NULL` (ADR-0007). Releasing it instead — which is what Phase 0 did to
-    id 2's orphan rental — would destroy the only evidence of who holds the headphones;
-    id 2 was released precisely *because* it named nobody.
-    """
+    """Record the rentals the seed already describes, above `persist` — deliberately:
+    `persist` refuses once rentals exist and must succeed twice on a fresh database,
+    which both hold only if it never writes a rental itself (ADR-0007, ADR-0011)."""
     from app.rentals import reconcile_held_items
 
     return reconcile_held_items(session, report.imported)
@@ -323,14 +271,9 @@ def _open_seed_rentals(report: IngestReport, session) -> int:
 def seed_if_empty(engine: Engine) -> bool:
     """Seed the database only if it holds no hardware items. Returns whether it did.
 
-    **A deploy shim, not a migration strategy** (see `BACKLOG.md`). The deploy
-    target offers no way to run a one-off command against the mounted volume, so
-    the only remaining place to seed a fresh instance is startup.
-
-    The emptiness check is what makes that safe rather than merely convenient.
-    ``persist`` has replace semantics, so an unguarded boot seed would wipe the
-    table on every restart. Once the rental engine exists the table is never empty,
-    so this can never reach a database with rentals in it.
+    A deploy shim, not a migration strategy (BACKLOG.md). The emptiness check is
+    the safety: `persist` has replace semantics, so an unguarded boot seed would
+    wipe the table — and every rental — on every restart. Never remove the guard.
     """
     with new_session(engine) as session:
         existing = load_items(session)
@@ -354,10 +297,8 @@ def seed_if_empty(engine: Engine) -> bool:
     return True
 
 
-# Last in the file, deliberately. Running `python -m scripts.seed` executes the module top
-# to bottom, so `main()` may only be called once every name it reaches is bound. This block
-# used to sit directly under `main`, above `_create_rentals_schema` and `_open_seed_rentals`
-# — importing the module bound them and every test passed, while the README's own setup
-# step died on a `NameError`. Found by a fresh-clone check, not by the suite.
+# Last in the file, deliberately: this block once sat above two helpers `main()`
+# reaches — imports bound them and every test passed, while the README's own setup
+# step died on a NameError. Found by a fresh-clone check, not by the suite.
 if __name__ == "__main__":
     main()

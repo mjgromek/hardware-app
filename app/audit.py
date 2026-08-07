@@ -1,15 +1,8 @@
-"""`audit_events` — one table for every admin override, with a reason attached.
+"""`audit_events` — one table for every admin override, with a reason attached (ADR-0010).
 
-ADR-0010: force-returning somebody else's rental and clearing `needs_review` are the
-same *kind* of event — an admin doing something an ordinary user could not — so they
-share one table rather than getting one each. Two tables for one concept is the
-shallow-module shape `architecture-scout` is briefed to flag.
-
-**Ordinary rent and return write nothing here.** A user renting a laptop is the product
-working, and the `rentals` row is its record. This table is for the overrides.
-
-`hardware_quarantine` was the obvious place and is the wrong one: `persist` has replace
-semantics, so an audit trail there survives only until the next documented reseed.
+Ordinary rent and return write nothing here; the `rentals` row is their record.
+Kept out of `hardware_quarantine` because `persist` has replace semantics — an audit
+trail there survives only until the next reseed.
 """
 
 from __future__ import annotations
@@ -40,27 +33,16 @@ metadata = MetaData()
 
 
 class Action:
-    """What an admin did. A closed set, for the reason `Status` and `SortKey` are.
-
-    An unrecognised action must not be silently storable — an audit trail whose
-    vocabulary drifts cannot be queried, and the first question anyone asks it is "show
-    me every X".
-    """
+    """A closed set — a trail whose vocabulary drifts cannot be queried."""
 
     FORCE_RETURN = "force_return"
     CLEAR_REVIEW_FLAG = "clear_review_flag"
-    #: ADR-0017 — the enum growing is the ADR's own consequence, not drift.
     FLAG_REVIEW = "flag_review"
-    #: A review that concluded the fault was real (ADR-0017, second Phase 4 amendment).
-    #: Its own action rather than a `clear_review_flag` whose prose happens to describe a
-    #: fault: both outcomes clear the flag, and a trail that cannot tell "released as fit"
-    #: from "confirmed unfit" cannot answer the first question an incident asks.
+    #: Not a `clear_review_flag` with fault-shaped prose: a trail that cannot tell
+    #: "released as fit" from "confirmed unfit" cannot answer an incident (ADR-0017).
     REVIEW_TO_REPAIR = "review_to_repair"
-
-    #: A returner reporting a fault in the device they were holding (ADR-0020). Its own
-    #: action rather than `flag_review`, because the actor class is the point: this flag
-    #: rests on direct observation, and a reviewing admin's next move is to ask the
-    #: person named on the row.
+    #: Its own action because the actor class is the point — this flag rests on
+    #: direct observation, and the admin's next move is to ask the returner (ADR-0020).
     REPORT_ON_RETURN = "report_on_return"
 
     ALL = (
@@ -76,18 +58,14 @@ audit_events = Table(
     "audit_events",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    # The actor is stored twice for the same reason the renter is (ADR-0007): deleting
-    # an admin must not erase the record of what they did.
+    # Actor stored twice: deleting an admin must not erase what they did (ADR-0007).
     Column("actor_account_id", Integer, nullable=True),
     Column("actor_email", String, nullable=False),
     Column("action", String, nullable=False),
-    # Same reasoning as `rentals.item_id`: the event survives the item it describes,
-    # because "who cleared this flag and why" outlives the row it was about.
+    # SET NULL: the event outlives the item it describes.
     Column("item_id", Integer, ForeignKey(hardware.c.id, ondelete="SET NULL"), nullable=True),
     Column("rental_id", Integer, nullable=True),
-    #: Mandatory. "Somebody inspected this and it is fit to issue" is the claim a later
-    #: incident interrogates, and a cleared flag with no reason is indefensible on the
-    #: one item — the Dell XPS — where it matters most.
+    # Mandatory — a cleared flag with no reason is indefensible (ADR-0010).
     Column("reason", Text, nullable=False),
     Column("created_at", DateTime, nullable=False),
 )
@@ -99,11 +77,8 @@ def create_schema(engine: Engine) -> None:
 
 
 def clear_all(session: Session) -> int:
-    """Delete every audit event. Only the demo reset calls this.
-
-    A reset that reseeded the inventory but kept the events would leave a trail
-    referencing item and rental ids that no longer mean what it says.
-    """
+    """Delete every audit event. Only the demo reset calls this — a reseed that kept
+    the events would leave a trail whose ids no longer mean what it says."""
     return session.execute(delete(audit_events)).rowcount
 
 

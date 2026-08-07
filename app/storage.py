@@ -1,18 +1,8 @@
 """Persistence — writing an ``IngestReport`` to SQLite and reading it back.
 
-The importer stays pure: ``scripts.seed.ingest`` does structural validation in
-memory and returns a report. This module is the only place that knows about a
-database, which is what keeps ingestion testable without one.
-
-Thin by intent. It moves rows in and out; it makes no decisions. Every judgement
-about what a row *means* was already made upstream (ADR-0002), and every decision
-about what a row *permits* belongs to the guard layer (ADR-0003).
-
-**The caller owns the transaction.** Engine construction happens once, from
-``Settings.database_url``; sessions are opened by the caller and passed in. This is
-not ceremony — Phase 2's rental engine needs an atomic conditional UPDATE holding
-its own connection, and a module that opens and disposes an engine per call cannot
-give it one.
+Thin by intent: it moves rows and makes no decisions (ADR-0002, ADR-0003). The
+caller owns the transaction — the rental engine's atomic conditional UPDATE needs a
+session it controls, and a module that opens an engine per call cannot give it one.
 """
 
 from __future__ import annotations
@@ -45,8 +35,7 @@ from sqlalchemy.orm import Session
 from app.domain import HardwareItem, IngestReport, QuarantineRecord, Status
 
 __all__ = [
-    # Re-exported so callers and tests can name the types they hold without
-    # importing SQLAlchemy themselves. Types are the contract in this module.
+    # Re-exported so callers name the types they hold without importing SQLAlchemy.
     "Engine",
     "Session",
     "create_engine_for",
@@ -81,26 +70,23 @@ hardware = Table(
     Column("notes", Text, nullable=True),
     Column("history", Text, nullable=True),
     Column("assigned_to", String, nullable=True),
-    # Phase 4. All nullable — the seed records none of them, and the migration
-    # below must be able to ALTER them onto a live volume (see create_schema).
+    # All nullable: the seed records none of them, and the boot migration must be
+    # able to ALTER them onto a live volume (see create_schema).
     Column("serial_number", String, nullable=True),
     Column("category", String, nullable=True),
     Column("date_added", Date, nullable=True),
 )
 
-#: What Phase 4 added to `hardware`, for the boot migration. Same shape as
-#: `app/accounts.py`'s `_ADDED_COLUMNS` and for the same reason: `create_all`
-#: skips a table that exists, so a live volume never gets new columns from it.
+#: For the boot migration — `create_all` skips a table that exists, so a live
+#: volume never gets new columns from it.
 _ADDED_HARDWARE_COLUMNS = (
     ("serial_number", "VARCHAR"),
     ("category", "VARCHAR"),
     ("date_added", "DATE"),
 )
 
-#: Nothing from the seed is silently deleted — rejected rows land here with a
-#: reason and the original row as evidence, so this table is as load-bearing as
-#: ``hardware`` itself. Its own key is synthetic: ``source_id`` is not unique
-#: (the seed repeats id 4) and may be absent entirely on a malformed row.
+#: Rejected seed rows land here with a reason and the original row as evidence.
+#: Synthetic key: ``source_id`` is not unique (the seed repeats id 4).
 hardware_quarantine = Table(
     "hardware_quarantine",
     metadata,
@@ -112,22 +98,15 @@ hardware_quarantine = Table(
 
 
 def create_engine_for(database_url: str) -> Engine:
-    """Build the engine for ``database_url``, e.g. ``sqlite:///./hardware_hub.db``.
+    """Build the engine, once per process.
 
-    Once per process, from ``Settings.database_url`` — not once per query.
-
-    Default pooling on purpose. A ``StaticPool`` would hand every session the same
-    connection, which would let one session see another's uncommitted rows and
-    quietly destroy the isolation ``test_persist_does_not_commit`` exists to pin.
-    For the same reason, no locking pragmas: the onlooker's SELECT has to be able
-    to run while a writer holds an open transaction.
+    Default pooling and no locking pragmas, on purpose: a ``StaticPool`` hands every
+    session one connection, letting one see another's uncommitted rows — the
+    isolation ``test_persist_does_not_commit`` pins.
     """
     engine = create_engine(database_url)
 
-    # SQLite leaves foreign keys unenforced unless asked, per connection. ADR-0011
-    # makes this the belt behind the two guards that actually stop rental data being
-    # orphaned — it is unrelated to the locking pragmas BACKLOG.md warns against and
-    # does not touch the isolation `test_persist_does_not_commit` pins.
+    # SQLite leaves foreign keys unenforced unless asked, per connection (ADR-0011).
     @event.listens_for(engine, "connect")
     def _enforce_foreign_keys(connection, _record):  # pragma: no cover - driver hook
         cursor = connection.cursor()
@@ -138,21 +117,11 @@ def create_engine_for(database_url: str) -> Engine:
 
 
 def create_schema(engine: Engine) -> None:
-    """Create the tables if absent — and migrate a `hardware` table that predates
-    Phase 4's columns.
-
-    `create_all` skips an existing table, so on a live volume it will never add a
-    column (the Phase 2 production defect, now a CLAUDE.md non-negotiable). Checked
-    by inspection rather than by catching the error: `ADD COLUMN` fails on a column
-    that exists, and a migration that works exactly once turns every later restart
-    into the outage it was meant to prevent.
-
-    The `date_added` backfill runs here *and* is set at insert time by `persist` /
-    `add_item` — here for rows that predate the column, there for rows that arrive
-    after it. Idempotent from both ends: the `WHERE date_added IS NULL` guard means
-    a second boot changes nothing, and seed id 10 (no `purchase_date`) stays null —
-    an honest "unknown" rather than an invented arrival day.
-    """
+    """Create the tables if absent, and migrate a `hardware` table that predates
+    Phase 4's columns — `create_all` never adds a column to an existing table (the
+    Phase 2 production defect, now a CLAUDE.md non-negotiable). Idempotent by
+    inspection: `ADD COLUMN` fails on a present column. Seed id 10's `date_added`
+    stays null — an honest unknown rather than an invented arrival day."""
     metadata.create_all(engine)
 
     with engine.begin() as connection:
@@ -183,13 +152,8 @@ def persist(report: IngestReport, session: Session) -> None:
 
     Does not commit — the caller owns the transaction boundary.
 
-    **Replace semantics, by decision.** A reseed replaces the quarantine trail
-    rather than accumulating onto it: seeding twice leaves the database exactly as
-    seeding once did, with no duplicated hardware items and no duplicated or lost
-    quarantine records. The alternative — an audit trail that grows one copy per
-    reseed — makes the table unreadable for the admin queue it exists to serve.
-    A reseed is a documented operation on a deployed instance, so this behaviour
-    is specified rather than incidental.
+    Replace semantics, by decision: seeding twice leaves the database exactly as
+    seeding once did.
     """
     _refuse_if_rentals_exist(session)
 
@@ -214,9 +178,6 @@ def persist(report: IngestReport, session: Session) -> None:
                     "assigned_to": item.assigned_to,
                     "serial_number": item.serial_number,
                     "category": item.category,
-                    # Backfilled at insert for the same reason create_schema
-                    # backfills at boot: the one date the record already carries.
-                    # Id 10 stays null — nothing to derive from.
                     "date_added": item.date_added or item.purchase_date,
                 }
                 for item in report.imported
@@ -230,8 +191,7 @@ def persist(report: IngestReport, session: Session) -> None:
                 {
                     "source_id": record.source_id,
                     "reason": record.reason,
-                    # The rejected row is evidence, so it is stored whole rather
-                    # than flattened into columns it does not reliably have.
+                    # Evidence — stored whole, not flattened into columns it may lack.
                     "payload": json.dumps(dict(record.payload)),
                 }
                 for record in report.quarantined
@@ -244,19 +204,9 @@ class RentalsExist(RuntimeError):
 
 
 def _refuse_if_rentals_exist(session: Session) -> None:
-    """Refuse to replace the inventory once anybody has rented anything.
-
-    `seed_if_empty` guards the *boot* path, but the README documents
-    ``railway run … python -m scripts.seed`` as a live operation and nothing guarded
-    that one — so "a restart destroys every rental" was reachable through the
-    documented command rather than through a bug.
-
-    Tolerant of a database where `rentals` was never created, which is exactly the
-    engine every storage test builds: an unguarded ``SELECT … FROM rentals`` would turn
-    that whole module into `OperationalError`. This module still knows nothing about
-    what a rental *is* — only that rows in that table mean the inventory is not
-    replaceable.
-    """
+    """Refuse to replace the inventory once anybody has rented anything (ADR-0011).
+    Tolerant of a database with no `rentals` table — the engine every storage test
+    builds."""
     if "rentals" not in inspect(session.get_bind()).get_table_names():
         return
     if session.execute(text("SELECT 1 FROM rentals LIMIT 1")).first() is None:
@@ -276,19 +226,9 @@ def load_items(
 ) -> tuple[HardwareItem, ...]:
     """Read hardware items back, optionally filtered and ordered.
 
-    Round-trips the fields ingestion worked to establish: ``status`` as a
-    ``Status`` member, ``needs_review``, ``source_id`` for re-keyed rows, and the
-    normalised ``purchase_date`` as a ``date``.
-
-    **Filtering and ordering happen in SQL, not in Python.** The reason is the one
-    row the seed put there to be awkward: id 10 has no purchase date, and
-    ``sorted(key=lambda item: item.purchase_date)`` raises ``TypeError`` on ``None``.
-    SQLite orders NULLs first and never raises, so the undated item stays in the
-    result instead of taking the endpoint down with it. Where it lands is
-    deliberately not promised — see ``BACKLOG.md``.
-
-    ``status`` is a ``Status`` member rather than a string, so an off-enum value
-    cannot reach this function to be silently ignored.
+    Filtering and ordering happen in SQL, not Python: id 10 has no purchase date,
+    and a Python ``sorted`` raises ``TypeError`` on ``None`` where SQLite orders
+    NULLs first and never raises.
     """
     query = select(hardware)
     if status is not None:
@@ -303,8 +243,6 @@ def load_items(
             name=row["name"],
             brand=row["brand"],
             purchase_date=row["purchase_date"],
-            # Back through the enum, not out as a bare string: the status stays
-            # closed on the way out of the database as well as into it.
             status=Status(row["status"]),
             source_id=row["source_id"],
             needs_review=bool(row["needs_review"]),
@@ -331,22 +269,11 @@ def add_item(
 ) -> HardwareItem:
     """Insert one new item as ``Available`` and unflagged, and return it.
 
-    **The id is chosen by the database, inside the INSERT.** ``hardware.id`` is
-    ``autoincrement=False`` because ingestion carries the seed's own ids — the seed even
-    re-keyed a duplicate to 12 — so the next free id is ``max(id) + 1`` and the database
-    cannot be left to invent one.
-
-    Computing that with a separate ``SELECT`` was wrong, and concurrently wrong: two
-    admins adding hardware at the same moment both read the same maximum and the second
-    ``INSERT`` died on the primary key. The subquery below moves the read inside the
-    write, so SQLite evaluates it while holding the write lock and the two inserts
-    serialise. This is the same property Phase 2's rental engine needs from this module,
-    which is why it is fixed here rather than filed.
-
-    ``Available`` and ``needs_review=False`` are not caller-supplied. An item an admin
-    is holding is in hand and not under review; accepting a status here would let the
-    UI create something already flagged, which under ADR-0003 is an item nobody can
-    rent and nobody can clear.
+    The id is chosen inside the INSERT: a separate SELECT-then-insert let two
+    concurrent admins read the same maximum and die on the primary key. The
+    scalar subquery moves the read behind the write lock, so inserts serialise.
+    Status is not caller-supplied — accepting one would let the UI create an item
+    already flagged, which nobody can rent and nobody can clear (ADR-0003).
     """
     next_id = select(func.coalesce(func.max(hardware.c.id), 0) + 1).scalar_subquery()
     assigned_id = session.execute(
@@ -365,9 +292,8 @@ def add_item(
             assigned_to=None,
             serial_number=serial_number,
             category=category,
-            # An added device is dated by its arrival, not its purchase — the seed
-            # backfill derives from `purchase_date` only because those rows have no
-            # arrival to record.
+            # Dated by arrival, not purchase — the seed backfill derives from
+            # `purchase_date` only because those rows have no arrival to record.
             date_added=date.today(),
         )
         .returning(hardware.c.id)
@@ -387,12 +313,7 @@ def add_item(
 
 def edit_item(session: Session, item_id: int, **fields) -> bool:
     """Change the named fields on one item. Returns whether a row matched.
-
-    A pure row-mover, like `set_status` below: which fields may change, who may
-    change them and what counts as a legal value are the route's questions. The
-    caller passes only the fields the request actually named — partial semantics
-    live at the boundary that knows what was sent.
-    """
+    Partial semantics live at the route — the boundary that knows what was sent."""
     result = session.execute(
         update(hardware).where(hardware.c.id == item_id).values(**fields)
     )
@@ -400,13 +321,8 @@ def edit_item(session: Session, item_id: int, **fields) -> bool:
 
 
 def set_status(session: Session, item_id: int, status: Status) -> bool:
-    """Move one item to ``status``. Returns whether a row was there to move.
-
-    Scoped to the id in the ``WHERE`` clause, and the row count is returned rather
-    than assumed — an update that matched nothing is a ``404``, not a silent success,
-    and an update that matched more than the named item is the bug
-    ``test_admin_can_toggle_repair_status`` looks for.
-    """
+    """Move one item to ``status``. An update that matched nothing is a 404, not a
+    silent success — the rowcount is the answer."""
     result = session.execute(
         update(hardware).where(hardware.c.id == item_id).values(status=status.value)
     )
@@ -414,12 +330,8 @@ def set_status(session: Session, item_id: int, status: Status) -> bool:
 
 
 def clear_review(session: Session, item_id: int) -> bool:
-    """Drop the review flag and the reason together. Returns whether a row matched.
-
-    Both, not just the flag: `review_reason` explains a restriction, and an item that
-    is no longer restricted showing "purchase date 2027-10-10 is in the future" is
-    stale prose in the column a later flag (ADR-0017) would write over.
-    """
+    """Drop the review flag and the reason together — a reason outliving its flag
+    is stale prose in the column a later flag would write over."""
     result = session.execute(
         update(hardware)
         .where(hardware.c.id == item_id)
@@ -429,13 +341,8 @@ def clear_review(session: Session, item_id: int) -> bool:
 
 
 def flag_review(session: Session, item_id: int, reason: str) -> bool:
-    """Raise the review flag with the human's reason. Returns whether a row matched.
-
-    The mirror of `clear_review`, and like it a pure row-mover: whether flagging is
-    allowed, who may do it and what gets audited are the route's questions (ADR-0017).
-    `review_reason` has human authors only — this function is called with an admin's
-    words, never a model's (ADR-0014).
-    """
+    """Raise the review flag with the human's reason. `review_reason` has human
+    authors only — never a model's words (ADR-0014)."""
     result = session.execute(
         update(hardware)
         .where(hardware.c.id == item_id)
@@ -445,24 +352,14 @@ def flag_review(session: Session, item_id: int, reason: str) -> bool:
 
 
 def delete_item(session: Session, item_id: int) -> bool:
-    """Remove one item. Returns whether it existed.
-
-    This is the one place the codebase deletes hardware, and it is worth naming the
-    difference: a seed row that fails validation is quarantined rather than dropped
-    (ADR-0002), while an admin retiring a laptop is a deliberate act on live
-    inventory. Only the second is a delete.
-    """
+    """Remove one item — the one place the codebase deletes hardware. Quarantine is
+    for seed rows; this is an admin retiring live inventory."""
     result = session.execute(delete(hardware).where(hardware.c.id == item_id))
     return result.rowcount == 1
 
 
 def load_quarantine(session: Session) -> tuple[QuarantineRecord, ...]:
-    """Read every quarantine record back, each carrying its readable reason.
-
-    The reason is the whole point of the table — a row here without one is an
-    unexplained deletion by another name. ``payload`` round-trips as the original
-    seed row.
-    """
+    """Read every quarantine record back; ``payload`` round-trips as the original row."""
     rows = session.execute(select(hardware_quarantine)).mappings().all()
     return tuple(
         QuarantineRecord(

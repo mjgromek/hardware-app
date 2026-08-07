@@ -11,11 +11,7 @@ from typing import Mapping
 
 
 class ConfigurationError(RuntimeError):
-    """Raised when the environment cannot support a safe boot.
-
-    The application refuses to start rather than coming up in a state where an
-    invariant is already violated (ADR-0005).
-    """
+    """The app refuses to boot rather than come up with an invariant already broken."""
 
 
 @dataclass(frozen=True)
@@ -40,14 +36,11 @@ REQUIRED_IN_PRODUCTION = ("SECRET_KEY", "ADMIN_PASSWORD")
 #: Development-only fallbacks, so a fresh clone runs with no environment set.
 DEVELOPMENT_DEFAULTS = {
     "SECRET_KEY": "dev-secret-key-not-for-production",
-    # `@booksy.com`, not `admin@localhost`. Every account in the project is now on the
-    # company domain, which is what lets creation-time domain validation apply with no
-    # exemption for the bootstrap admin. Left as `admin@localhost`, a fresh local
-    # database would bootstrap the one account that validation would reject.
+    # On the company domain, or a fresh database bootstraps the one account that
+    # creation-time domain validation would reject (ADR-0019).
     "ADMIN_EMAIL": "admin@booksy.com",
     "ADMIN_PASSWORD": "admin",
-    # Not a secret by design: these are the credentials the README publishes, on a
-    # `user`-role account that every admin route refuses.
+    # Not a secret by design: the README publishes these, on a user-role account.
     "DEMO_EMAIL": "demo@booksy.com",
     "DEMO_PASSWORD": "hardware-hub-demo",
     "DATABASE_URL": "sqlite:///./hardware_hub.db",
@@ -55,14 +48,8 @@ DEVELOPMENT_DEFAULTS = {
 
 
 def load_settings(env: Mapping[str, str]) -> Settings:
-    """Build ``Settings`` from an environment mapping, or refuse.
-
-    ``ENVIRONMENT`` selects the regime and is the only variable read before the
-    guards run. Production is strict: ``SECRET_KEY`` and ``ADMIN_PASSWORD`` must
-    both be present and non-empty. Anything else — including an unset
-    ``ENVIRONMENT`` — is permissive and falls back to development defaults
-    (ADR-0005).
-    """
+    """Build ``Settings`` or refuse. Production is strict; anything else falls back
+    to development defaults (ADR-0005)."""
     environment = env.get("ENVIRONMENT") or "development"
 
     if environment == PRODUCTION:

@@ -42,10 +42,8 @@ from app.storage import (
 #: the mount is conditional rather than assumed.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
-#: One body for every refused login. Wrong password and unknown address get the
-#: same bytes, or the endpoint enumerates accounts for anyone willing to ask twice —
-#: which matters here because the deployment publishes demo credentials (ADR-0005),
-#: making the login form the one route a stranger is certain to reach.
+#: One body for every refused login, or the endpoint enumerates accounts for anyone
+#: willing to ask twice.
 INVALID_CREDENTIALS = "Invalid email or password"
 
 
@@ -54,9 +52,7 @@ class Credentials(BaseModel):
     password: str
 
 
-#: Accounts belong to Booksy employees, so an address off the company domain is somebody
-#: who should not have a login (ADR-0019).
-COMPANY_DOMAIN = "@booksy.com"
+COMPANY_DOMAIN = "@booksy.com"  # ADR-0019
 
 
 class NewAccount(BaseModel):
@@ -67,19 +63,9 @@ class NewAccount(BaseModel):
     @field_validator("email")
     @classmethod
     def on_the_company_domain(cls, email: str) -> str:
-        """Refuse anything that is not a `@booksy.com` mailbox.
-
-        Validated here, on the request model, rather than in `accounts.create_account` —
-        and that placement is the decision, not an accident of layering. It puts the rule
-        on the API boundary, which `bootstrap_admin` does not cross: it reads `ADMIN_EMAIL`
-        from the environment, a value the deployment's owner sets, and creates the account
-        directly. So the bootstrap exemption is structural rather than a special case in a
-        conditional that somebody has to remember not to delete (ADR-0019).
-
-        `endswith` on the *whole* suffix, not `in`: `attacker@booksy.com.evil.net` contains
-        the domain and `someone@notbooksy.com` ends with `booksy.com`. Both are registrable
-        by an outsider, and both pass the looser checks.
-        """
+        """On the request model, so `bootstrap_admin`'s exemption is structural
+        (ADR-0019). `endswith` on the whole suffix — `attacker@booksy.com.evil.net`
+        and `someone@notbooksy.com` both pass the looser checks."""
         candidate = email.strip()
         if not candidate.lower().endswith(COMPANY_DOMAIN):
             raise ValueError(f"email must be on the {COMPANY_DOMAIN} domain")
@@ -90,14 +76,9 @@ class NewAccount(BaseModel):
 
 
 class ReturnReport(BaseModel):
-    """The optional half of a return: what the person handing it back noticed.
-
-    `issue` is optional because nearly every return is fine, and a flow that makes the
-    honest majority fill in a field teaches people to type nothing into it. But an
-    `issue` that is present and blank is refused rather than ignored — a flag reading
-    `"   "` blocks the item and tells the admin resolving it nothing, which is worse
-    than no flag at all.
-    """
+    """The optional half of a return (ADR-0020). Optional because nearly every
+    return is fine; present-and-blank is refused because a flag reading `"   "`
+    blocks the item and tells the resolving admin nothing."""
 
     issue: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
 
@@ -107,37 +88,22 @@ class RoleChange(BaseModel):
 
 
 class NewHardware(BaseModel):
-    """What an admin can tell us about a device they are holding.
+    """Only `name` is required — real seed rows arrive with neither brand nor date,
+    and refusing them here would make the API stricter than the data it stores."""
 
-    `name` is required and the rest are not, which mirrors the seed: real rows arrive
-    with a missing brand or no purchase date (id 10 has neither), and refusing those
-    fields here would make the API stricter than the data it already stores.
-    """
-
-    #: Trimmed before length is checked, so `"   "` is refused rather than stored. A name
-    #: made of spaces satisfies `min_length=1`, reaches the database, and renders as a
-    #: blank dashboard row — indistinguishable from a rendering bug, and exactly the
-    #: unidentifiable record the seed's row 10 exists to demonstrate.
+    #: Trimmed before length is checked: a name of spaces renders as a blank row,
+    #: indistinguishable from a rendering bug.
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     brand: str | None = None
     purchase_date: date | None = None
     serial_number: str | None = None
-    #: The closed set (brainstorm §3 Phase 4). Pydantic's enum validation is the
-    #: 422 — an off-enum category never reaches the database to become an item no
-    #: filter matches and no screen renders.
     category: Category | None = None
 
 
 class HardwareEdit(BaseModel):
-    """`PATCH /api/hardware/{id}` — partial on purpose: only the fields sent change.
-
-    One mutation route rather than a second one for edits, because the status guards
-    live here and a parallel route would be a way around them. `model_fields_set` is
-    what distinguishes "brand: null" (clear it) from "brand absent" (leave it) —
-    treating absence as null is how fixing a typo in the name quietly blanks the
-    brand. Edit itself is wireframe-driven, not brief-required
-    (docs/WIREFRAME_JUSTIFICATION.md).
-    """
+    """`PATCH /api/hardware/{id}` — partial on purpose. `model_fields_set`
+    distinguishes "brand: null" (clear it) from "brand absent" (leave it); treating
+    absence as null is how fixing a name typo quietly blanks the brand."""
 
     status: Status | None = None
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
@@ -145,50 +111,31 @@ class HardwareEdit(BaseModel):
     purchase_date: date | None = None
     serial_number: str | None = None
     category: Category | None = None
-    #: Admin-only on both axes (ADR-0012): restricted in the payload a `user` receives,
-    #: and behind `current_admin` here. Editable because `notes` is often the fault
-    #: itself — seed id 5 reads "Battery swelling, do not issue without service", and a
-    #: release certifying "fixed: replaced the battery" against that standing text is
-    #: the false record ADR-0017 was amended to close, one field over.
+    #: Editable because `notes` is often the fault itself — a release certifying
+    #: "fixed" against standing fault text is the false record ADR-0017 closes.
     notes: str | None = None
 
 
 class ReviewOutcome(str, Enum):
-    """How a review concluded. A closed set, for the reason `Status` and `Action` are.
+    """Two members and no third: "dismissed" would clear the flag while asserting
+    nothing about the device — the hole ADR-0017 exists to close."""
 
-    Two members and no third. `"dismissed"` is the one somebody will ask for, and it is
-    precisely what this verb refuses to offer: it would clear the flag while asserting
-    nothing about the device, which is the finding-shaped hole ADR-0017 exists to close.
-    """
-
-    #: The record is now correct and the item is fit to issue. Takes a `fixed:` note.
     RELEASED = "released"
-    #: The finding was real. Takes a reason describing the fault, and sets `Repair`.
     REPAIR = "repair"
 
 
 class ReviewRelease(HardwareEdit):
-    """`POST /api/hardware/{id}/clear-review` — the edit and the note it describes.
-
-    An edit with a mandatory reason attached, rather than a reason with optional edits
-    bolted on, because that is what the action *is*: releasing an item asserts that the
-    record is now correct, and the change making it correct belongs in the same request.
-
-    Every field is optional except `reason` — some findings are resolved by inspecting
-    the device rather than by editing a column (seed id 10's problem is that nobody
-    knows what it is), so the edit is optional and the note never is.
-    """
+    """`POST /api/hardware/{id}/clear-review` — an edit with a mandatory reason:
+    releasing asserts the record is now correct, and the change making it correct
+    belongs in the same request. The edit is optional; the note never is."""
 
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    #: Defaulted rather than required, so every caller that predates the second outcome
-    #: keeps the behaviour it already had. A mandatory field would be the tidier schema
-    #: and would break the Phase 3 UI on deploy.
+    #: Defaulted, not required — mandatory would break the Phase 3 UI on deploy.
     outcome: ReviewOutcome = ReviewOutcome.RELEASED
 
 
-#: Typed in full so the request cannot be issued by accident. The route destroys rental
-#: history on a live instance, and a bare POST that fires on the first request is one
-#: mistyped URL away from wiping what ADR-0011 exists to protect.
+#: Typed in full — the route destroys rental history, and a bare POST is one
+#: mistyped URL away from wiping what ADR-0011 protects.
 RESET_CONFIRMATION = "reset the demo data"
 
 
@@ -197,44 +144,28 @@ class ResetConfirmation(BaseModel):
 
 
 class Reason(BaseModel):
-    """The mandatory reason on every admin override (ADR-0010).
-
-    Trimmed before length is checked, for the same reason a hardware name is: a reason
-    of spaces satisfies `min_length` and records nothing.
-    """
+    """The mandatory reason on every admin override (ADR-0010)."""
 
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class SearchQuery(BaseModel):
-    """What `POST /api/search` accepts: a question, not a filter.
-
-    The filter object is the *model's* output, never the caller's input — accepting one
-    here would hand every signed-in employee the raw query surface ADR-0015 closed.
-    """
+    """A question, not a filter — the filter object is the model's output, never the
+    caller's input, or every employee gets the raw surface ADR-0015 closed."""
 
     query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class HeldBy(str, Enum):
-    """The only accepted value of `?held_by`. Closed, like `Status` and `SortKey`.
-
-    An open parameter taking an email would let any signed-in employee enumerate what a
-    named colleague is holding. That is a different feature with a different
-    authorization question, and Phase 2 has not asked it.
-    """
+    """Closed: an open `?held_by=<email>` would let any employee enumerate what a
+    named colleague is holding."""
 
     ME = "me"
 
 
 class SortKey(str, Enum):
-    """The columns the dashboard may sort on. Closed, so an unknown key is a `422`.
-
-    One member today. It is an enum rather than a bare string because the difference
-    between "unrecognised sort key" and "no sort key" must not be invisible: silently
-    returning unsorted rows for a typo is the kind of bug a user reports as "sorting
-    doesn't work sometimes".
-    """
+    """Closed, so an unknown key is a 422 — silently unsorted rows for a typo is
+    the bug a user reports as "sorting doesn't work sometimes"."""
 
     PURCHASE_DATE = "purchase_date"
 
@@ -244,11 +175,7 @@ HARDWARE = "/api/hardware"
 
 
 def _claim(transition):
-    """Run a transition, turning its `GuardViolation` into `409` with the reason kept.
-
-    Same translation as `_enforce`, for the case where the refusal comes out of the
-    atomic write rather than a pre-check (ADR-0008).
-    """
+    """`_enforce` for a refusal that comes out of the atomic write (ADR-0008)."""
     try:
         return transition()
     except guards.GuardViolation as violation:
@@ -256,12 +183,8 @@ def _claim(transition):
 
 
 def _enforce(guard, *args, **kwargs) -> None:
-    """Run a guard, translating its violation into `409` with the reason intact.
-
-    The translation lives here, once, so guards stay ignorant of HTTP and every route
-    answers a violated invariant with the same status and a readable message
-    (CONTEXT.md). ADR-0005's `409` and ADR-0003's `409` come through this one line.
-    """
+    """Run a guard, translating its violation into `409` with the reason intact —
+    once, here, so guards stay ignorant of HTTP."""
     try:
         guard(*args, **kwargs)
     except guards.GuardViolation as violation:
@@ -269,17 +192,11 @@ def _enforce(guard, *args, **kwargs) -> None:
 
 
 def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
-    """Build the application, or refuse to boot.
-
-    Loads settings first, so a production environment missing ``ADMIN_PASSWORD``
-    fails here rather than at first request (ADR-0005).
-    """
+    """Build the application, or refuse to boot (ADR-0005)."""
     settings = load_settings(os.environ if env is None else env)
 
-    # Under uvicorn the root logger has no handler, so application logs vanish
-    # even though they are emitted. `caplog` captures propagated records, so tests
-    # pass either way — this is what makes the boot-seed line visible in a real
-    # deployment. `force=False` leaves an already-configured host alone.
+    # Under uvicorn the root logger has no handler, so application logs vanish even
+    # though they are emitted — tests pass either way, only a real deploy notices.
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s"
     )
@@ -287,22 +204,17 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     app = FastAPI(title="Hardware Hub")
     app.state.settings = settings
 
-    # Once per process, not once per request (see app/storage.py).
     engine = create_engine_for(settings.database_url)
     create_schema(engine)
     app.state.engine = engine
-    #: The LLM seam (tests/llm_seam.py). A test's fake lands here; production leaves
+    #: The LLM seam (tests/llm_seam.py): a test's fake lands here, production leaves
     #: it None and `ai.resolve_client` builds the real client per request (ADR-0016).
     app.state.llm = None
-    #: The model's replies, remembered per process — the free tier rate-limits, and a
-    #: duplicate call spends quota to learn nothing. Rows are never cached.
     app.state.ai_cache = ai.ResponseCache()
 
-    # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
-    # with anything in it is left alone. Imported here rather than at module level
-    # so `app` does not depend on `scripts` just to be importable. See BACKLOG.md.
-    # Before the seed: `seed_if_empty` opens the rentals ADR-0007 describes, and DDL
-    # cannot run on a second connection while that session holds a write transaction.
+    # DDL before the seed's session — SQLite cannot run CREATE TABLE on a second
+    # connection while another holds a write transaction. Imported locally so `app`
+    # does not depend on `scripts` just to be importable.
     rentals.create_schema(engine)
     audit.create_schema(engine)
 
@@ -310,10 +222,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     seed_if_empty(engine)
 
-    # Every boot, not only an empty one. A volume seeded before Phase 2 has items that
-    # are `In Use` with a holder and no rental row — unreturnable and unrecallable —
-    # and `seed_if_empty` will never run again to fix them. Idempotent, so a restart
-    # over a reconciled database does nothing.
+    # Every boot, not only an empty one: a volume seeded before Phase 2 held an item
+    # nobody could return, and `seed_if_empty` will never run again to fix it.
     with new_session(engine) as session:
         reconciled = rentals.reconcile_held_items(session, load_items(session))
         session.commit()
@@ -322,31 +232,22 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             "reconciled %d held item(s) that had no rental record", reconciled
         )
 
-    # Admin #1 comes from the environment, not from a migration (ADR-0005). Done at
-    # boot for the same reason the seed is: the deploy target offers no way to run a
-    # one-off command against the mounted volume. Unlike the seed this is idempotent
-    # and additive — it never overwrites an existing admin.
+    # Admin #1 comes from the environment (ADR-0005) — the deploy target offers no
+    # way to run a one-off command against the volume, so boot is the only place.
     accounts.create_schema(engine)
     with new_session(engine) as session:
-        # Read before writing: `bootstrap_admin` is about to make the table non-empty,
-        # and the demo account is created only on a database that never had an account.
+        # Read before writing: `bootstrap_admin` is about to make the table
+        # non-empty, and the demo account is created only on a never-used database —
+        # so a deliberately deleted demo stays deleted.
         fresh = accounts.has_no_accounts(session)
         created = accounts.bootstrap_admin(
             session, settings.admin_email, settings.admin_password
         )
-        # A replaced volume must not leave the README publishing credentials that no
-        # longer exist — a reviewer meeting a login screen that rejects the only password
-        # they have is the worst first impression this project can make. Guarded by
-        # emptiness like the hardware seed, so a deliberately deleted demo account stays
-        # deleted and a rotated password stays rotated.
         demo = (
             accounts.bootstrap_demo(session, settings.demo_email, settings.demo_password)
             if fresh
             else None
         )
-        # Additive and idempotent: accounts created before the column existed get a
-        # token here. Their existing cookies stop working, which is the intended cost —
-        # there is no logout route, so an old-scheme cookie has no other way to end.
         backfilled = accounts.backfill_session_tokens(session)
         session.commit()
 
@@ -358,37 +259,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     if backfilled:
         log.info("issued session tokens to %d pre-existing account(s)", backfilled)
 
-    # ------------------------------------------------------------------
-    # The enforcement point (brainstorm.md §7, settled here)
-    # ------------------------------------------------------------------
-    #
-    # Per-route dependencies, not middleware. Middleware sees every request
-    # including the ones the static mount serves, so a global "refuse without a
-    # session" would take the login page down with it — and
-    # `test_serves_built_bundle_at_root` fetches `/` unauthenticated, so that shape
-    # turns a passing test red rather than shipping. A dependency also puts the
-    # requirement in the signature of the route it protects, where a reader looking
-    # at the handler can see it.
+    # The enforcement point: per-route dependencies, not middleware — middleware
+    # would take the unauthenticated login page down with everything else, and a
+    # dependency puts the requirement in the signature a reader actually sees.
 
     def current_account(request: Request) -> Account:
-        """The account behind this request, or `401`.
-
-        `401` and not `403`: this is what the dashboard's first fetch gets when
-        nobody is signed in, and the Vue client reads the status to decide between
-        the login screen and an error page. A `403` there is a dead end for someone
-        who only needs to log in.
-
-        The cookie carries a per-account token, not the row id, and the account is
-        re-read on every request — so a session whose account has been deleted is
-        refused, and stays refused. That claim used to be false: the subject was
-        `users.id`, SQLite recycles the highest rowid, and the next account created
-        inherited both the id and every cookie naming it. `/security-review` turned a
-        deleted `user`'s untouched cookie into a live admin that way. Tokens are issued
-        once and never reissued, so there is nothing for a stale cookie to land on.
-
-        The signature proves the subject was not tampered with; the lookup proves it
-        still refers to somebody.
-        """
+        """The account behind this request, or `401`. The signature proves the
+        subject was not tampered with; the per-request lookup proves it still refers
+        to somebody — a token, never the recyclable row id (ADR-0013)."""
         token = sessions.subject_of(
             request.cookies.get(sessions.COOKIE_NAME), settings.secret_key
         )
@@ -402,13 +280,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         )
 
     def current_admin(account: Account = Depends(current_account)) -> Account:
-        """The account behind this request if it is an admin, or `403`.
-
-        Layered on `current_account` so an anonymous caller still gets `401` and an
-        authenticated non-admin gets `403`. The distinction is not cosmetic: showing
-        a login form to somebody who is already signed in tells them the wrong thing
-        about why they were refused.
-        """
+        """The admin behind this request, or `403` — layered on `current_account` so
+        an anonymous caller still gets the `401` that means "sign in"."""
         if account.role is not Role.ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -422,20 +295,16 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.post("/api/login")
     def log_in(credentials: Credentials, response: Response) -> dict[str, Any]:
-        """Exchange a credential for a session cookie, or refuse identically.
-
-        The refusal is one shared body (`INVALID_CREDENTIALS`) and never echoes the
-        submitted address: a reflected value is a hint to an attacker and an
-        injection surface in whatever renders it.
-        """
+        """Exchange a credential for a session cookie, or refuse identically —
+        never echoing the submitted address."""
         with new_session(engine) as session:
             account = accounts.verify_credentials(
                 session, credentials.email, credentials.password
             )
 
         if account is None:
-            # Raised rather than returned, so no `Set-Cookie` can be attached to it
-            # by a later line: a 401 that arrives with a session is worse than a 200.
+            # Raised, not returned: a 401 that arrives with a Set-Cookie is worse
+            # than a 200.
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=INVALID_CREDENTIALS
             )
@@ -452,14 +321,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.get("/api/session")
     def read_session(account: Account = Depends(current_account)) -> dict[str, Any]:
-        """Who the caller is, for a client that holds an `HttpOnly` cookie.
-
-        The cookie is unreadable from JavaScript by design, so after a reload the app
-        knows it has *a* session and nothing about whose. This is the route it asks,
-        and the `401` for an absent session is what turns into the login screen.
-
-        Returns the `Account`, which has no field for a password digest.
-        """
+        """Who the caller is — an `HttpOnly` cookie is unreadable from JavaScript,
+        so after a reload this is the route the client asks."""
         return asdict(account)
 
     # ------------------------------------------------------------------
@@ -468,11 +331,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.get("/api/users")
     def list_users(_: Account = Depends(current_admin)) -> list[dict[str, Any]]:
-        """Every account, for the admin who manages them.
-
-        Returns `id`, `email` and `role` — the whole of `Account`, which is a type
-        that cannot hold a password digest, so this route cannot leak one.
-        """
+        """Every account, for the admin who manages them."""
         with new_session(engine) as session:
             return [asdict(account) for account in accounts.list_accounts(session)]
 
@@ -480,17 +339,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def create_user(
         new_account: NewAccount, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Create an account. Admin-only, because there is no self-registration.
-
-        The guard runs before anything is written — `current_admin` is resolved
-        before the body of this function exists — so a refused request cannot leave
-        a usable account behind. That ordering is the property
-        `test_non_admin_cannot_create_user` checks by trying to log in afterwards,
-        rather than by trusting the status code.
-
-        `role` is a `Role`, so an off-enum value is a `422` from the model and never
-        reaches the database.
-        """
+        """Create an account. Admin-only — there is no self-registration."""
         with new_session(engine) as session:
             try:
                 account = accounts.create_account(
@@ -528,16 +377,11 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             if target is None:
                 raise HTTPException(status_code=404, detail="No such account")
             _enforce(guards.ensure_an_admin_remains, session, account_id)
-            # No active rental may outlive its owner: `rentals.account_id` is a
-            # recyclable rowid, so a rental left behind is one an unrelated future
-            # employee inherits (`/security-review`).
-            #
-            # The write comes *before* the read, deliberately — ADR-0008's lesson one
-            # layer up. Guard-then-delete reads "holds nothing" without a lock, so a
-            # rent committed in the gap stranded an active rental on a deleted
-            # account (test_lifecycle_race pins it). Deleting first takes SQLite's
-            # write lock; the rentals read then runs behind it, a racing rent waits
-            # on the lock, and a guard refusal rolls the uncommitted delete back.
+            # The write comes *before* the read, deliberately. Guard-then-delete
+            # read "holds nothing" without a lock, and a rent committed in the gap
+            # stranded an active rental on a deleted account (test_lifecycle_race).
+            # Deleting first takes SQLite's write lock; the rentals read runs behind
+            # it, and a guard refusal rolls the uncommitted delete back.
             accounts.delete_account(session, account_id)
             _enforce(
                 guards.ensure_account_holds_nothing,
@@ -558,18 +402,9 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         sort: SortKey | None = None,
         held_by: HeldBy | None = None,
     ) -> list[dict[str, Any]]:
-        """The inventory, for a signed-in caller. Eleven rows needs no paging.
-
-        Behind a session since ADR-0006: whole items carry `notes` and `history`,
-        which are internal maintenance records and were public through Phase 0.
-
-        **Both query parameters are typed, and that is the design.** `status` is a
-        `Status`, so the seed's own off-enum `"Unknown"` is a `422` from FastAPI
-        rather than a filter the handler silently drops — the failure mode where an
-        admin filters for a status that does not exist, gets the entire inventory
-        back, and reads it as "everything matches". `sort` is a closed set for the
-        same reason: an unrecognised sort key must not quietly return unsorted rows.
-        """
+        """The inventory, behind a session (ADR-0006). Typed query parameters, so a
+        filter for a status that does not exist is a 422 rather than the whole
+        inventory read as "everything matches"."""
         with new_session(engine) as session:
             items = load_items(
                 session,
@@ -577,10 +412,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 sort_by_purchase_date=sort is SortKey.PURCHASE_DATE,
             )
             if held_by is HeldBy.ME:
-                # Scoped by *account*, not by "is it In Use" — the second renter is
-                # what makes that difference visible, and getting it wrong hands one
-                # employee's rentals to another. Seed id 7 has no account and so
-                # belongs to nobody's list (ADR-0007).
+                # Scoped by *account*, not "is it In Use" — getting it wrong hands
+                # one employee's rentals to another (ADR-0007).
                 mine = rentals.item_ids_held_by(session, account.id)
                 items = tuple(item for item in items if item.id in mine)
         return [visible_to(asdict(item), account) for item in items]
@@ -589,12 +422,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def add_hardware(
         new_item: NewHardware, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Add an item to the inventory. Admin-only.
-
-        `status` and `needs_review` are not accepted from the caller — see
-        `storage.add_item`. The only fields an admin supplies are the ones they can
-        read off the device in their hands.
-        """
+        """Add an item to the inventory. Admin-only; status is not caller-supplied
+        (see `storage.add_item`)."""
         with new_session(engine) as session:
             item = add_item(
                 session,
@@ -611,15 +440,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def change_hardware(
         item_id: int, change: HardwareEdit, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """The status toggle and the Phase 4 edit, one guarded route.
-
-        `HardwareEdit.status` is a `Status` and `category` a `Category`, so an
-        off-enum value is a `422` and never reaches the database. An edit naming no
-        fields is a `422` too — a no-op UPDATE would report success for a request
-        that expressed no intent. Explicitly nulling `name` is refused: every other
-        editable field is nullable in the schema, the name is what identifies the
-        device (seed id 10 is the cautionary row).
-        """
+        """The status toggle and the edit, one guarded route — a parallel edit route
+        would be a way around the status guards. An empty edit is a 422 (a no-op
+        UPDATE would report success for a request that expressed no intent), and
+        nulling `name` is refused: it is the one field that identifies the device."""
         sent = change.model_fields_set
         if not sent:
             raise HTTPException(
@@ -635,19 +459,12 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if change.status is Status.REPAIR:
-                # CONTEXT.md names "a rented item in Repair" an impossible state, and
-                # Phase 1 shipped the route that reached it (ADR-0009).
                 _enforce(
                     guards.ensure_no_active_rental,
                     rentals.active_rental(session, item_id),
                     item,
                     "sent to Repair",
                 )
-                # The second route into the review/Repair pair, and the one that actually
-                # produced it — guarding `flag-review` alone left this open (ADR-0003,
-                # amended). Refused rather than silently clearing the flag: that would
-                # conclude a review with no reason and no audit row, and the verb that
-                # concludes one properly is a single call away.
                 _enforce(guards.ensure_repair_does_not_bury_a_review, item)
             if change.status is not None:
                 set_status(session, item_id, change.status)
@@ -697,22 +514,15 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def rent_hardware(
         item_id: int, account: Account = Depends(current_account)
     ) -> dict[str, Any]:
-        """Claim an item. Any signed-in account may rent; the guards decide which item.
-
-        The pre-check runs for the message and the atomic `UPDATE` makes the decision
-        (ADR-0008), so a caller who passes the first and loses the second is told the
-        item is in use — which by then it is.
-        """
+        """Claim an item. The atomic `UPDATE` decides; the guards phrase the refusal
+        (ADR-0008)."""
         with new_session(engine) as session:
             try:
                 rental = rentals.rent(session, item_id, account)
             except guards.GuardViolation:
-                # The claim failed. Only *now* read the row, to say why — reading first
-                # would open a transaction the UPDATE then has to upgrade, and six
-                # concurrent claimants upgrading one SQLite read lock deadlock rather
-                # than serialise. Attempting the write first is both faster and the
-                # honest ordering: the atomic statement is the decision (ADR-0008), and
-                # the guards exist for the message.
+                # Only *now* read the row, to say why. Reading first opens a
+                # transaction the UPDATE must upgrade — six concurrent claimants
+                # upgrading one SQLite read lock deadlock rather than serialise.
                 session.rollback()
                 item = _item_or_404(session, item_id)
                 _enforce(guards.ensure_item_is_rentable, item)
@@ -729,27 +539,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         body: ReturnReport | None = None,
         account: Account = Depends(current_account),
     ) -> dict[str, Any]:
-        """Close your own rental, optionally reporting a fault. `409` on somebody else's (ADR-0009).
+        """Close your own rental, optionally reporting a fault (ADR-0009, ADR-0020).
 
-        **The returner may raise the flag the auditor may not** (ADR-0020). ADR-0014
-        denies `needs_review` to a judge that reasons over stored text; this person had
-        the device in their hands. The line is direct observation against inference, not
-        human against model — an admin acting on a *finding* still goes through the admin
-        verb.
-
-        The note becomes `review_reason` verbatim. It is the only first-hand account
-        anyone will get, and rewriting it into house style is how the detail that mattered
-        gets lost.
-
-        Two orderings matter here:
-
-        - **The return happens first, and unconditionally.** A report is not a refusal to
-          hand the item back; refusing would leave somebody holding a device the system
-          still believes they have.
-        - **An already-flagged item still returns.** `flag-review` answers `409` there,
-          because filing a mandatory reason against a non-event hides a UI bug (ADR-0017).
-          That reasoning does not survive contact with a physical handover, so the report
-          is folded into the existing flag instead of refusing it.
+        The returner may raise the flag the auditor may not: direct observation
+        against inference, not human against model. The note becomes `review_reason`
+        verbatim — the only first-hand account anyone will get. The return itself is
+        unconditional, and an already-flagged item still returns: refusing a
+        physical handover would leave somebody holding a device the system still
+        believes they have.
         """
         issue = body.issue.strip() if body and body.issue else None
         with new_session(engine) as session:
@@ -776,12 +573,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def force_return_hardware(
         item_id: int, body: Reason, admin: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Recall an item from whoever holds it. Admin-only, reason mandatory.
-
-        The `audit_events` row is written by `rentals.force_return` itself, in the
-        same transaction as the close — the transition owns its record (ADR-0010), so
-        no future caller of it can end a rental and leave no trace.
-        """
+        """Recall an item from whoever holds it. Admin-only, reason mandatory; the
+        transition writes its own audit row (ADR-0010)."""
         with new_session(engine) as session:
             _item_or_404(session, item_id)
             rental = _claim(
@@ -794,43 +587,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def clear_review_flag(
         item_id: int, body: ReviewRelease, admin: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Release an item from `needs_review`. Admin-only, reason mandatory.
+        """Conclude a review: release, or confirm the fault and set Repair (ADR-0017).
 
-        Allowed whatever the item's status — the flag and the status are orthogonal,
-        which is why the dashboard gives the flag its own column rather than a fourth
-        chip. `409` when nothing is flagged, because idempotency would hide a UI bug
-        *and* file a mandatory reason against a non-event (ADR-0010).
-
-        The reason goes with the flag: a cleared item still showing "purchase date is
-        in the future" explains a restriction that no longer applies.
-
-        **A review concludes; it does not only absolve** (ADR-0017, second Phase 4
-        amendment). `outcome="repair"` is the exit for a finding that turned out to be
-        real: an admin who inspects seed id 5 and confirms the battery is swelling had,
-        before this, a choice between leaving the flag set — recording no decision — and
-        certifying a repair nobody performed. The second is the false record the first
-        amendment closed one move earlier, and here it ends with an unfit device in
-        somebody's bag, because a release makes the item rentable.
-
-        Repair sets the status and nothing else: unrentability comes from the guard that
-        already refuses rentals on repair items, not from a new mechanism. Both outcomes
-        clear the flag and write one `audit_events` row, because both are decisions with
-        an actor.
-
-        A release's reason must begin with `fixed:` (ADR-0017 as amended in Phase 4): a
-        release asserts what *changed*, not that somebody looked. Checked here,
-        after authorization, so a `user` still gets their `403` whatever their
-        reason says — only an authorized admin's prose is worth validating. **The repair
-        outcome is deliberately exempt**: its reason describes what is *wrong*, and
-        demanding "fixed:" would let the false record back in through the new door.
-
-        **And the release carries the change it describes.** Demanding "fixed:" while
-        offering no way to fix anything made the note certify work the system had not
-        done: an admin resolving seed id 6 wrote "fixed: corrected the purchase date"
-        and the date stayed 2027-10-10. The edit fields travel with the reason, both
-        land in one transaction, and one `audit_events` row holds both — two rows would
-        let the pair come apart, and a reader finding the release would have to join it
-        to an edit by timestamp to learn whether the certified change happened.
+        A release's reason must begin with `fixed:` — it asserts what *changed*, not
+        that somebody looked — and the release carries the edit it certifies, in one
+        transaction and one audit row; without that, "fixed: corrected the date" was
+        written while the date stayed 2027-10-10. The repair outcome is exempt from
+        `fixed:` (its reason describes what is wrong), and `409` when nothing is
+        flagged: idempotency would file a mandatory reason against a non-event.
         """
         release = body.reason
         if body.outcome is ReviewOutcome.RELEASED and (
@@ -861,13 +625,9 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     "nothing to clear.",
                 )
 
-            # The edit first, the release second, one commit. Order matters only for
-            # readability — nothing is written until the commit, so a refused edit
-            # (an off-enum `category` never reaches here; a guard violation raises)
-            # leaves the item flagged rather than released against a rejected fix.
-            # The outcome decides the status when it is `repair`; an explicit `status`
-            # in the body still wins for a release, which is how an admin marks an item
-            # repaired *and* releases it in one action.
+            # A refused edit raises before the commit, so the item stays flagged
+            # rather than released against a rejected fix. The outcome decides the
+            # status for `repair`; an explicit `status` still wins for a release.
             new_status = (
                 Status.REPAIR if body.outcome is ReviewOutcome.REPAIR else body.status
             )
@@ -912,26 +672,17 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
-        """Alive, and nothing else. The deliberate second exception to ADR-0006.
-
-        No session (the caller is a load balancer) and no database read — it must be
-        able to answer while the volume is broken, which is exactly when somebody is
-        asking.
-        """
+        """Alive, and nothing else (the deliberate second exception to ADR-0006).
+        No database read — it must answer while the volume is broken, which is
+        exactly when somebody is asking."""
         return {"status": "ok"}
 
     @app.post(f"{HARDWARE}/{{item_id}}/flag-review")
     def flag_review_item(
         item_id: int, body: Reason, admin: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Put an item behind the review guard. Admin-only, reason mandatory (ADR-0017).
-
-        The verb that makes an auditor finding actionable: the model proposed
-        (ADR-0014), a human decides here, and the decision is recorded with its actor
-        — exactly what ADR-0010 reserved `audit_events` for. `409` on an item already
-        flagged, symmetric with `clear-review`: idempotency would file a mandatory
-        reason against a non-event.
-        """
+        """Put an item behind the review guard — the verb that makes an auditor
+        finding actionable: the model proposed, a human decides here (ADR-0017)."""
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if item.needs_review:
@@ -940,9 +691,6 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     detail=f"{item.name} is already flagged for review — clear the "
                     "existing flag first if the reason has changed.",
                 )
-            # Checked before the write and before the audit row: a refusal is a
-            # non-event, and filing a mandatory reason against one is the mistake
-            # ADR-0010 refused when it made `clear-review` `409` on an unflagged item.
             _enforce(guards.ensure_item_can_be_flagged, item)
             flag_review(session, item_id, body.reason)
             audit.record(
@@ -960,17 +708,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         body: SearchQuery, account: Account = Depends(current_account)
     ) -> dict[str, Any]:
         """Natural language in, real rows out — through the filter schema (ADR-0004).
-
-        `mode` is a claim about which path answered, and it is honest (ADR-0016): the
-        model errored, said something the schema forbids, or was never configured →
-        `keyword`. The model's illegal reply is an expected event, not a `500` —
-        rejected wholesale, no partial salvage (ADR-0015).
-        """
+        `mode` is an honest claim about which path answered (ADR-0016)."""
         cache = app.state.ai_cache
         cache_key = ai.normalise_query(body.query)
         if cache_key in cache.search_filters:
-            # The model's reply, not the rows: the SQL below still runs fresh, so a
-            # rental between two identical searches shows in the second answer.
             filters = cache.search_filters[cache_key]
         else:
             client = ai.resolve_client(app.state)
@@ -981,8 +722,8 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 except ai.ModelUnavailable:
                     filters = None  # transient — deliberately not cached
                 else:
-                    # Cached even when None: the schema refused the reply, and asking
-                    # again about the same question buys the same refusal for quota.
+                    # Cached even when None: asking again about the same question
+                    # buys the same schema refusal for quota.
                     cache.search_filters[cache_key] = filters
 
         with new_session(engine) as session:
@@ -998,12 +739,9 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     @app.get("/api/admin/audit")
     def run_inventory_audit(admin: Account = Depends(current_admin)) -> dict[str, Any]:
         """The Inventory Auditor: computed per run, persisted nowhere (ADR-0014).
-
-        Admin-only because every result quotes `notes`/`history`, and derived content
-        inherits its source's restriction (ADR-0012). No fallback: a keyword pass
-        cannot judge id 10, so unavailability is a `503` with a reason, never a
-        quieter answer under the auditor's name (ADR-0016).
-        """
+        Admin-only — derived content inherits its source's restriction (ADR-0012).
+        No fallback: unavailability is a `503` with a reason, never a quieter answer
+        under the auditor's name (ADR-0016)."""
         client = ai.resolve_client(app.state, timeout=ai.AUDIT_TIMEOUT_SECONDS)
         if client is None:
             raise HTTPException(
@@ -1015,9 +753,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             items = load_items(session)
             quarantine = tuple(asdict(record) for record in load_quarantine(session))
 
-        # Keyed on the catalogue state, so repeated runs against an unchanged
-        # inventory cost nothing and a changed one structurally misses. The client
-        # check stays above: feature-off refuses even with warm entries (ADR-0016).
+        # The client check stays above: feature-off refuses even with warm entries.
         cache = app.state.ai_cache
         fingerprint = ai.catalogue_fingerprint(items, quarantine)
         cached = cache.audit_findings.get(fingerprint)
@@ -1039,21 +775,11 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     def reset_demo(
         _body: ResetConfirmation, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Put the seed's defects back: clear rentals and audit events, then reseed.
+        """Put the seed's defects back — demonstrating the live instance consumes it.
 
-        The live instance is a demonstration, and demonstrating it consumes it — item 7
-        gets recalled, flags get cleared, items get rented. `docs/DATA_AUDIT.md` is
-        written about those rows and Phase 3's auditor needs the contradictions intact,
-        so restoring them has to be one repeatable action rather than a story about a
-        database somebody edited.
-
-        **An HTTP route because nothing else can reach the data.** Railway exposes no
-        exec and no SSH — the same constraint that put seeding on the boot path — so a
-        CLI reset would be documented for a deployment that cannot run it.
-
-        **Clears the blocker rather than bypassing it.** ADR-0011's refusal is correct
-        and stays: this deletes the rentals first, so the reseed passes the guard
-        instead of being exempted from it.
+        An HTTP route because Railway exposes no exec or SSH. Clears the blocker
+        rather than bypassing it: the rentals are deleted first, so the reseed
+        passes ADR-0011's guard instead of being exempted from it.
         """
         from scripts.seed import SEED_PATH, ingest
 
