@@ -2350,3 +2350,38 @@ Verified in the browser on all three channels: hover shows the tip instantly, Ta
 focus ring and the tip with the pointer parked elsewhere, and the accessibility tree now
 reports `img "Rented by j.doe@booksy.com"`.
 Commit: fix(phase-4): one tooltip mechanism, reachable three ways (pending)
+
+---
+
+## [P4 · c36] Wireframe spacing, and the search bar becomes two verbs
+
+Numbers, not adjectives: mark 56px, app name 20px/500 wrapping to two lines, nav 16px/500,
+sidebar gap 8px, page inset 64px, 22px between the bar and the table. The inset sits on
+`.main`, so the search bar and the table card inherit the same edges rather than each
+carrying its own padding — that is what keeps them aligned.
+
+**The filter is a security boundary, not a scope decision.** Typing filters instantly on
+`name` and `brand` only, as an allow-list. ADR-0015 keeps the model's filter schema free of
+predicates over `notes`, `history` and `review_reason` because a filter that can *select*
+on a restricted field reads it one query at a time. A client-side filter over the same
+fields would be the same oracle with a shorter round trip — and worse, because for an
+admin those fields are genuinely in the payload. Verified against exactly that: the session
+holds the Dell's "Battery swelling…" note, and typing `battery` returns nothing.
+
+**The focus measurement changed the design, as flagged.** The wireframe shows a soft
+shadow ring and no border. A blurred translucent shadow cannot carry SC 2.4.11, and this
+bar has no other focus signal, so the border stays and only its colour softens:
+`#7f8694`, **3.66:1** on the focused fill and **3.44:1** on the page. `#8b919e` was one
+step softer and missed the page edge at 2.98:1 — the shadow ring is still there, as
+decoration, doing the wireframe's job without being asked to carry the criterion. Dark
+`#6f7787`, 3.94:1 / 4.16:1.
+
+Busy state is a masked gradient outline with `aria-busy` and a polite live region, never
+colour alone — and the input is `readonly` rather than `disabled`, because disabling drops
+focus to `<body>` and throws a keyboard user to the top of the page on every question.
+
+**Both icons disappeared and only the screenshot showed it.** Raising the input above the
+busy gradient with `z-index: 1` also raised it above the magnifier and the sparkle, which
+sat at auto in the same stacking context. Computed styles said the sparkle was violet and
+the layout numbers were right; the icons were behind the fill.
+Commit: feat(phase-4): wireframe spacing, type-to-filter, and the ask state (pending)

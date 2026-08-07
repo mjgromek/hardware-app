@@ -29,6 +29,32 @@ const flagged = computed(() => props.items.filter((item) => item.needs_review).l
 
 const query = ref('')
 
+/** Type-to-filter: instant, local, and deliberately shallow.
+ *
+ * **Name and brand only, and that is a security boundary rather than a scope decision.**
+ * ADR-0015 keeps the model's filter schema free of any predicate over `notes`, `history`
+ * and `review_reason`, because a filter that can *select* on a restricted field leaks it
+ * one query at a time — ask for "battery", get the Dell XPS back, and the notes have been
+ * read without ever being displayed. A client-side filter over the same fields would be
+ * the same oracle with a shorter round trip, and it would be worse: for an admin those
+ * fields are actually present in the payload, so it would work.
+ *
+ * Two columns, listed explicitly. Not `Object.values(item)`, not "everything except the
+ * restricted three" — an allow-list, so a field added later is excluded until somebody
+ * decides otherwise.
+ */
+const FILTERABLE = ['name', 'brand']
+
+const visible = computed(() => {
+  const needle = query.value.trim().toLowerCase()
+  if (!needle) return props.items
+  return props.items.filter((item) =>
+    FILTERABLE.some((field) => (item[field] ?? '').toLowerCase().includes(needle)),
+  )
+})
+
+//: Enter is the only thing that reaches the model. Typing costs nothing and calls
+//: nothing; asking is a deliberate act, which is also what makes the latency acceptable.
 function submitSearch() {
   const asked = query.value.trim()
   if (asked) emit('search', asked)
@@ -53,17 +79,28 @@ function clearSearch() {
          wireframe's "Ask AI…" — a label above a search field that already says what it
          is for is a second sentence saying the first one again. `aria-label` keeps it
          named for anybody not reading the placeholder. -->
-    <div class="search-field">
+    <div class="search-field" :class="{ 'is-busy': props.searching }">
       <Icon name="search" class="search-glyph" :size="18" />
+      <!-- Not `disabled` while searching. Disabling drops focus to `<body>`, so a
+           keyboard user is thrown to the top of the page every time they ask something,
+           and a disabled input is unreadable to a screen reader mid-request. `aria-busy`
+           says the same thing without taking the control away, and `readonly` stops the
+           text changing under an in-flight query. -->
       <input
         v-model="query"
         type="search"
-        placeholder="Ask AI…"
-        aria-label="Ask the inventory a question"
-        :disabled="props.searching"
+        placeholder="Type to filter, Enter to ask AI…"
+        aria-label="Filter the inventory by name or brand, or press Enter to ask AI"
+        :aria-busy="props.searching"
+        :readonly="props.searching"
       />
       <Icon name="sparkle" class="search-spark" :size="18" />
     </div>
+    <!-- The gradient outline is colour and motion, so it cannot be the only signal.
+         Polite, not assertive: the answer is worth interrupting for, the wait is not. -->
+    <p class="visually-hidden" role="status" aria-live="polite">
+      {{ props.searching ? 'Asking AI…' : '' }}
+    </p>
     <!-- No submit button: Enter submits, which is what a search field has taught
          everyone to expect, and a button beside a full-width pill was a second target
          for no gain. The form still has `@submit`, so Enter and assistive technology
@@ -131,7 +168,7 @@ function clearSearch() {
     </div>
 
     <HardwareTable
-      :items="props.items"
+      :items="visible"
       :sort="props.sort"
       rentable
       :current-email="props.currentEmail"

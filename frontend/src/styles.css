@@ -66,6 +66,17 @@
   /* interaction — the only non-status colour anything gets */
   --danger: #dc2626;
   --focus: #2563eb;
+  /* The Ask AI bar's focused border. The wireframe draws a soft shadow ring and no
+   * border; a blurred shadow cannot carry SC 2.4.11, and this bar has no other focus
+   * signal, so the border stays and only its colour softens. This is the *softest* value
+   * that still clears 3:1 against both edges it touches — 3.66:1 on the focused fill,
+   * 3.44:1 on the page. #8b919e was one step softer and missed the page edge at 2.98:1. */
+  --focus-edge: #7f8694;
+  --focus-ring: rgba(127, 134, 148, 0.22);
+  /* The one violet in the tool, and only the sparkle wears it. Blue read as a system
+   * accent; this marks the one control that talks to a model. 4.99:1 on the bar fill. */
+  --ai: #7c3aed;
+  --ai-soft: rgba(124, 58, 237, 0.55);
 
   --sidebar: 248px;
   --radius: 8px;
@@ -119,6 +130,10 @@
   /* interaction */
   --danger: #f87171;
   --focus: #60a5fa;
+  --focus-edge: #6f7787;      /* 3.94:1 on the focused fill, 4.16:1 on the page */
+  --focus-ring: rgba(111, 119, 135, 0.3);
+  --ai: #a78bfa;              /* 5.86:1 on the bar fill */
+  --ai-soft: rgba(167, 139, 250, 0.5);
 }
 
 * {
@@ -1242,8 +1257,12 @@ th[aria-sort] .sort-arrow {
  * border is the indicator. Removing the border and keeping only the fill would look
  * tidier and would fail. */
 .search-bar input[type='search']:focus-visible {
-  border-color: var(--ink);
+  border-color: var(--focus-edge);
   background: var(--surface);
+  /* The wireframe's soft ring. Decoration, explicitly — it is blurred and translucent,
+   * so it cannot be the thing SC 2.4.11 is measured against. The border carries the
+   * criterion; this makes it look like the reference. */
+  box-shadow: 0 0 0 4px var(--focus-ring);
   outline: none;
 }
 
@@ -1306,4 +1325,139 @@ th[aria-sort] .sort-arrow {
 
 th.cell-status .th-label {
   justify-content: center;
+}
+
+/* ---------------------------------------------------------------- Phase 4, finish IV */
+
+/* Sidebar type scale and breathing room, measured against the wireframe rather than
+ * adjusted by feel — "larger" and "more" were each tried once already and landed short. */
+.brand-mark {
+  width: 56px;
+  height: 56px;
+}
+
+/* The app name wraps to two lines in the reference, and that is a deliberate shape: it
+ * squares the block under the mark instead of running a long single line into the nav.
+ * `white-space: normal` because `.brand` is a flex row and the name would otherwise sit
+ * on one line whatever the width allows. */
+.brand {
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 22px;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+/* Nav labels were 15px inherited at the sidebar's weight and read lighter and smaller
+ * than everything they sit beside. */
+.nav-item {
+  padding: 12px 10px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.sidebar {
+  gap: 8px;
+}
+
+/* Page inset. 40px still ran the table close to both the sidebar edge and the window
+ * edge; the reference insets it well clear of each. Applied to `.main` so the search bar
+ * and the table card inherit exactly the same left and right edges — they are siblings in
+ * this column, which is what keeps them aligned without either carrying its own padding. */
+.main {
+  padding-left: 64px;
+  padding-right: 64px;
+}
+
+/* A beat between the question and the answer it filters. */
+.search-bar {
+  margin-bottom: 22px;
+}
+
+/* Less pill, more rounded rectangle — the wireframe's shape. 999px made a 52px field
+ * read as a chat bubble; 14px keeps it soft without pretending to be one. The fill is
+ * unchanged. */
+.search-bar input[type='search'] {
+  border-radius: 14px;
+}
+
+.search-field .search-spark {
+  color: var(--ai);
+}
+
+/* In flight. A gradient outline rather than a spinner: the bar itself is the thing
+ * working, and a spinner beside it would be a second object to watch. The gradient
+ * lives on the holder's ::after so it can sit behind the input without the input's own
+ * border having to become transparent — swapping the border here would move the focus
+ * indicator, which is measured.
+ *
+ * `aria-busy` on the input and a polite live region carry this to assistive technology;
+ * the animation is never the only signal. */
+.search-field.is-busy::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(110deg, var(--ai), var(--focus), var(--ai-soft), var(--ai));
+  background-size: 300% 100%;
+  /* Punch the middle out, leaving the gradient as an outline only. */
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+.search-field.is-busy input[type='search'] {
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-field.is-busy::after {
+    animation: ask-sweep 1.4s linear infinite;
+  }
+}
+
+@keyframes ask-sweep {
+  to {
+    background-position: -300% 0;
+  }
+}
+
+/* The input sits above the gradient, not under it. */
+.search-field input[type='search'] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Present to a screen reader, absent to everyone else. The clip-rect idiom rather than
+ * `display: none` or `visibility: hidden`, both of which remove it from the
+ * accessibility tree — which would make the live region announce nothing at all. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The input was given `z-index: 1` to sit above the busy gradient, and that put it above
+ * the two icons as well — both vanished behind its fill. They need to clear the input,
+ * not just the gradient. Caught by looking at the page; nothing else would have. */
+.search-field .search-glyph,
+.search-field .search-spark {
+  z-index: 2;
 }
