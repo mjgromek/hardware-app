@@ -155,16 +155,17 @@ watch(query, (text) => {
       <span v-if="props.searching" class="chip chip-role">
         Asking AI about “{{ query }}”…
       </span>
-      <template v-else-if="props.searchResults">
-        <span class="chip" :class="props.searchResults.mode === 'semantic' ? 'chip-role' : ''">
-          {{ props.searchResults.mode === 'semantic'
-            ? `AI search — “${asked}”`
-            : `Keyword results for “${asked}” — AI search unavailable` }}
-        </span>
-        <button class="button button-quiet" type="button" @click="clearSearch">
-          Clear
-        </button>
-      </template>
+      <!-- No Clear button: the search field's own ✕ empties the text, and edited
+           text already drops the answer. One control, one behaviour. -->
+      <span
+        v-else-if="props.searchResults"
+        class="chip"
+        :class="props.searchResults.mode === 'semantic' ? 'chip-role' : ''"
+      >
+        {{ props.searchResults.mode === 'semantic'
+          ? `AI search — “${asked}”`
+          : `Keyword results for “${asked}” — AI search unavailable` }}
+      </span>
       <div class="filters" role="group" aria-label="Filter by status">
         <button
           type="button"

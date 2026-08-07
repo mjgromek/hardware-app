@@ -2543,3 +2543,14 @@ Every tab showed the browser's default document icon and the server answered 404
 ADR-0018 reasoning applied to an icon. The three (pending) entries above now carry
 their SHAs: c1 b6cb738, c2 364d4ce, c3 fbe7343.
 Commit: fix(polish): the tab gets a favicon (self)
+
+## [polish · c5] The ✕ clears, and Available wears green
+
+Two requests. The header's Clear button went — the search field's native ✕ empties the
+text and edited text already drops the answer, so it was a second control for the same
+behaviour. Available's pill turns green in both themes (green-700/white at 5.02:1,
+green-400/near-black at 8.55:1, ACCESSIBILITY.md updated) — "can be issued" reads as a
+hue before it reads as a word. Found meanwhile: the live model calls answer 429 — free-
+tier quota spent — so the chip currently says "AI search unavailable", which is ADR-0016
+doing its job, not a defect.
+Commit: style(polish): the x clears, and Available wears green (self)

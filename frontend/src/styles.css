@@ -45,9 +45,10 @@
 
   /* status — four hues, each a fill/ink pair so dark mode can restop them
    * independently (a light-mode green or red is too dark on a dark surface). */
-  /* Available: the default, so it carries the strongest fill — an admin scanning for
-   * what can be issued should find it without reading. */
-  --ok-fill: #0b0c10;
+  /* Available: green, by request — "can be issued" reads as a hue before it reads as
+   * a word, and green is the one every status system has taught. White on green-700,
+   * measured at 5.02:1 (ACCESSIBILITY.md). */
+  --ok-fill: #15803d;
   --ok-ink: #ffffff;
   /* In Use: not a problem, so it recedes. */
   --busy-fill: #eceef2;
@@ -116,8 +117,8 @@
 
 
   /* status — restopped, not inverted */
-  --ok-fill: #e8eaee;
-  --ok-ink: #101216;
+  --ok-fill: #4ade80;
+  --ok-ink: #052e16;
   --busy-fill: #23262d;
   --busy-ink: #b3bac6;
   --stop-fill: #f87171;
