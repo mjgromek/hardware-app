@@ -371,3 +371,13 @@ no test.** Observed live (the oracle probe's zero-selectivity answer, n=12). Cor
 behaviour — the model legitimately said "no constraints" — but nothing asserts it, so
 a regression that errored on `{}` or mislabelled it would be green. *Urgent when: the
 search route or `parse_filter` is next touched.*
+
+## Phase 4 schema slice — non-blocking
+
+- **`date_added` is not pinned as server-owned.** The scope says "defaults to now on
+  create" but names no test for a caller supplying it. If `NewHardware` grows a
+  `date_added` field, an admin could backdate an item and the "recently added" sort
+  becomes editable. One test would close it; left out because the scope did not name it.
+- **No `docs/specs/phase-4.md`.** Phases 2 and 3 have one; the schema slice was written
+  from the brainstorm section quoted in the task. Worth writing the spec file before the
+  UI slice, so the reviewer has the same contract the tests do.

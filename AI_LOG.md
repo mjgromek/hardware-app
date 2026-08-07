@@ -1356,3 +1356,14 @@ properties (regrouped into surface/text/border/status with the two interaction h
 get their own dark stops, the amber re-stopped against the red — and is inert until
 something sets the attribute, which is the proof of light-mode neutrality. 123/123.
 Commit: refactor(phase-4): extract the colour token layer (pending)
+
+---
+
+## [P4 · c2] Phase 4 red — the schema slice
+
+`test-author` against brainstorm §3 Phase 4. 11 red on their own assertions, 123
+green, 0 broken. The migration file boots over the *Phase 3* table shape in raw SQL
+and asserts a logged-in request serves the three new columns — the blind spot that
+cost two production defects, covered before the code exists. Seed id 10's backfill
+value deliberately left a product call; two findings filed in BACKLOG.
+Commit: test(phase-4): failing specs for the schema slice (pending)
