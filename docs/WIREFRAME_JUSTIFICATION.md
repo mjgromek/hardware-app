@@ -339,3 +339,19 @@ as an `aria-label`.
 sentence saying the first one again. The subtle fill rather than a hard border is what
 makes it read as a place to ask a question rather than as a form input — which matters,
 because "Ask AI" is a different promise from "filter".
+
+### A row that cannot be rented shows nothing in Actions
+
+**The wireframe showed:** a greyed-out `Rent` button on rows that cannot be taken.
+**What was built:** an empty Actions cell. No button, no label.
+**Why:** the same argument that removed "somebody else has it", applied to the last case
+left. The Status pill one cell to the left already says `In Repair`, so a label repeating
+it made Actions a second status column — and a greyed button implies a control that might
+become available to *this* reader, which for a non-admin it never will. The absence of the
+button is the signal, and the pill is the reason. A refused attempt still states its cause:
+the `409` carries the server's own words, which is the one case where the reader genuinely
+does not already know.
+
+Note what this does **not** remove: the Repair toggle itself, which lives in the admin
+table as a wrench glyph labelled `Send {name} to Repair` / `Release {name} from Repair` —
+already an action rather than a state, and untouched.

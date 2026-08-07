@@ -1618,3 +1618,25 @@ construction. The CSS was dead against selectors nothing used. Removed rather th
 and the item is satisfied because it was already true, not because I made it true.
 
 Commit: feat(phase-4): finish batch — column, pill, margins (pending)
+
+---
+
+## [P4 · c13] The last state-label leaves the Actions column
+
+Dropped the `In Repair` blocked-reason label from the dashboard — the Status pill already
+says it one cell to the left, which is the argument that removed "somebody else has it".
+`blockedBecause` and `.blocked-reason` go with it rather than staying as dead code; the
+Rent button is now explicitly conditioned on `Available` rather than on the absence of a
+reason string.
+
+**The premise I was asked to act on was wrong, and checking cost less than fixing.** The
+instruction was to *rename* this to an action verb because "a button labelled with a state
+reads as a status" — but it was never a button. It was a non-interactive `<span>`, and the
+actual Repair toggle lives only in the admin table, where it was already a wrench glyph
+labelled `Send … to Repair` / `Release … from Repair`. Renaming a label to "Mark repair"
+would have manufactured the exact defect the instruction was written to prevent: something
+that looks like a control a non-admin cannot press.
+
+152/152.
+
+Commit: feat(phase-4): an unrentable row shows nothing in Actions (pending)

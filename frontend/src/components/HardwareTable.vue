@@ -31,15 +31,6 @@ const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', '
 //: somebody press a button to be told "it is in Repair" is a worse version of knowing.
 //: A 409 can still arrive — the row can go stale between paint and click — and the
 //: toast carries the server's own reason when it does.
-// Why this row has no Rent button. `In Use` is deliberately absent: the Status pill
-// already says "Rented", and repeating it in the Actions column as "somebody else has
-// it" told the reader nothing the row had not already told them one cell to the left.
-// A refused rental still states its cause — the 409 carries the server's own reason.
-function blockedBecause(item) {
-  if (item.status === 'Repair') return 'In Repair'
-  return null
-}
-
 function heldByMe(item) {
   return item.status === 'In Use' && item.assigned_to === props.currentEmail
 }
@@ -225,11 +216,14 @@ function shown(value) {
                 </span>
               </span>
             </template>
-            <template v-else-if="blockedBecause(item)">
-              <span class="blocked-reason">{{ blockedBecause(item) }}</span>
-            </template>
+            <!-- A row that cannot be rented shows nothing here. The Status pill one cell
+                 left already says "In Repair" or "Rented", and the absence of the button
+                 is itself the signal — a label repeating the pill made Actions a second
+                 status column. A refused attempt still states its cause: the 409 carries
+                 the server's own reason, which is the case where the reader genuinely
+                 does not already know. -->
             <button
-              v-else
+              v-else-if="item.status === 'Available'"
               type="button"
               class="button"
               :disabled="props.busyId === item.id"
