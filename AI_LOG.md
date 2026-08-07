@@ -1700,3 +1700,14 @@ seven corrections kept full, and its em dashes taken from 334 to one quoted git 
 both specs, partial in BACKLOG, untouched in brainstorm, WIREFRAME_JUSTIFICATION and
 PROMPT_TRAIL. No deploy ran.
 Commit: docs(curation): prompt trail to 26 sessions, log trimmed, dashes part-swept (self)
+
+---
+
+## [curation · c6] The new README verified, and the trigger closed
+
+Phase-walkthrough README checked claim by claim rather than read: **two ADR links pointed
+at files that do not exist** (0014, 0020) and **two correction numbers were wrong**, since
+the iCloud incident and the ADR-0013 takeover are written up in place and are not among the
+seven. Test count (198), all five tags and the live URL verified correct. The Railway
+trigger now tracks `main`, so its entries leave README 🔮, CLAUDE.md and BACKLOG.
+Commit: docs: verify the walkthrough README, close the deploy trigger (self)

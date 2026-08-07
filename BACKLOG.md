@@ -350,19 +350,6 @@ first. *Urgent when: Slice C is not cut.*
 
 ---
 
-## Deploy trigger: found at the v3 deploy
-
-**The Railway service's GitHub trigger tracks the Phase 0 branch.** A branch push has
-not deployed anything since Phase 0 ended; every phase since has shipped through some
-other path, and the stale trigger sat harmless until 2026-08-07, when attaching
-`GEMINI_API_KEY` made Railway redeploy its configured source, putting v0 (no auth,
-open read surface) on the public URL for ~4 minutes until a `railway up` replaced it.
-The CLI cannot change the tracked branch; the dashboard can. *Urgent when: anyone
-touches a variable, which is why CLAUDE.md now orders a `railway up` after every
-variable change, and permanently fixed only by pointing the trigger at `main` in the
-dashboard, a human-only action.*
-
----
 
 ## Phase 3: `mvp-reviewer` at the gate
 

@@ -1,408 +1,296 @@
 # Hardware Hub
 
 Internal tool for Booksy employees to manage, rent and maintain company equipment.
-Built as a recruitment task for the Early Careers Programme.
 
-**Stack:** FastAPI · SQLite · Vue 3 + Vite · deployed on Railway
-**Method:** TDD, branch per phase, human review gate between versions
+**Stack:** FastAPI, SQLite, Vue 3, deployed on Railway as a single service
+**Method:** TDD, one branch per phase, a human review gate between each
 
----
+### 🔗 Live demo
 
-## The ten-minute tour
+**https://hardware-hub-production-24b7.up.railway.app**
 
-Twenty ADRs, a long development log and twenty prompt sessions is an archive, not a
-reading path. This is the path. Ten minutes, in this order:
+|          |                                              |
+| -------- | -------------------------------------------- |
+| Email    | `demo@booksy.com`                            |
+| Password | `hardware-hub-demo`                          |
+| Role     | `user`, read only. Admin routes answer `403` |
 
-1. **Open the live demo** (1 min) with the credentials [below](#signing-in). Ask the
-   search bar a question, rent something, look at the Needs-review queue. If the AI
-   chip says "keyword mode", that is the free tier's quota spent and the fallback
-   announcing itself, which is designed behaviour (ADR-0016).
-2. **The three pillars, in the code** (3 min): quarantine ingestion in
-   [`scripts/seed.py`](scripts/seed.py) and [`app/storage.py`](app/storage.py),
-   the rental engine's atomic claim in [`app/rentals.py`](app/rentals.py), and the
-   AI layer's schema boundary in [`app/ai.py`](app/ai.py).
-3. **[`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md)** (2 min): every seed defect, what
-   ingestion did about each, and the test that enforces the document line by line.
-4. **Three ADRs, not twenty** (3 min):
-   [`ADR-0002`](docs/adr/0002-ingestion-is-structural-only.md) argues where the line
-   between deterministic validation and judgment sits, and was later caught
-   enforcing less than it claimed, by its own example;
-   [`ADR-0004`](docs/adr/0004-structured-filter-extraction.md) argues why the model
-   emits a validated filter object and SQLite returns the rows, so the LLM cannot
-   hallucinate inventory;
-   [`ADR-0013`](docs/adr/0013-accounts-are-soft-deleted.md) argues why a session
-   must name a token rather than a row id, after a recycled rowid produced a full
-   admin takeover under a green suite.
-   Further reading if those earn it:
-   [`ADR-0008`](docs/adr/0008-atomic-claim-and-refusal-vocabulary.md) (the
-   conditional UPDATE is the decision) and
-   [`ADR-0015`](docs/adr/0015-no-restricted-field-predicates.md) (the search
-   membership oracle, closed structurally).
-5. **The corrections in [`AI_LOG.md`](AI_LOG.md)** (1 min for the index, longer if
-   one hooks you): seven entries where the AI was wrong, what each cost, and what
-   changed because of it. The index at the top of the log links every one.
+Only admin-created accounts can sign in. There is no public read surface (ADR-0006).
+
+> If the search bar says **keyword mode**, the Gemini free tier's daily quota is spent.
+> Search falls back and says so, the auditor answers `503` with a reason. That is
+> ADR-0016 working, not a fault. It resets daily.
 
 ---
 
-## Live versions
+## 🧭 How this was built
 
-**v0–v3 deliver the brief in full**: the three pillars are the inventory and its dirty
-seed (v0), auth with roles and the admin surface (v1), the rental engine with its guards
-and audit trail (v2), and the AI layer (v3). **v4 is elective**: UI fidelity to the
-supplied wireframes, dark mode, notification sounds and an accessibility audit. It is work
-beyond the brief's scope, taken on because the wireframes were supplied and a close copy
-is checkable in a way "looks fine" is not. Read v0–v3 as the submission; read v4 as what
-was done with the time left.
+Five phases. Each one is a branch, a red test commit, a green commit, a deploy, and a
+review gate before merging. Every phase below lists what shipped, which tools drove it,
+and what went wrong.
 
-The whole build took about 9–10 hours against the brief's suggested 4–5. The three
-pillars, v0 through v3, landed in roughly 7; the rest is v4's elective UI work and the
-final polish. Both figures are checkable from the phase tags' commit timestamps, which is
-also why they are stated rather than rounded down.
-
-| Version | Phase | URL | Status |
-| --- | --- | --- | --- |
-| v0 | Phase 0: foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
-| v1 | Phase 1: auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
-| v2 | Phase 2: rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
-| v3 | Phase 3: semantic search, Inventory Auditor, flag-review | *(superseded by v4 on the same URL)* | ✅ shipped |
-| **v4** | Phase 4: wireframe fidelity, dark mode, return-with-issue, two-outcome review, company-domain accounts | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-
-### Signing in
-
-The Hub admits only admin-created accounts. There is no public read surface and no
-self-registration (ADR-0006). A demo account is published so the live version can be
-opened in ten seconds:
-
-| | |
-| --- | --- |
-| **Email** | `demo@booksy.com` |
-| **Password** | `hardware-hub-demo` |
-| **Role** | `user`, read-only. Every admin route answers `403` to it |
-
-It is created at boot on a database with no accounts, the same emptiness guard the
-hardware seed uses, so replacing the volume cannot leave these credentials pointing at
-nothing. Deleting it deliberately keeps it deleted; a restart does not resurrect it.
-
-This is a separate account from the deployment's own bootstrap admin, whose credential
-stays in Railway's environment and is not published (ADR-0005).
-
-**If the AI answers in keyword mode:** the AI layer runs on Gemini's free tier, which
-rate-limits daily. When the quota is spent, semantic search hands over to the keyword
-fallback and *says so* on a labelled chip, and the auditor answers `503` with the reason
-rather than silently returning fewer findings. That is the design working, not a fault:
-ADR-0016 requires degradation to be announced, both behaviours are tested, and the quota
-resets on its own. Ask again tomorrow and the same bar answers semantically.
-
-### Restoring the demo
-
-Demonstrating the live instance consumes it: renting an item, recalling item 7 or clearing
-a flag all change the rows the project is *about*. `docs/DATA_AUDIT.md` describes those
-rows, and Phase 3's Inventory Auditor needs the seed's contradictions intact. Putting
-them back is therefore one repeatable action, not a story about a database somebody
-edited.
-
-Signed in as the bootstrap admin (not the demo account, which is read-only):
-
-```bash
-curl -X POST "$URL/api/admin/reset-demo" \
-  -H 'Content-Type: application/json' \
-  -b cookies.txt \
-  -d '{"confirm": "reset the demo data"}'
-```
-
-The confirmation phrase is typed in full on purpose. The route deletes rental history,
-and a bare `POST` that fires on the first request is one mistyped URL away from wiping
-what ADR-0011 exists to protect.
-
-**It clears the blocker rather than bypassing it.** ADR-0011 has `persist` refuse while
-rentals exist, and that refusal stays: the reset deletes rentals and audit events *first*,
-then reseeds through the same guard every other caller meets. A `force=True` on `persist`
-would have removed the protection for all of them.
-
-It is an HTTP route rather than a CLI because Railway exposes no exec or SSH, the same
-constraint that put seeding on the boot path. Afterwards the fingerprints are back: 11
-items, ids 6 and 10 flagged, item 7 held by `j.doe@booksy.com`, id 12 re-keyed from the
-duplicate, the `Appel` typo intact, and 3 quarantine records.
-
-**It is deliberately not an admin.** It was, until `/security-review` pointed out that
-publishing an admin credential on a public instance hands every reader delete rights
-over the inventory and the account list. Read access shows the dashboard, the review
-queue and the whole seed including its defects; the admin panel is described in
-[`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) and is reachable by
-anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
-`admin@booksy.com` / `admin`.
+The agent pipeline is the point of the structure: **whoever writes the tests never
+writes the code.** `test-author` can only touch `tests/`, the implementer can only touch
+`app/`, and the review agents have no write access at all. Without that split, one
+context writes a test and then quietly softens it to pass.
 
 ---
 
-## Status
+### 🧱 Phase 0 · Foundation and the data audit
 
-### ✅ Fully Implemented
+`v0-foundation`
 
-- Seed ingestion: structural validation, quarantine with reasons, nothing deleted.
-  Since the final review pass this includes the sharpened parse rule: a date with two
-  legal readings quarantines with both named, instead of being silently guessed
-  (ADR-0002, amended)
-- SQLite persistence with caller-owned transactions and replace-semantics reseed
-- **Session-cookie auth**: `scrypt` with a per-account salt, `HttpOnly`,
-  `SameSite=Lax`, `Secure` in production; the password digest cannot leave
-  `app/accounts.py` because `Account` has no field for it
-- **`admin` / `user` roles**, enforced by per-route dependencies. `401` without a
-  session, `403` with one that is not enough
-- **No public read surface**: every data route needs a session (ADR-0006)
-- **The zero-admin guard** (ADR-0005), covering deletion *and* demotion, `409` with a
-  readable reason, in `app/guards.py` alongside the rental guards
-- **Admin panel**: add and delete hardware, toggle `Repair` both ways, create
-  accounts, promote and demote
-- **Dashboard**: dense table, status filter and purchase-date sort, both server-side
-- **The rental engine**: rent, return, and admin force-return. The claim is one
-  conditional `UPDATE` whose rowcount is the decision (ADR-0008), so two concurrent
-  claimants cannot both win; `Repair` and `needs_review` both block through the same
-  guard with a `409` (ADR-0003). A rent racing an account deletion is closed the same
-  way: the delete writes before it reads (`test_lifecycle_race`)
-- **`needs_review` queue, with release**: every flagged item with the reason
-  ingestion recorded, and an admin action that clears the flag, `409` on an unflagged
-  item (ADR-0003)
-- **Return with an issue**: Return asks *"Anything wrong with it?"*. "All good" is the
-  one-click return it always was; "Report a problem" takes a note, returns the item
-  and holds it for review with that note as the reason, attributed to the returner
-  (`report_on_return`). This closes the loop seed id 11's history implied: *"Returned
-  by user with liquid damage. Keyboard sticky."* was an event the application could not
-  previously have produced. The returner may raise a flag the auditor may not, because
-  the auditor reasons over stored text and the returner handled the equipment. Direct
-  observation licenses direct action; inference does not (ADR-0020)
-- **A review concludes, both ways**: an admin who confirms the fault sends the item to
-  Repair with a reason describing it, rather than being forced to certify a repair
-  nobody performed; both outcomes clear the flag and write one audit row, and the trail
-  tells them apart (ADR-0017, second Phase 4 amendment)
-- **Audit trail**: force-return and clear-review each write an `audit_events` row
-  with a mandatory reason, in the same transaction as the change; the transition
-  itself writes it, so no caller can perform the override silently (ADR-0010)
-- **Field-level authorization**: `notes`, `history` and `review_reason` reach admins
-  only; a `user` session gets `null` (ADR-0012, closing the `/security-review`
-  finding Phase 1 carried)
-- **Company-domain accounts**: only `@booksy.com` addresses can be created, validated
-  on the request model and matched on the whole suffix, so `booksy.com.evil.net` and
-  `notbooksy.com` are both refused. Applied at **creation**, never at login: a login
-  check re-validates what creation already checked, and its one distinctive power is
-  locking out accounts that predate the rule. The bootstrap admin is exempt
-  *structurally*, being created from the environment without ever crossing the API
-  boundary, rather than by a conditional somebody has to remember (ADR-0019)
-- **`?held_by=me`**: the dashboard's "My Rentals" view, server-side
-- **Demo reset**: one confirmed admin route restores the seed's fingerprints
-  (see "Restoring the demo" above)
-- **Semantic search**: natural language → schema-validated filter object → SQLite
-  (ADR-0004); the model cannot hallucinate inventory, the filter has no predicate
-  over restricted fields for anyone (ADR-0015), and every response is labelled
-  `semantic` or `keyword` so the fallback cannot pass as the primary (ADR-0016)
-- **The Inventory Auditor**: closed finding kinds, proposes and never disposes
-  (ADR-0014), admin-only, computed per run and persisted nowhere; refuses with a
-  `503` rather than degrading, because a keyword auditor cannot find id 10
-- **The flag-review verb**: a human acts on a finding, with a mandatory reason, an
-  audit event, and `409` when already flagged (ADR-0017). The loop ADR-0002 opened is
-  closed end to end: ingestion declined to judge, the auditor judges, an admin
-  decides. **How anything enters review after import** (the full chain, since
-  ingestion flags only at import, the add form neither flags nor validates semantics,
-  and the auditor cannot flag by design): *auditor proposes → admin flags → item
-  unrentable (`409`) → admin later clears, with a reason recorded at both ends.*
-  Phase 4 tightens the clearing reason to a mandatory `fixed:` note, which states
-  what changed, not merely that somebody looked
-- **Health endpoint**: `GET /api/health`, sessionless by design, touches nothing
-- Single origin: one service, one URL, no CORS (ADR-0001)
-- **Phase 4, elective**: the schema trio (`serial_number`, `category`, `date_added`)
-  with a migration test that boots over the previous table shape; wireframe-fidelity
-  finish with uniform action controls and fixed column widths; **dark mode**, opt-in and
-  persisted, light by default so a reviewer sees what the wireframe shows; **seven
-  notification sounds**, six as one family plus the ask voice deliberately outside it,
-  off by default (ADR-0018); admin edit and a review release that carries the change it
-  certifies (ADR-0017 as amended); and a measured **WCAG contrast audit**:
+The seed data is deliberately dirty. Handling it correctly was the first decision, not
+the last.
+
+**Shipped**
+
+- Quarantine ingestion: bad rows are recorded with a reason, never dropped
+- SQLite persistence, caller-owned transactions
+- First deploy, so the pipeline was proven before there was anything to lose
+
+**Tools** · `/grill-me` to settle the architecture · `test-author` agent for the red
+pass · `/tdd` for green · GitHub MCP, Railway MCP
+
+**Decisions** · [ADR-0002](docs/adr/0002-ingestion-is-structural-only.md): ingestion
+validates _structure_ only. A date with one legal reading parses. A misspelled brand is
+judgement, and judgement belongs to the AI layer and a human, not to a validator.
+
+**What went wrong** · The repo sat in an iCloud-synced folder. Five unrelated-looking
+bugs, one cause. Fixed by moving it. Recorded in `AI_LOG.md` at Phase 0, not as one of
+the seven numbered corrections.
+
+---
+
+### 🔐 Phase 1 · Auth, admin, dashboard
+
+`v1-admin`
+
+**Shipped**
+
+- Session cookie auth, `scrypt` with per-account salt
+- `admin` and `user` roles, enforced per route
+- Admin panel: add, delete, toggle Repair, manage accounts
+- Sortable and filterable dashboard
+
+**Tools** · `test-author` · `/tdd` · `frontend-design` skill for the UI ·
+`/security-review` before the gate · `mvp-reviewer` agent
+
+**Decisions** · [ADR-0006](docs/adr/0006-no-public-read-surface.md): every data route
+needs a session. Found because `/api/hardware` was serving maintenance notes to anyone
+with the URL.
+
+**What went wrong** · `/security-review` found a full admin takeover. SQLite recycles
+row ids, sessions named the row id, so a deleted admin's cookie could revive as a new
+account. **91 passing tests did not see it.** Fixed with a surrogate session token and
+soft-deleted accounts ([ADR-0013](docs/adr/0013-accounts-are-soft-deleted.md)).
+`AI_LOG.md` P2 · c9.
+
+---
+
+### 🔄 Phase 2 · The rental engine
+
+`v2-rental`
+
+**Shipped**
+
+- Rent, return, and admin force-return
+- Guards: Repair, already rented, wrong renter, needs review, last admin
+- Audit trail, one row per admin override, with a mandatory reason
+- Needs-review queue with a release action
+
+**Tools** · `/grill-me` first, this phase was not pre-settled · `test-author` · `/tdd` ·
+`architecture-scout` agent · `mvp-reviewer`
+
+**Decisions** ·
+[ADR-0008](docs/adr/0008-atomic-claim-and-refusal-vocabulary.md): the claim is one
+conditional `UPDATE` whose rowcount _is_ the decision. A guard that reads then decides
+cannot win a race. ·
+[ADR-0010](docs/adr/0010-audit-events.md): the transition writes its own audit row, in
+the same transaction, so no caller can override silently.
+
+**What went wrong** · The first implementation deadlocked under six concurrent renters:
+it read the item, then tried to upgrade the lock. Inverting it, claim first and read only
+to explain a failure, was what ADR-0008 had already prescribed. The code disagreed with
+its own ADR.
+
+---
+
+### 🤖 Phase 3 · The AI layer
+
+`v3-ai`
+
+**Shipped**
+
+- Semantic search: natural language, schema-validated filter object, SQLite returns rows
+- Inventory Auditor: closed finding kinds, proposes, never acts
+- Announced degradation: every response is labelled `semantic` or `keyword`
+
+**Tools** · `/grill-me` on Fable 5 · `test-author` · `/tdd` · `/security-review` ·
+`mvp-reviewer` · Gemini Flash as the model
+
+**Decisions** ·
+[ADR-0004](docs/adr/0004-structured-filter-extraction.md): the model emits a filter, not
+an answer. It cannot hallucinate inventory, and the layer is unit testable against a
+mocked model. Scale is a footnote, not the argument. ·
+[ADR-0015](docs/adr/0015-no-restricted-field-predicates.md): the filter has no predicate
+over `notes` for anyone. Otherwise result-set membership becomes an oracle: a user learns
+the Dell XPS has battery notes by watching it match. ·
+[ADR-0014](docs/adr/0014-the-auditor-proposes-never-disposes.md): the auditor proposes and never
+disposes. A model that writes state can be argued into writing state.
+
+**What went wrong** · The live URL was found serving a Phase 0 build with no auth,
+leaking the notes ADR-0006 exists to protect. A human found it by opening the URL.
+Nothing was watching. `AI_LOG.md` Correction 6, and `scripts/probe.sh` plus a scheduled
+GitHub workflow now watch it every 30 minutes.
+
+---
+
+### 🎨 Phase 4 · Wireframe fidelity, elective
+
+`v4-ui`
+
+Beyond the brief. The wireframes were supplied, and a close copy is checkable in a way
+that "looks fine" is not.
+
+**Shipped**
+
+- Wireframe-fidelity table, uniform controls, fixed column widths
+- Dark mode, opt-in and persisted, light by default so a reviewer sees the wireframe
+- Return with an issue: "anything wrong with it?", and a reported problem holds the item
+- Two-outcome review: an admin confirms the fault and sends it to Repair, or releases it
+  with a `fixed:` note. A review concludes, it does not only absolve
+- Seven notification sounds, six as one family plus a distinct ask voice
+- Measured WCAG contrast for every colour pair, both themes:
   [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md)
-- 198 tests: 197 run locally and green, and the 198th is the deployed smoke check,
-  which only runs against a live URL
 
-### ⚡ Shortcuts & Hacks
+**Tools** · `frontend-design` skill against the wireframes · `test-author` · `/tdd` ·
+Chrome MCP for live visual verification · `mvp-reviewer`
 
-Each of these works, and each cost something. The full table with reasoning is in
-[Trade-offs taken](#trade-offs-taken) below.
+**Decisions** · [ADR-0020](docs/adr/0020-the-returner-may-flag-what-they-handled.md): a returner may raise a
+flag the auditor may not. The auditor reasons over stored text, the returner handled the
+equipment. This closes the loop seed record 11 implied: _"returned by user with liquid
+damage"_ was an event the app previously could not have produced.
 
-- **The wireframes are not committed.** They stay on the local machine, gitignored,
-  and [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) describes
-  every deviation in prose, including what the original showed, so it can be
-  judged without them.
-  **Why:** they are Booksy's material, the brief marks them confidential, and this
-  repository is public.
-  **Future:** in a private or internal repo the images would be committed alongside
-  the justification doc. The prose-only form exists solely because this one is
-  public.
-- **Demo credentials are published, on a `user` account, on a public instance.**
-  Anyone reading this can sign in and read the inventory.
-  **Why:** ADR-0005 chose openly published demo credentials so a reviewer is in within
-  ten seconds. `/security-review` then cut the role from `admin` to `user`, because read
-  access is what a reviewer needs and delete rights are what an attacker wants.
-  **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
-  shared credential.
-- **The AI layer runs on Gemini's free tier, which rate-limits.** A burst of
-  searches or audits can hit the quota ceiling mid-demo.
-  **Why:** a paid tier for a recruitment demo buys nothing the design doesn't
-  already handle. The announced keyword fallback (ADR-0016) means a rate-limited
-  search *degrades visibly* rather than breaking, which is the design working, not
-  failing; and the model's replies are cached (search by normalised query, the
-  auditor by catalogue fingerprint), so repeats cost no quota at all.
-  **Future:** a paid tier or a second provider behind the same seam; the cache and
-  the mode label both carry over unchanged.
-- **Semantic search waits up to 12 seconds before degrading.** The spec said 5; the
-  live provider spends ~7.5s thinking before emitting one small filter object and
-  rejects its thinking-off knob with an opaque 400.
-  **Why:** a slower true answer with an honest label beats a fast one that is always
-  the fallback. Under 5s the semantic path literally never answered, which the mode
-  chip made visible on the first live check.
-  **Future:** a provider or endpoint tier with sub-second extraction latency, or a
-  streaming call that can be cut off at the first complete JSON object.
-- **Deploys go through `railway up`, not the GitHub trigger.** The service still
-  tracks the Phase 0 branch, so a push deploys nothing, and a variable change
-  redeploys v0, which briefly put an unauthenticated build back on the public URL
-  (AI_LOG Correction #4).
-  **Why:** the trigger's tracked branch can only be changed in the dashboard, which
-  is a human-only action that has not happened yet; `railway up` ships the current
-  checkout deterministically in the meantime.
-  **Future:** point the trigger at `main` in the dashboard, then delete this entry
-  and the CLAUDE.md warning that orders a `railway up` after every variable change.
-- **119 commits at the final-polish gate, against a 15–20 target.** The target is in
-  `CLAUDE.md` and this is six times it, so it is acknowledged here rather than left for
-  a reviewer to count. (Fixes found in review after that gate add a few more; the figure
-  names the gate rather than chasing the tip.)
-  **Why:** the same reasoning that produced 41 by Phase 2 holds at the true scale. TDD
-  means two commits per slice by construction, a `test:` red and a `feat:` green, and
-  the events that could not be batched each demanded their own cycle: a security fix
-  (the demo account's role cut from `admin` to `user`), a production outage (the missing
-  `users` migration), a concurrency deadlock, and a pre-auth rollback that briefly put
-  an unauthenticated build back on the public URL. A fix squashed into an unrelated
-  commit is a fix the history cannot explain. Every commit carries its AI_LOG entry
-  because a pre-commit hook refuses it otherwise; the count is the cost of keeping
-  that true.
-  **Future:** nothing to fix retroactively. Rewriting history to hit a number destroys
-  exactly what the brief asked to see.
-- **A soft-deleted account permanently reserves its email**, so an address can never be
-  recreated: no re-hires, and no fixing a typo'd address. Recreating one answers `409`.
-  **Why:** the audit trail names actors by email as well as by id (ADR-0010, ADR-0013),
-  and reusing an address rebuilds the same ambiguity the soft delete removed, one field
-  over: a decision recorded against `j.doe@booksy.com` would start describing whoever
-  holds that address next.
-  **Future:** a distinct archived-identity table, or scoping the uniqueness constraint to
-  non-deleted rows with the trail keyed on the immutable session token instead of the
-  address.
-- **Sign out is client-side only.** It drops the app's state and returns to the login
-  screen; the cookie itself is not revoked, because there is no logout route.
-  **Why:** stateless sessions were the cheap correct thing for one process. Deleting the
-  *account* does now revoke its sessions properly (ADR-0013); what is missing is ending
-  one session without retiring the person.
-  **Future:** a logout route plus session expiry.
-- **Sorting is client-side, and the server's `?sort` parameter has no caller.** Phase 4
-  gives every sortable column both directions, in the browser.
-  **Why:** `SortKey` has one member and no direction, so doing it server-side meant four
-  new behaviours and the tests to pin them; at eleven rows the browser reorders instantly
-  with no round trip. The server path stays implemented and tested because it is the one
-  that scales.
-  **Future:** move sorting back to the endpoint when the inventory needs pagination; the
-  parameter is already there and already proven.
-- **The frontend has no tests.** vitest is still not set up, and the UI now carries
-  real logic: a roving-tabindex table, the `401`-to-login-screen path, filter counts.
-  **Why:** time, and the Python suite covers the contract the UI consumes.
-  **Future:** vitest over the table's keyboard behaviour and the api client's `401`
-  handling, both of which are logic rather than markup.
-- **The app seeds itself on boot when the database is empty.** A deploy shim, not a
-  migration strategy. Admin bootstrap now rides the same path, though it is idempotent
-  and additive rather than destructive.
-  **Why:** Railway offered no way to run a one-off command against the mounted volume:
-  no exec, no SSH, and `preDeployCommand` silently did not run. The emptiness guard is
-  what makes it safe. Once rentals exist the table is never empty, so a restart cannot
-  wipe them.
-  **Future:** a migration step or a one-off job. Boot logic should not write data.
-
-### ⚠️ Partial / Missing
-
-- Bulk actions, and any edit history beyond the audit trail's one row per override:
-  an admin can see *that* a field changed and who changed it, not its previous value
-- **Post-import data is validated structurally, not semantically.** A manually added
-  item with a 2027 purchase date is caught by nothing: ingestion only sees the seed,
-  the add form checks shape, and the auditor's closed enum has no future-date kind
-  (mvp-reviewer, Phase 3 gate; live item 14 is the proof)
-- **`flag-review` shares the last-admin guard's read-then-write race**: two
-  concurrent flags both pass the `409` check and write two audit events; same
-  documented class as below, same conditional-`UPDATE` fix when it matters
-- **The last-admin guard is not race-safe.** It reads the admin count and writes in a
-  separate statement, so two simultaneous demotions of the final two admins both pass and
-  reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
-  the trigger is concurrent demotions on a two-admin internal tool, and ADR-0008's
-  conditional-`UPDATE` pattern is the known fix when it matters. (The neighbouring
-  member of this class, a rent racing an account deletion, *was* real and *is* fixed:
-  `test_lifecycle_race`.)
-- **Nothing structurally prevents a stale build from being introduced by hand**, and
-  the live instance was twice found serving a **Phase 0 image**: no authentication,
-  the whole inventory readable anonymously, including the `notes` and `history`
-  ADR-0006 exists to protect. Both times a human found it by opening the URL. The
-  detection story since: `tests/test_smoke_deployed.py` asserts anonymous
-  `GET /api/hardware` → `401`, `/api/health` → `200`, that login answers, and that
-  the inventory returns. It is skipped unless `SMOKE_URL` is set, and `CLAUDE.md`
-  makes a deploy incomplete until it passes against the live URL; it is the only test
-  that can fail while the code is correct, which is the point. The between-deploys
-  half, the failure mode that actually happened, is watched by
-  `.github/workflows/deployed-probe.yml`: the same four assertions as
-  `scripts/probe.sh`, every 30 minutes from GitHub's infrastructure, signing in with
-  the published demo account so it needs no secret. A failure fails the run and
-  GitHub notifies the owner. Runnable by hand from any machine:
-  `bash scripts/probe.sh` (override the target with `PROBE_URL`). See `AI_LOG.md`
-  Correction #6
-- Logout, session expiry, login throttling: no route ends a session, and the signed
-  cookie has no server-side record to revoke
-- CI and vitest
-- `test_auditor_flags_misspelled_brand` (id 9, `"Appel"`): cut under the red-pass
-  test cap as plumbing-identical to id 10's test; ADR-0002's typo loop is exercised
-  live rather than pinned in the suite. See `BACKLOG.md`
-
-Carried over from `/security-review` as accepted rather than fixed, each with the reason
-(the field-level authorization finding that used to lead this list is closed:
-ADR-0012 shipped role-aware serialisation in Phase 2):
-
-- **`ENVIRONMENT` fails open, not closed.** Any value other than `production` falls
-  back to development defaults, including a `SECRET_KEY` that is public in this repo.
-  Not fixed because the live service sets `ENVIRONMENT=production`, verified by the
-  session cookie coming back `Secure`, a flag only set on that branch; this is
-  hardening against an operator slip rather than an open door.
-- **No per-user-salt test.** `app/accounts.py` salts every hash and nothing asserts
-  that two accounts sharing a password store different digests. Not fixed because it is
-  a missing test rather than a defect, and it belongs in a `test:` commit.
-
-### 🔮 Next Steps (24h Roadmap)
-
-1. **CI and the frontend test suite**: a workflow running both build steps and both
-   suites, and vitest over the table's keyboard behaviour and the api client's `401`
-   handling. The two oldest ⚠️ entries, and the ones a reviewer hits first.
-2. **Logout and session expiry**: the remaining half of the session story, ending
-   one session without retiring the account.
-3. **Point the deploy trigger at `main`** in the Railway dashboard, then delete the
-   `railway up` warning from CLAUDE.md and the matching ⚡ entry here.
-
-> **Shipped in Phase 4, and not as planned.** *A user-facing "report an issue" path on
-> return* was item 3 here, specified to **propose, never flag**, the boundary ADR-0014
-> draws for the auditor. Building it reversed that: **ADR-0020** lets the returner raise
-> `needs_review` directly. The reason the earlier plan gave ("the person reporting is not
-> the person accountable") turned out to be the wrong axis. The auditor is held back
-> because it reasons over stored *text*; a returner reports what they had *in their
-> hands*, and direct observation is exactly what a proposal queue would have delayed
-> behind an admin who cannot re-observe it. The propose-only version would also have left
-> a device with a known fault rentable until somebody got round to the queue. See ADR-0020
-> for the full argument, including what it deliberately does not grant.
-
-An earlier plan also contained an ADR-0012 amendment hiding renter identity from
-non-admins. **It was withdrawn and never built**: it contradicted ADR-0012's own
-reasoning and would have turned `test_renter_identity_is_visible_to_every_signed_in_user`
-red. ADR-0012 stands unamended, the server is unchanged, and the holder is still served
-to every signed-in account; Phase 4 only moved it off the row and onto the `Rented`
-control (`docs/WIREFRAME_JUSTIFICATION.md`).
+**What went wrong** · Four silent `str.replace` patches wrote nothing and exited zero.
+Two features were reported as built and did not exist. `CLAUDE.md` now bans scripted
+patching in favour of an editor that fails loudly. `AI_LOG.md` Correction 5.
 
 ---
 
-## Running it locally
+### 🔎 Final · Grilling my own submission
+
+Ran `/grill-me` on Fable 5 against the finished repo, as a hostile interviewer.
+
+It found a real defect in **ADR-0002's own showpiece**. The date parser tried ISO then
+day-first, so `"05-04-2023"` silently became 5 April. A guess about intent, in the
+function used to argue that ingestion never guesses. The boundary held only because the
+seed happened to contain an unambiguous date.
+
+Fixed the same day: a date parses only when it has exactly one legal reading. Anything
+else quarantines with both candidates named.
+
+The old suite had **pinned the guess as a feature**, with a comment explaining it. That
+is why it survived four phases and two security reviews.
+
+---
+
+## 📊 Status
+
+### ✅ Fully implemented
+
+Quarantine ingestion, nothing deleted · session auth with roles, enforced per route ·
+admin panel with full CRUD and account management · sortable, filterable dashboard ·
+rental engine with an atomic claim and five guards · audit trail on every override ·
+needs-review queue with two-outcome release · return with an issue · semantic search with
+announced fallback · Inventory Auditor · field-level authorization · company-domain
+accounts · dark mode · measured accessibility · demo reset route · health endpoint ·
+deployed smoke check · **198 tests**
+
+### ⚡ Shortcuts and hacks
+
+**Demo credentials published on a public instance**
+Why: a reviewer is signed in within ten seconds. `/security-review` cut the role from
+admin to user, because read access is what a reviewer needs and delete rights are what an
+attacker wants.
+Future: per-reviewer invite links.
+
+**AI runs on Gemini's free tier, which rate-limits**
+Why: a paid tier buys nothing the design does not already handle. The fallback is
+announced and tested, and replies are cached.
+Future: a paid tier behind the same seam. The cache and the label carry over unchanged.
+
+**Seeds itself on boot when the database is empty**
+Why: Railway offers no exec, no SSH, and `preDeployCommand` silently did not run. The
+emptiness guard makes it safe: once rentals exist the table is never empty.
+Future: a migration step. Boot logic should not write data.
+
+**Sign out is client-side only**
+Why: stateless sessions were the cheap correct thing for one process. Deleting an account
+does revoke its sessions.
+Future: a logout route and session expiry.
+
+**A soft-deleted email is reserved permanently**
+Why: the audit trail names actors by email, and reuse rebuilds the ambiguity the soft
+delete removed.
+Future: an archived-identity table.
+
+**119 commits against a 15 to 20 target**
+Why: TDD is two commits per slice by construction, and four incidents each needed their
+own cycle. Every commit carries its log entry because a pre-commit hook refuses it
+otherwise.
+Future: nothing. Rewriting history to hit a number destroys what the brief asked to see.
+
+**The wireframes are not committed**
+Why: Booksy's material, marked confidential, and this repo is public.
+Future: in a private repo they would sit beside the justification doc.
+
+### ⚠️ Partial and missing
+
+- No CI, and no frontend tests. The oldest gap and the one that aged worst
+- No logout, session expiry or login throttling
+- The last-admin guard is not race-safe. Reproduced, documented, deliberately not fixed:
+  the trigger is concurrent demotions on a two-admin tool. The neighbouring case, a rent
+  racing an account deletion, _was_ real and _is_ fixed
+- Post-import data is validated structurally, not semantically. A manually added item
+  with a 2027 date is caught by nothing
+- No edit history beyond one audit row per override
+
+### 🔮 Next steps
+
+1. **CI and vitest.** Both suites in a workflow, plus tests over the table's keyboard
+   behaviour and the client's `401` handling
+2. **Logout and session expiry.** The other half of the session story
+
+---
+
+## 🧪 The AI development log
+
+[`AI_LOG.md`](AI_LOG.md) has an entry for every commit, enforced by a pre-commit hook,
+and seven long-form corrections indexed at the top.
+
+**Tooling** · Claude Code with Opus and Fable 5 · `mattpocock/skills` for `/grill-me`,
+`/tdd`, `/improve-codebase-architecture` · Anthropic's `frontend-design` ·
+four custom subagents in [`.claude/agents/`](.claude/agents/) · GitHub, Railway, Context7
+and Chrome MCP servers · Gemini Flash for the product's AI layer
+
+**Data strategy** · [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md). Ten defect classes,
+what ingestion did with each, and `test_importer_reproduces_documented_audit`, which
+makes the document falsifiable rather than descriptive.
+
+**Prompt trail** · [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md). Twenty sessions,
+indexed by which ADR each produced. Verbatim where kept, marked _reconstructed_ where not.
+
+**The correction** · Seven of them, plus the ADR-0013 takeover written up in place at
+P2 · c9, which is the one worth reading first: a
+recycled row id produced full admin takeover, reachable in three requests, under 91
+passing tests. Found by `/security-review`, not by TDD, because **TDD verifies the
+behaviours you thought to demand.** What changed structurally: any test that creates an
+entity now gets a sibling that destroys it and replays every consumer of its identity.
+
+---
+
+## 💻 Running it
 
 ```bash
 python3 -m venv .venv
@@ -414,145 +302,61 @@ cd frontend && npm install && npm run build && cd ..
 .venv/bin/python -m uvicorn app.main:create_app --factory --reload
 ```
 
-Then open http://127.0.0.1:8000.
+Then http://127.0.0.1:8000. Development mode is permissive by default; production is
+strict and refuses to boot without `SECRET_KEY` and `ADMIN_PASSWORD`.
 
-With no environment set, the app runs in development mode with defaults. Production
-is strict; see ADR-0005.
+**Tests**
 
-### The commit gate
+```bash
+cd frontend && npm run build && cd ..   # one test asserts against the real bundle
+.venv/bin/python -m pytest
+```
 
-One line, and a fresh clone needs it:
+**The commit gate**, which a fresh clone needs:
 
 ```bash
 git config core.hooksPath hooks
 ```
 
-`hooks/pre-commit` refuses any commit that does not stage `AI_LOG.md`, and prints which
-of the two formats to use. The log is a graded deliverable and it cannot be reconstructed
-honestly after the fact: an audit at the Phase 1 gate found 24 commits against 22
-entries, and one gap had to be backfilled and labelled as backfilled. The hook exists
-because the convention held only as long as somebody remembered it.
-
-The hook lives in `hooks/` rather than `.git/hooks/` precisely so it survives a clone.
-`git commit --no-verify` bypasses it, deliberately.
-
-### Tests
-
-```bash
-cd frontend && npm run build && cd ..   # test_serves_built_bundle_at_root needs the real bundle
-.venv/bin/python -m pytest
-```
-
-### Reseeding
-
-`persist` has replace semantics (seeding twice leaves the database exactly as seeding
-once did), but since Phase 2 it **refuses to run while rentals exist** (ADR-0011),
-because replace semantics against a live rental table is how history gets erased by a
-maintenance command. On any instance that has been used, reseed through the demo reset
-route, which deletes rentals and audit events first and then passes the same guard:
-see [Restoring the demo](#restoring-the-demo).
-
-On a database with no rentals, the direct form still works locally:
-
-```bash
-.venv/bin/python -m scripts.seed
-```
+`hooks/pre-commit` refuses any commit that does not stage `AI_LOG.md`. It exists because
+the convention held only as long as somebody remembered it: an audit at the Phase 1 gate
+found 24 commits against 22 entries.
 
 ---
 
-## Environment variables
+## ⏱️ On the time
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `ENVIRONMENT` | no | `production` turns on the strict checks below. Anything else, including unset, is permissive with development defaults. |
-| `SECRET_KEY` | in production | The app refuses to boot without it. |
-| `ADMIN_PASSWORD` | in production | Same. Booting without it reaches the zero-admin state the guard layer exists to prevent (ADR-0005). |
-| `ADMIN_EMAIL` | no | Defaults to a development address. |
-| `DATABASE_URL` | no | Defaults to a local SQLite file. On Railway it points at the persistent volume. |
-| `GEMINI_API_KEY` | no | Enables the AI layer. Absent: search runs keyword-labelled and the auditor answers `503` with the reason. Feature-off, never a boot refusal (ADR-0016). Read per request, so *rotating* it needs no redeploy; *adding* it the first time restarts the process (new variable = new environment). |
-| `GEMINI_MODEL` | no | Defaults to `gemini-flash-latest`. The pin for anyone who needs one. |
+About 10 hours against the brief's 4 to 5. The three pillars, v0 to v3, took roughly 7.
+v4 is elective. Both figures are checkable from the phase tags.
 
----
+Five of those hours produced no code anyone will read: a repo inside an iCloud folder,
+MCP setup that `gh` and a dashboard replaced, agent briefs loose enough to produce 18
+tests where 9 were asked for, scripted patches that silently did nothing, and UI
+decisions reversed three times.
 
-## The seed data
+The arithmetic is uncomfortable and worth stating: the pillars cost four or five hours of
+real engineering, so the timebox was hittable. The documentation is not where the surplus
+went, because it cost almost nothing marginal. It was written in the moment, three lines
+per commit, ADRs at decision time, never reconstructed. What the wasted hours bought is
+the corrections log, and that is the difference between waste and tuition.
 
-`data/seed.json` is the brief's 11 records, committed **verbatim and never
-modified**: every defect in it is intentional test input. Ingestion imports 11
-hardware items and writes 3 quarantine records. See `docs/DATA_AUDIT.md`.
-
-Ingestion validates **structure only**. Semantic contradictions (the Dell XPS
-marked `Available` with notes reading "battery swelling", the MacBook Air with a
-history of liquid damage) are deliberately left for the Phase 3 Inventory Auditor
-(ADR-0002). **A keyword scan would catch both of those.** The one it would not
-catch is record 10: empty brand, null date, `"Unknown"` status, no notes at all.
-Unidentifiable, and needing a physical audit; that judgement has no keyword
-signature, and it is the test of whether the AI layer does anything a regex could
-not.
+An over-engineering audit run after completion found the production code **not**
+over-built for the task: dependencies at the floor, thin modules, the heavier machinery
+traceable to specific incidents. What it flagged as excess was the sound system and the
+documentation ratio, both of which this brief happens to grade. See `BACKLOG.md`.
 
 ---
 
-## Trade-offs taken
+## 📚 Documentation
 
-Each of these was a deliberate choice, taken knowingly, with the cost recorded at
-the moment it was taken.
-
-| Shortcut | Why | Future refactor |
-| --- | --- | --- |
-| **Demo credentials are published on a public instance, on a `user` account** | ADR-0005 chose openly published demo credentials so a reviewer is in within ten seconds. `/security-review` cut the role from `admin` to `user`: read access is what a reviewer needs, delete rights are what an attacker wants, and the admin panel is described in prose instead. | Per-reviewer invite links, so access can be withdrawn without rotating a shared credential. |
-| **The frontend has no tests** | `brainstorm.md` §3 lists vitest in Phase 0. It was true then that the page was one fetch and a table; it is not true now, when the UI has a roving-tabindex table, a `401`-to-login path and filter counts. This is the shortcut that aged worst. | vitest over the keyboard behaviour and the api client, which are logic rather than markup. |
-| **`test_serves_built_bundle_at_root` needs `npm run build` first** | It asserts against the real `frontend/dist` on purpose: a fixture directory would prove the mount works, not that the built bundle is served. | CI builds the frontend before running pytest. |
-| **No build/test CI** | Time. The tests exist and run locally; automating them was the cut. The one workflow that does exist is `deployed-probe.yml`, a scheduled probe of the live URL, not CI: it watches the deployment, which is the only thing the local suite structurally cannot see. | A workflow running both build steps and both suites. |
-| **The app seeds itself on boot when the database is empty** | The deploy target offers no way to run a one-off command against the mounted volume: Railway's API has no exec or SSH, `preDeployCommand` silently did not run, and `railway ssh` needs an SSH key. Seeding at startup was the only mechanism left. An emptiness guard makes it safe: once rentals exist the table is never empty, so it can never wipe them. | A migration step or a one-off job. Boot logic should not write data. See [`BACKLOG.md`](BACKLOG.md). |
-| **Deploying needed three human-in-the-loop steps** | Browser OAuth for the Railway MCP, a *second* browser authorization for the Railway CLI, and an SSH key, none of which any tooling removes. Seed-on-boot-if-empty was chosen partly to delete the manual seeding step for whoever redeploys next. | Nothing to fix in this codebase; recorded because the deploy story is otherwise easy to tell as smoother than it was. |
-| **Sign out does not revoke the session** | The session is a signed cookie with no server-side record. There is no logout route, so the control clears the client and says so. Deleting the account *does* revoke its sessions (ADR-0013); ending one session without retiring the person is what is missing. | A logout route and session expiry. A leaked cookie is valid until the account is deleted or `SECRET_KEY` changes. |
-
-Deferred findings that are not shortcuts (interface concerns, spec gaps, things
-noticed and consciously not acted on) are in [`BACKLOG.md`](BACKLOG.md), each with
-a note on when it becomes urgent.
-
----
-
-## Retrospective: what I would cut
-
-Not the work: the scaffolding around it. Roughly five of the hours went to things that
-produced no code a reviewer will ever read:
-
-- **A git repository inside an iCloud-synced folder** (~1h): phantom index locks and
-  files reverting mid-edit until the sync was discovered and the repo moved.
-- **MCP servers that better-fit tools replaced** (~1h): the GitHub and Railway MCP
-  setups, including two browser OAuth dances, did nothing `gh` and the dashboard did
-  not do with less ceremony.
-- **Loose agent briefs** (~1.5h): a test-writing agent handed a vague spec produced 18
-  tests where 9 were asked for; reviewing and cutting the surplus cost more than writing
-  the 9 directly would have.
-- **Scripted patches instead of an editor that fails loudly** (~45m): four silent
-  no-op `str.replace` calls produced two features reported as built that did not exist.
-  The ban is now in `CLAUDE.md`.
-- **UI decisions reversed three times** (~45m): status dots became pills became dots
-  became pills; the wireframe had the answer the whole time.
-
-None of it is engineering. And the arithmetic deserves stating plainly, because it
-is the uncomfortable half of the hours claim: the pillars cost four to five hours of
-actual engineering, so the brief's timebox was hittable. The documentation is not
-where the surplus went. It cost almost nothing marginal, because it was written in
-the moment: three lines per commit, ADRs at decision time, never reconstructed. What
-the wasted hours bought is the corrections log itself. Every one of them is itemised
-in `AI_LOG.md` where it happened, and that is the difference between waste and
-tuition. The failure mode of an AI-assisted build is not bad code, it is time spent
-supervising machinery instead of shipping, and the log is the receipt.
-
----
-
-## Documentation
-
-| File | What it is |
-| --- | --- |
-| [`CONTEXT.md`](CONTEXT.md) | The domain language. Say "quarantine record", not "the row we couldn't import". |
-| [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
-| [`docs/adr/`](docs/adr/) | 20 architectural decisions, with the reasoning that produced them. Six carry dated amendments, appended rather than rewritten so the revision stays visible: ADR-0002, ADR-0003, ADR-0005, ADR-0014, and ADR-0017 and ADR-0018 twice each. |
-| [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
-| [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | Measured WCAG contrast for every colour pair in both themes, and the one check that does not pass on colour alone. |
-| [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
-| [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose; the images are confidential and stay uncommitted. |
-| [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. The corrections index is at the top. |
-| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 26 sessions: the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one, and the index maps each session to the ADRs it produced. |
+| File                                                                 | What it is                                                                             |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [`docs/adr/`](docs/adr/)                                             | 20 architectural decisions. Six carry dated amendments, appended rather than rewritten |
+| [`AI_LOG.md`](AI_LOG.md)                                             | Every commit, and seven corrections. Index at the top                                  |
+| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md)                       | 20 sessions, mapped to the decisions they produced                                     |
+| [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md)                           | The seed's defects and what ingestion did about each                                   |
+| [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md)                     | Measured contrast, both themes, generated from the stylesheet                          |
+| [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation, in prose. The images stay uncommitted                              |
+| [`BACKLOG.md`](BACKLOG.md)                                           | What is owed, each with the condition that makes it urgent                             |
+| [`CONTEXT.md`](CONTEXT.md)                                           | The domain language                                                                    |
+| [`CLAUDE.md`](CLAUDE.md)                                             | The rules every session reads                                                          |

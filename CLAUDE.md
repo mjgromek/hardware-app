@@ -83,12 +83,9 @@ Railway, one service, SQLite on a persistent volume. Per phase:
 1. `npm run build` in `frontend/`, because `test_serves_built_bundle_at_root` needs the
    real `dist/`
 2. **Deploy with `railway up --detach`** (CLI at `/opt/homebrew/bin/railway`, already
-   authenticated). Pushing the branch does NOT deploy: the service's GitHub trigger
-   still tracks the Phase 0 branch, so a push deploys nothing, and **any variable
-   change redeploys v0**, which has no auth and serves the volume's data publicly.
-   This happened once (2026-08-07, AI_LOG Correction #4). Until the tracked branch is
-   fixed in the dashboard (human-only), follow every variable change with an
-   immediate `railway up`.
+   authenticated). The service's GitHub trigger now tracks `main`, fixed in the
+   dashboard on 2026-08-07, so a push to `main` deploys and a variable change no
+   longer resurrects an old build.
 3. Seeding is automatic on boot **only when the table is empty**. Never run a
    seed command by hand, and never remove that guard (it's what stops a restart
    destroying rentals)
