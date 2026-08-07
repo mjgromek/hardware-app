@@ -1308,3 +1308,14 @@ diff at HEAD, zero findings. Filed per the blockers-only rule: the README's over
 flag-review race added to ⚠️ (same class as the last-admin race), the empty-filter
 `semantic` label to BACKLOG. AI_LOG's remaining `(pending)` stays owed to final polish.
 Commit: docs(phase-3): file the gate findings (pending)
+
+---
+
+## [P4 · c0] The design system enters the plan
+
+Phase 4 gains the token layer (surface/text/border/status groups, dark override,
+no hardcoded hex — decided *before* any visual work, because retrofitting tokens is
+the expensive version), dark mode with per-status light/dark stops, the bounded
+"sleeker than the prototype" finish list, the structure-vs-finish honesty line, and
+a revised cut order that drops the toggle before the tokens. Docs only, no code.
+Commit: docs(phase-4): design system, dark mode and the finish boundary (pending)
