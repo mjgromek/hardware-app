@@ -33,6 +33,11 @@ that ships.
 ## Non-negotiables
 
 - **TDD.** No production code before a failing test. Use `/tdd`.
+- **Never patch files with `python str.replace` or `sed`.** Use the Edit tool, which
+  fails loudly when the target text does not match. Four silent no-op replaces in one
+  session produced two features reported as built that did not exist, and two wrong
+  theories reasoned on top of files that never changed. A build succeeding is not
+  evidence that a change landed.
 - **Every schema change ships with a migration test.** Boot over the *previous*
   table shape built in raw SQL, then assert a real request succeeds — not that
   `create_app` returned. The suite builds every database from scratch, where

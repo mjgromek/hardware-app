@@ -1692,4 +1692,39 @@ observation reported as a finding without first checking the instrument that pro
 The third is the worst, because the instrument was my own edit and verifying it cost one
 `assert`.
 
-Commit: feat(phase-4): the review dialog edits what it certifies (pending)
+Commit: feat(phase-4): the review dialog edits what it certifies (af9a3ac)
+
+---
+
+## Correction #5 — a build succeeding is not evidence that a change landed
+
+**What I did.** I patched source files all session with `python -c` scripts calling
+`str.replace`. When the target text does not match — a stray `?? ''`, a reflowed line, an
+em dash I mistyped — `replace` returns the string unchanged. The script exits `0`, the file
+is rewritten identically, `npm run build` succeeds, and nothing anywhere says the change did
+not happen.
+
+**What it cost, four times in one session.** The review dialog's `resetDraft` was never
+wired, and I read the resulting empty form as evidence about Vue's reactivity and published
+*two* wrong theories on top of it. Then the admin edit: of four replacements in one batch,
+one landed. `HardwareTable` emits `edit-hardware` without declaring it, `AdminPanel` never
+mentions it — so the pencil does nothing, and I reported the feature as built without
+clicking it.
+
+**How I caught it.** Only by reading the file after being told the feature did not work. Not
+by the build, not by the tests — the backend was green throughout, because the backend was
+never the problem.
+
+**The correction.** A `CLAUDE.md` non-negotiable: patch with the Edit tool, which fails
+loudly on a non-matching target. The one place I added `assert old in s` by hand worked
+exactly as intended and refused to write a no-op.
+
+**What I'm taking from it.** This is the fourth instrument error in a day and the family is
+now clear: the eyeballed contrast check, the synthetic-click "sort bug", the no-op replace,
+and this. Each time I took a reading from an instrument I had not checked and reported it as
+a finding. The tell is identical every time — a *convenient* reading that let me move on. A
+green build meant "it worked"; an unchanged UI meant "Vue is misbehaving"; a swallowed click
+meant "shipped code is broken". The instrument was never the thing I doubted, and it should
+have been the first.
+
+Commit: docs: never patch files with str.replace or sed (pending)
