@@ -2554,3 +2554,14 @@ hue before it reads as a word. Found meanwhile: the live model calls answer 429 
 tier quota spent — so the chip currently says "AI search unavailable", which is ADR-0016
 doing its job, not a defect.
 Commit: style(polish): the x clears, and Available wears green (self)
+
+## [polish · c6] The docs commit on main
+
+The one commit `main` receives directly, as CLAUDE.md's plan always said it would.
+README: the commit-count entry retold at the true scale (119, was 41), the effort
+framing (9–10h against the brief's 4–5, ~7h for v0–v3), a retrospective of the ~5h of
+scaffolding that produced no reviewable code, and a duplicate BACKLOG.md row removed
+from the Documentation table. WIREFRAME_JUSTIFICATION: the nav labels, the default sort
+order as a product opinion, and the final-polish deviations. AI_LOG's last (pending)
+SHAs were swept on the polish branch.
+Commit: docs: final polish — README at true scale, wireframe entries, retrospective (self)

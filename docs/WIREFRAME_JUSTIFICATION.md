@@ -118,6 +118,17 @@ first visit is nobody's second.
 **Why:** that is the product's name in the brief, the repository, the page title and
 every document. One name.
 
+### Sidebar — the nav labels are shorter than the wireframe's
+
+**The wireframe showed:** `Hardware List` / `My Rentals` / `Admin Panel`.
+**What was built:** `Inventory` / `My rentals` / `Needs review` / `Admin`.
+**Why:** the words the wireframe uses restate their destination's own heading —
+"Hardware List" labels a page whose `h1` already says it, and "Panel" describes furniture
+rather than function. One word each, sentence case as the rest of the product is. `Needs
+review`, with its count, is an addition the wireframe lacks at all — it exists because
+ADR-0003 makes the flag a rentability guard, and a queue nobody can find is inventory
+that has silently disappeared (see the Needs-review entry below).
+
 ### Added: a Needs review screen, and a row marker for the flag
 
 **The wireframe showed:** nothing for `needs_review`. Three statuses, no fourth state,
@@ -449,3 +460,39 @@ still while the main column scrolls.
 inventory — controls people reach for without looking, leaving the screen exactly when the
 list gets long enough to need them. Not holding position is the one thing a sidebar exists
 to prevent.
+
+---
+
+## Final polish
+
+### Default sort — Available first is a product opinion, not a technical one
+
+**The wireframe showed:** a static table, no stated order.
+**What was built:** the default sort groups by display state — `Available`, then
+`Rented`, then `In Repair`, then `In Review` — before any column the user clicks.
+**Why:** it optimises for the renter, who is the majority user: the rows they can act on
+are the rows they meet first. An admin could argue `In Review` should lead — those rows
+are the ones wanting *their* attention — and that argument lost on numbers, not on
+merit: admins have the Needs-review queue as their own front door, renters have only
+this table. The choice is recorded here precisely because it is arguable.
+
+### The AI's answer narrows the table instead of adding a second one
+
+**The wireframe showed:** the Ask AI bar above the list; nothing about how results
+appear.
+**What was built:** originally a separate results panel above the inventory; now the
+answer narrows the same table the type-to-filter narrows, with a header chip naming the
+mode and the question, and the field's own ✕ as the way out.
+**Why:** two tables meant two mental models for one list — and during the call the
+page's only response to Enter was the local filter emptying the table under a question
+it was never meant to answer. One list, one model: typing filters it, asking narrows it,
+and the header says which of the two is in effect.
+
+### Available wears green
+
+**The wireframe showed:** filled status pills, hue unspecified.
+**What was built:** the Available pill in green — green-700 under white in light,
+green-400 under near-black in dark, measured at 5.02:1 and 8.55:1 (ACCESSIBILITY.md).
+**Why:** requested, and right — "can be issued" reads as a hue before it reads as a
+word, and green is the meaning every status system has already taught. It also frees
+near-black from doing double duty as both "the strongest fill" and "the default state".

@@ -18,6 +18,11 @@ beyond the brief's scope, taken on because the wireframes were supplied and a cl
 is checkable in a way "looks fine" is not. Read v0–v3 as the submission; read v4 as what
 was done with the time left.
 
+The whole build took about 9–10 hours against the brief's suggested 4–5. The three
+pillars — v0 through v3 — landed in roughly 7; the rest is v4's elective UI work and the
+final polish. Both figures are checkable from the phase tags' commit timestamps, which is
+also why they are stated rather than rounded down.
+
 | Version | Phase | URL | Status |
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
@@ -210,17 +215,20 @@ Each of these works, and each cost something. The full table with reasoning is i
   checkout deterministically in the meantime.
   **Future:** point the trigger at `main` in the dashboard, then delete this entry
   and the CLAUDE.md warning that orders a `railway up` after every variable change.
-- **41 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
-  double it, so it is acknowledged here rather than left for a reviewer to count.
-  **Why:** two security fixes (the demo account's role cut from `admin` to `user`, the
-  session-revocation gap ADR-0013 closed) and two production defects (the seed rental
-  never reconciling on an existing volume, the missing `users` migration) each needed
-  their own red/green cycle — a fix squashed into an unrelated commit is a fix the
-  history cannot explain. Every commit has its AI_LOG entry; the count is the cost of
-  keeping that true.
-  **Future:** nothing to fix retroactively — rewriting history to hit a number would
-  be worse than missing it. The target stands for Phase 3 as a pressure toward
-  batching, not a cap that outranks the audit trail.
+- **119 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
+  six times it, so it is acknowledged here rather than left for a reviewer to count.
+  (The number counts itself: this README line lands in commit 119.)
+  **Why:** the same reasoning that produced 41 by Phase 2 holds at the true scale. TDD
+  means two commits per slice by construction — a `test:` red and a `feat:` green — and
+  the events that could not be batched each demanded their own cycle: a security fix
+  (the demo account's role cut from `admin` to `user`), a production outage (the missing
+  `users` migration), a concurrency deadlock, and a pre-auth rollback that briefly put
+  an unauthenticated build back on the public URL. A fix squashed into an unrelated
+  commit is a fix the history cannot explain. Every commit carries its AI_LOG entry
+  because a pre-commit hook refuses it otherwise; the count is the cost of keeping
+  that true.
+  **Future:** nothing to fix retroactively — rewriting history to hit a number destroys
+  exactly what the brief asked to see.
 - **A soft-deleted account permanently reserves its email**, so an address can never be
   recreated — no re-hires, and no fixing a typo'd address. Recreating one answers `409`.
   **Why:** the audit trail names actors by email as well as by id (ADR-0010, ADR-0013),
@@ -454,6 +462,31 @@ a note on when it becomes urgent.
 
 ---
 
+## Retrospective — what I would cut
+
+Not the work: the scaffolding around it. Roughly five of the hours went to things that
+produced no code a reviewer will ever read:
+
+- **A git repository inside an iCloud-synced folder** (~1h) — phantom index locks and
+  files reverting mid-edit until the sync was discovered and the repo moved.
+- **MCP servers that better-fit tools replaced** (~1h) — the GitHub and Railway MCP
+  setups, including two browser OAuth dances, did nothing `gh` and the dashboard did
+  not do with less ceremony.
+- **Loose agent briefs** (~1.5h) — a test-writing agent handed a vague spec produced 18
+  tests where 9 were asked for; reviewing and cutting the surplus cost more than writing
+  the 9 directly would have.
+- **Scripted patches instead of an editor that fails loudly** (~45m) — four silent
+  no-op `str.replace` calls produced two features reported as built that did not exist.
+  The ban is now in `CLAUDE.md`.
+- **UI decisions reversed three times** (~45m) — status dots became pills became dots
+  became pills; the wireframe had the answer the whole time.
+
+None of it is engineering. All of it is recorded in `AI_LOG.md` where it happened,
+because the failure mode of an AI-assisted build is not bad code — it is time spent
+supervising machinery instead of shipping.
+
+---
+
 ## Documentation
 
 | File | What it is |
@@ -466,5 +499,4 @@ a note on when it becomes urgent.
 | [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |
-| [`BACKLOG.md`](BACKLOG.md) | Findings deferred rather than acted on. |
 | [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 20 sessions — the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one. |
