@@ -1226,43 +1226,64 @@ th[aria-sort] .sort-arrow {
  * Sharing the page's grey made it read as a row sitting above the list rather than as a
  * different kind of thing — it asks a question of the inventory, it is not part of it. */
 .search-bar input[type='search'] {
-  /* Transparent rather than `0`, so focus can colour this border without the bar
-   * changing height. `box-sizing: border-box` and the fixed 52px keep the geometry
-   * identical in both states. */
+  /* Transparent rather than `0`, so the bar cannot change height between states.
+   * `box-sizing: border-box` and the fixed 52px keep the geometry identical. The border
+   * is no longer the focus indicator — see below — but it still reserves the space. */
   border: 2px solid transparent;
   background: var(--ask-fill);
+  /* Three *transparent* shadows, not `none`. `box-shadow` interpolates layer by layer
+   * and only between lists of the same length — `none` is not a list, so a transition
+   * between `none` and three layers is a discrete jump. With the unfocused state written
+   * as the same three layers at zero alpha, only the colours animate. Verified: with
+   * `none` here, blurring fired no `transitionstart` at all and the ring vanished on the
+   * frame. */
+  box-shadow:
+    0 0 0 2px transparent,
+    0 0 0 7px transparent,
+    0 4px 12px transparent;
+  /* Declared on the *base* rule, not inside `:focus-visible`. A transition listed only
+   * in the focused state animates the way in and snaps on the way out, because on blur
+   * that rule stops matching and takes its own transition with it. */
+  transition:
+    box-shadow 150ms ease,
+    background-color 150ms ease;
 }
 
-/* The one place the global focus ring is deliberately replaced rather than inherited.
+@media (prefers-reduced-motion: reduce) {
+  .search-bar input[type='search'] {
+    transition: none;
+  }
+}
+
+/* The one place the global focus ring is deliberately replaced rather than inherited,
+ * and the only `outline` reset in this stylesheet — so the replacement has to carry
+ * WCAG SC 2.4.11 by itself.
  *
- * A 2px outline offset 2px from a 999px pill reads as a detached ring floating around
- * the bar — the shape the wireframe's search field does not have. The indicator moves
- * onto the bar itself: the border takes `--focus` and the fill lifts to the card
- * surface, so the whole control changes state instead of acquiring a halo.
+ * **A soft ring alone cannot.** Measured: `--focus-edge` composited over the fill at
+ * 0.18 alpha is 1.21:1, and even at 0.60 it reaches only 2.03:1 — a pale or blurred ring
+ * cannot get near 3:1 at any alpha, because contrast is a function of the composited
+ * colour and translucency only moves it toward the background. So the indicator is a
+ * *two-layer* shadow:
  *
- * The border is `--ink`, not `--focus`. Blue is a real token, but it appears nowhere
- * else in this palette — the tool is black, white, grey, with amber and red reserved for
- * states that mean something — so a blue edge on the one element that replaces the ring
- * read as borrowed from another product. `--ink` is the same black the Available pill
- * and the primary button already use, so the focused bar looks like it belongs to the
- * page it sits on. Only the hue changed; the treatment and its job did not.
+ *   1. an opaque 2px ring at zero blur — geometrically a ring, but a solid colour with a
+ *      hard edge, which is what makes it measurable: 3.66:1 against the focused fill and
+ *      3.44:1 against the page in light, 3.94:1 and 4.16:1 in dark;
+ *   2. a wider translucent halo with blur, which is what makes it read as soft.
  *
- * `outline: none` is load-bearing and is the only such reset in this stylesheet, so the
- * replacement has to carry WCAG 2.4.11 on its own. It does, by a wider margin than the
- * blue did: 19.55:1 against the focused fill and 18.40:1 against the page in light,
- * 14.74:1 and 15.56:1 in dark, all in `docs/ACCESSIBILITY.md`.
+ * The border is no longer involved. It was a 2px solid `--focus-edge` edge, and a crisp
+ * 2px line at that value reads as a hard black outline however grey the token is — that
+ * was the complaint, and the cascade was never the problem: this rule (0,3,1) already
+ * won. Replacing the border with layer 1 keeps the same measured contrast while letting
+ * layer 2 blur the outer edge, and the transition on the base rule fades both.
  *
- * The fill shift is deliberately *not* doing that work — measured on its own it is
- * 1.14:1 in light and 1.11:1 in dark, far under 3:1. It is supporting feedback; the
- * border is the indicator. Removing the border and keeping only the fill would look
- * tidier and would fail. */
+ * The fill shift is supporting feedback only — 1.14:1 light, 1.11:1 dark, nowhere near
+ * 3:1. If the two shadow layers are ever removed, the indicator goes with them. */
 .search-bar input[type='search']:focus-visible {
-  border-color: var(--focus-edge);
   background: var(--surface);
-  /* The wireframe's soft ring. Decoration, explicitly — it is blurred and translucent,
-   * so it cannot be the thing SC 2.4.11 is measured against. The border carries the
-   * criterion; this makes it look like the reference. */
-  box-shadow: 0 0 0 4px var(--focus-ring);
+  box-shadow:
+    0 0 0 2px var(--focus-edge),
+    0 0 0 7px var(--focus-ring),
+    0 4px 12px var(--focus-ring);
   outline: none;
 }
 

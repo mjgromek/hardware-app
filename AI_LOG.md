@@ -2448,3 +2448,39 @@ Every item on the verification list checked live in both themes. Demo reset afte
 because the checks themselves rented, returned, flagged and edited rows: all five
 fingerprints confirmed by assertion, not by eye.
 Commit: chore(phase-4): deploy v4 (pending)
+
+---
+
+## [P4 · c40] The Ask AI focus ring, diagnosed before edited
+
+**The cascade was never the problem.** Enumerating every rule matching the element, in
+specificity order: `input` (0,0,1), two `.search-bar input[type='search']` base rules
+(0,2,1), and `.search-bar input[type='search']:focus-visible` (0,3,1). The last one won,
+and had won for the previous two attempts as well. What was wrong was what it rendered:
+a crisp `border: 2px solid #7f8694`, which at 2px reads as a hard black edge however grey
+the token is, and a 0.22-alpha ring at zero blur that was visually nothing. And **no
+matching rule declared `transition` at all**, so it snapped — that part of the report was
+exactly right.
+
+**The accessibility answer, measured rather than assumed.** A pale ring cannot do this
+job: `--focus-edge` composited over the focused fill is 1.27:1 at 0.22 alpha and 2.03:1
+at 0.60. Translucency only moves a colour toward its background, so there is no alpha
+that reaches 3:1. The indicator is therefore an opaque 2px ring at zero blur — a shadow
+geometrically, a solid measurable edge optically — **3.66:1 / 3.44:1 light, 3.94:1 /
+4.16:1 dark** — with the blurred halo layered outside it for the soft look. The border is
+now transparent and carries nothing.
+
+**One real bug found by testing rather than reasoning.** `box-shadow` interpolates layer
+by layer and only between lists of equal length, so a transition between `none` and three
+layers is a discrete jump: the first implementation fired no `transitionstart` and the
+ring vanished on the frame. Writing the unfocused state as the same three layers at zero
+alpha fixed it.
+
+**Three instrument errors in one session, all caught before they became claims.** A
+`:focus-visible` check that failed because `document.hasFocus()` was false — the OS window
+had lost focus, so no CSS was wrong. Sampling a 150ms transition over a CDP round trip
+that takes longer than 150ms, which made both directions look like they snapped. And a
+`transitionstart` listener attached after the transition had already run. Settled with a
+2s control: mid-transition alpha 0.35 on the way in, 0.5 on the way out — it interpolates
+both ways.
+Commit: fix(phase-4): the Ask AI focus ring fades, and is still measurable (pending)
