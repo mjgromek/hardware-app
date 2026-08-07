@@ -2385,3 +2385,13 @@ busy gradient with `z-index: 1` also raised it above the magnifier and the spark
 sat at auto in the same stacking context. Computed styles said the sparkle was violet and
 the layout numbers were right; the icons were behind the fill.
 Commit: feat(phase-4): wireframe spacing, type-to-filter, and the ask state (pending)
+
+---
+
+## [P4 · c37] Sidebar type: separating the wordmark from the nav
+
+Nav labels 16px → 15px, wordmark 500 → 600. Size alone was not doing the separating: at
+20px/500 against 16px/500 the two read at similar strength and the rail had no top to it.
+Confirmed: wordmark 20px/600, inactive nav 15px/500, active nav 15px/600 from the existing
+`aria-current` rule. Mark 56px and the 8px gap untouched, as asked.
+Commit: style(phase-4): sidebar type hierarchy (pending)

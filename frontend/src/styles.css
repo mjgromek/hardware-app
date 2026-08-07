@@ -1345,7 +1345,10 @@ th.cell-status .th-label {
   gap: 12px;
   padding-bottom: 22px;
   font-size: 20px;
-  font-weight: 500;
+  /* 600 against the nav's 500. At 500 the wordmark and the nav labels read at the same
+   * strength, so the rail had no top to it — size alone was not enough separation at
+   * 20px vs 15px. */
+  font-weight: 600;
   line-height: 1.25;
   white-space: normal;
 }
@@ -1354,7 +1357,7 @@ th.cell-status .th-label {
  * than everything they sit beside. */
 .nav-item {
   padding: 12px 10px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
 }
 
