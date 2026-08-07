@@ -32,7 +32,7 @@ without the numbers changing too.
 | Muted text on page | `#6a7283` | `#f7f8fa` | **4.55:1** | 4.5:1 | ✅ |
 | **Table content** (dates, holder, `—`) | `#4a5160` | `#ffffff` | **7.96:1** | 4.5:1 | ✅ |
 | **Table content on page** | `#4a5160` | `#f7f8fa` | **7.49:1** | 4.5:1 | ✅ |
-| Pill — Available | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
+| Pill — Available | `#ffffff` | `#15803d` | **5.02:1** | 4.5:1 | ✅ |
 | Pill — Rented | `#454b58` | `#eceef2` | **7.53:1** | 4.5:1 | ✅ |
 | Pill — In Repair | `#ffffff` | `#dc2626` | **4.83:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#7c4a02` | `#fef3c7` | **6.65:1** | 4.5:1 | ✅ |
@@ -60,7 +60,7 @@ Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
 | Muted text on page | `#79818f` | `#101216` | **4.78:1** | 4.5:1 | ✅ |
 | **Table content** (dates, holder, `—`) | `#b9c0cc` | `#16181d` | **9.70:1** | 4.5:1 | ✅ |
 | **Table content on page** | `#b9c0cc` | `#101216` | **10.24:1** | 4.5:1 | ✅ |
-| Pill — Available | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
+| Pill — Available | `#052e16` | `#4ade80` | **8.55:1** | 4.5:1 | ✅ |
 | Pill — Rented | `#b3bac6` | `#23262d` | **7.76:1** | 4.5:1 | ✅ |
 | Pill — In Repair | `#1c0e0e` | `#f87171` | **6.79:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#fbbf24` | `#2c2312` | **9.28:1** | 4.5:1 | ✅ |

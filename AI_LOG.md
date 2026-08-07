@@ -2306,7 +2306,7 @@ Focus border moved from `--focus` blue to `--ink`. Blue is a real token but appe
 nowhere else in this palette, so the one element replacing the global ring looked borrowed
 from another product. Margins went up, not down: 19.55:1 and 18.40:1 light, 14.74:1 and
 15.56:1 dark. Auditor copy cut to one sentence.
-Commit: feat(phase-4): review and repair exclude each other, by construction (pending)
+Commit: feat(phase-4): review and repair exclude each other, by construction (c158b54)
 
 ---
 
@@ -2349,7 +2349,7 @@ still attracting edits — last batch's contrast work recoloured it, so one of t
 Verified in the browser on all three channels: hover shows the tip instantly, Tab shows a
 focus ring and the tip with the pointer parked elsewhere, and the accessibility tree now
 reports `img "Rented by j.doe@booksy.com"`.
-Commit: fix(phase-4): one tooltip mechanism, reachable three ways (pending)
+Commit: fix(phase-4): one tooltip mechanism, reachable three ways (41444fe)
 
 ---
 
@@ -2384,7 +2384,7 @@ focus to `<body>` and throws a keyboard user to the top of the page on every que
 busy gradient with `z-index: 1` also raised it above the magnifier and the sparkle, which
 sat at auto in the same stacking context. Computed styles said the sparkle was violet and
 the layout numbers were right; the icons were behind the fill.
-Commit: feat(phase-4): wireframe spacing, type-to-filter, and the ask state (pending)
+Commit: feat(phase-4): wireframe spacing, type-to-filter, and the ask state (f201adf)
 
 ---
 
@@ -2394,7 +2394,7 @@ Nav labels 16px → 15px, wordmark 500 → 600. Size alone was not doing the sep
 20px/500 against 16px/500 the two read at similar strength and the rail had no top to it.
 Confirmed: wordmark 20px/600, inactive nav 15px/500, active nav 15px/600 from the existing
 `aria-current` rule. Mark 56px and the 8px gap untouched, as asked.
-Commit: style(phase-4): sidebar type hierarchy (pending)
+Commit: style(phase-4): sidebar type hierarchy (751db0e)
 
 ---
 
@@ -2418,7 +2418,7 @@ Extracting it left `PRESENTATION` in `StatusChip` dead — it was replaced by th
 and would have sat there styling nothing, which is the fourth dead-block in this codebase.
 Deleted in the same edit rather than noticed later. Verified in the browser: all 11 rows
 grouped correctly, every chip agreeing with its group, and a Name click still reordering.
-Commit: feat(phase-4): default sort follows the display state (pending)
+Commit: feat(phase-4): default sort follows the display state (2719a1a)
 
 ---
 
@@ -2447,7 +2447,7 @@ result was the instrument, not the product.
 Every item on the verification list checked live in both themes. Demo reset afterwards,
 because the checks themselves rented, returned, flagged and edited rows: all five
 fingerprints confirmed by assertion, not by eye.
-Commit: chore(phase-4): deploy v4 (pending)
+Commit: chore(phase-4): deploy v4 (b44635d)
 
 ---
 
@@ -2483,7 +2483,7 @@ that takes longer than 150ms, which made both directions look like they snapped.
 `transitionstart` listener attached after the transition had already run. Settled with a
 2s control: mid-transition alpha 0.35 on the way in, 0.5 on the way out — it interpolates
 both ways.
-Commit: fix(phase-4): the Ask AI focus ring fades, and is still measurable (pending)
+Commit: fix(phase-4): the Ask AI focus ring fades, and is still measurable (63ae93f)
 
 ---
 
@@ -2506,4 +2506,51 @@ filtering the table underneath, so the AI's answer sat above a full inventory re
 hardware matches this filter" — `apple laptops` matches no single name or brand. Once the
 question is asked the text is the question, not a substring, so the local filter stands
 down while results are showing and the full list returns beneath them.
-Commit: fix(phase-4): unclip the focus ring, move Clear to the results (pending)
+Commit: fix(phase-4): unclip the focus ring, move Clear to the results (90b47d3)
+
+## [polish · c1] The AI's answer narrows the table it was asked about
+
+Diagnosed on the live deploy before editing, as directed. The busy state was real —
+`is-busy`, `aria-busy` and `readonly` all held for the full 6.3s call — and the gradient
+ring renders, but Enter focuses the field, and the focus ring sits in the ring's exact
+2px footprint. Meanwhile the local filter kept treating the question as a substring, so
+the visible response to Enter was six seconds of "No hardware matches this filter."
+Results now intersect the one table in place (header chip: mode + query + Clear), the
+filter stands down in flight, and a spinner replaces the sparkle with a visible status
+chip for reduced-motion. Also found `mask-composite: exclude` computing to `add, add` —
+Chrome's `-webkit-mask` alias reset it; reordered.
+Commit: feat(polish): AI search filters the table in place, loading you can see (b6cb738)
+
+## [polish · c2] The ask voice, outside the family on purpose
+
+Six voices report outcomes; this marks the app posing a question. A seventh contour on
+the family triangle would have claimed otherwise, so the synthesis changes instead:
+sawtooth glide 220→880Hz through an opening lowpass, quieter than any outcome. ADR-0018
+amended with the boundary — outcomes join the family, questions vary the glide.
+Commit: feat(polish): the ask voice, outside the six-voice family (364d4ce)
+
+## [polish · c3] Delete leaves the admin's own row
+
+For the sole admin the button could only die on the zero-admin guard — a 409 toast
+dressed up as an action. Hidden on the signed-in row; ADR-0005 keeps enforcing the rule
+for every path the UI does not draw.
+Commit: fix(polish): hide Delete on the signed-in admin's own row (fbe7343)
+
+## [polish · c4] A favicon, and the pending SHAs filled
+
+Every tab showed the browser's default document icon and the server answered 404 for
+/favicon.ico. An inline SVG data URI of the sidebar's cube — no asset, no request, the
+ADR-0018 reasoning applied to an icon. The three (pending) entries above now carry
+their SHAs: c1 b6cb738, c2 364d4ce, c3 fbe7343.
+Commit: fix(polish): the tab gets a favicon (self)
+
+## [polish · c5] The ✕ clears, and Available wears green
+
+Two requests. The header's Clear button went — the search field's native ✕ empties the
+text and edited text already drops the answer, so it was a second control for the same
+behaviour. Available's pill turns green in both themes (green-700/white at 5.02:1,
+green-400/near-black at 8.55:1, ACCESSIBILITY.md updated) — "can be issued" reads as a
+hue before it reads as a word. Found meanwhile: the live model calls answer 429 — free-
+tier quota spent — so the chip currently says "AI search unavailable", which is ADR-0016
+doing its job, not a defect.
+Commit: style(polish): the x clears, and Available wears green (self)

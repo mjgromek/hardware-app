@@ -431,6 +431,10 @@ function submitOverride(reason, edits = {}, outcome = 'released') {
 
 async function runSearch(query) {
   searching.value = true
+  // The ask voice plays on the question, not the answer — it marks the app asking
+  // something, and the spinner plus the "Asking AI…" status carry the same signal for
+  // anyone with sound off (ADR-0018: never the only channel).
+  sound.ask()
   try {
     searchResults.value = await api.search(query)
   } catch (e) {

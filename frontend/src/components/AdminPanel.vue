@@ -225,7 +225,13 @@ function submitAccount() {
               >
                 {{ account.role === 'admin' ? 'Make user' : 'Make admin' }}
               </button>
+              <!-- Not on your own row. For the sole admin it can only die on the
+                   zero-admin guard (ADR-0005) — a control that cannot succeed, the
+                   409 toast dressed up as an action. With other admins present it
+                   would "succeed" by deleting the account whose session you are
+                   inside; an account's end belongs to a colleague either way. -->
               <button
+                v-if="account.email !== props.currentEmail"
                 type="button"
                 class="button button-danger"
                 @click="emit('delete-account', account)"

@@ -3,7 +3,7 @@
 // date. Both are server-side (`?status=`, `?sort=`) rather than client-side, because
 // those query parameters are the tested contract — filtering in the browser would
 // leave the endpoint's own filter unexercised by the product that depends on it.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
 import Icon from './Icon.vue'
@@ -25,8 +25,6 @@ const emit = defineEmits(['filter', 'sort', 'rent', 'return', 'search', 'clear-s
 
 const STATUSES = ['Available', 'In Use', 'Repair']
 
-const flagged = computed(() => props.items.filter((item) => item.needs_review).length)
-
 const query = ref('')
 
 /** Type-to-filter: instant, local, and deliberately shallow.
@@ -45,12 +43,22 @@ const query = ref('')
  */
 const FILTERABLE = ['name', 'brand']
 
+//: The question the results answer, held so the header can say what is narrowing the
+//: table and so typing something new can be told apart from the asked text sitting there.
+const asked = ref(null)
+
 const visible = computed(() => {
-  // Once the question has been asked, the text in the bar is the question — not a
-  // substring to filter by. Leaving the filter on showed the AI's answer above a full
-  // inventory table reading "No hardware matches this filter", because "apple laptops"
-  // matches no single name or brand. The full list returns underneath the results.
-  if (props.searchResults) return props.items
+  // An answer narrows the same table the type-to-filter narrows: one list, one mental
+  // model. The AI names rows; the rows themselves stay the table's own — same order,
+  // same sort, still intersected by the status chips.
+  if (props.searchResults) {
+    const chosen = new Set(props.searchResults.items.map((item) => item.id))
+    return props.items.filter((item) => chosen.has(item.id))
+  }
+  // In flight, the text in the bar is a question, not a substring. Narrowing by it
+  // emptied the table for the whole call — six seconds of "No hardware matches this
+  // filter" as the only response to pressing Enter.
+  if (props.searching) return props.items
   const needle = query.value.trim().toLowerCase()
   if (!needle) return props.items
   return props.items.filter((item) =>
@@ -61,14 +69,27 @@ const visible = computed(() => {
 //: Enter is the only thing that reaches the model. Typing costs nothing and calls
 //: nothing; asking is a deliberate act, which is also what makes the latency acceptable.
 function submitSearch() {
-  const asked = query.value.trim()
-  if (asked) emit('search', asked)
+  const question = query.value.trim()
+  if (!question) return
+  asked.value = question
+  emit('search', question)
 }
 
 function clearSearch() {
   query.value = ''
+  asked.value = null
   emit('clear-search')
 }
+
+// Editing the text after an answer means the answer no longer describes the bar:
+// drop the results and let the keystroke filter, rather than filtering inside a
+// stale answer nobody asked to keep.
+watch(query, (text) => {
+  if (props.searchResults && text !== asked.value) {
+    asked.value = null
+    emit('clear-search')
+  }
+})
 </script>
 
 <template>
@@ -99,10 +120,16 @@ function clearSearch() {
         :aria-busy="props.searching"
         :readonly="props.searching"
       />
-      <Icon name="sparkle" class="search-spark" :size="18" />
+      <!-- While the model is thinking the sparkle becomes a spinner: motion exactly
+           where the question was typed. The gradient ring alone failed twice over —
+           the focus ring sits in its footprint at the same weight (Enter means the
+           field is focused, always), and a 2px sweep is below notice anyway. -->
+      <Icon v-if="!props.searching" name="sparkle" class="search-spark" :size="18" />
+      <span v-else class="search-spinner" aria-hidden="true"></span>
     </div>
-    <!-- The gradient outline is colour and motion, so it cannot be the only signal.
-         Polite, not assertive: the answer is worth interrupting for, the wait is not. -->
+    <!-- The gradient outline and the spinner are colour and motion, so they cannot be
+         the only signal. Polite, not assertive: the answer is worth interrupting for,
+         the wait is not. -->
     <p class="visually-hidden" role="status" aria-live="polite">
       {{ props.searching ? 'Asking AI…' : '' }}
     </p>
@@ -117,41 +144,28 @@ function clearSearch() {
          the input, so it now sits in their header beside the mode chip. -->
   </form>
 
-  <div v-if="props.searchResults" class="panel">
-    <div class="panel-head">
-      <h2>Search results</h2>
-      <!-- The label is the honesty ADR-0016 requires: a reviewer can tell whether
-           the AI answered or the keyword fallback did, from the screen alone. -->
-      <span class="chip" :class="props.searchResults.mode === 'semantic' ? 'chip-role' : ''">
-        {{ props.searchResults.mode === 'semantic'
-          ? 'AI search'
-          : 'Keyword results — AI search unavailable' }}
-      </span>
-      <!-- Dismisses the results, so it sits with them. Beside the chip that says where
-           they came from, which is the other thing you read before deciding to keep or
-           drop them. -->
-      <button class="button button-quiet" type="button" @click="clearSearch">
-        Clear results
-      </button>
-    </div>
-    <p v-if="!props.searchResults.items.length" class="empty">
-      Nothing matched. The filter only speaks in name, brand, status and dates — try
-      one of those.
-    </p>
-    <HardwareTable
-      v-else
-      :items="props.searchResults.items"
-      rentable
-      :current-email="props.currentEmail"
-      :busy-id="props.busyId"
-      @rent="emit('rent', $event)"
-      @return="emit('return', $event)"
-    />
-  </div>
-
   <div class="panel">
     <div class="panel-head">
       <h2>Hardware</h2>
+      <!-- A second surface for results taught two mental models for one list. Instead
+           the answer narrows this table, and this header says what is narrowing it:
+           the wait, then the question with its provenance and a way out. The mode chip
+           is the honesty ADR-0016 requires — a reviewer can tell whether the AI
+           answered or the keyword fallback did, from the screen alone. -->
+      <span v-if="props.searching" class="chip chip-role">
+        Asking AI about “{{ query }}”…
+      </span>
+      <!-- No Clear button: the search field's own ✕ empties the text, and edited
+           text already drops the answer. One control, one behaviour. -->
+      <span
+        v-else-if="props.searchResults"
+        class="chip"
+        :class="props.searchResults.mode === 'semantic' ? 'chip-role' : ''"
+      >
+        {{ props.searchResults.mode === 'semantic'
+          ? `AI search — “${asked}”`
+          : `Keyword results for “${asked}” — AI search unavailable` }}
+      </span>
       <div class="filters" role="group" aria-label="Filter by status">
         <button
           type="button"
@@ -180,6 +194,9 @@ function clearSearch() {
       rentable
       :current-email="props.currentEmail"
       :busy-id="props.busyId"
+      :empty-text="props.searchResults
+        ? 'Nothing matched. The filter only speaks in name, brand, status and dates — try one of those.'
+        : 'No hardware matches this filter.'"
       @sort="emit('sort', $event)"
       @rent="emit('rent', $event)"
       @return="emit('return', $event)"
