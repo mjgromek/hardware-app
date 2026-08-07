@@ -2307,3 +2307,46 @@ nowhere else in this palette, so the one element replacing the global ring looke
 from another product. Margins went up, not down: 19.55:1 and 18.40:1 light, 14.74:1 and
 15.56:1 dark. Auditor copy cut to one sentence.
 Commit: feat(phase-4): review and repair exclude each other, by construction (pending)
+
+---
+
+## [P4 · c35] The Rented tooltip: three defects, none of them the reported one
+
+Diagnosed before touching anything, as asked. The reported symptom — "the renter email
+does not appear on hover" — was the least of what was wrong.
+
+**What the DOM actually showed.** `title` and `aria-label` were both present on the
+rendered control, with `tabindex="0"` and `pointer-events: auto`. So the attribute was not
+missing, and this was not the `!` failure repeating.
+
+**Three real defects underneath.**
+
+1. **No custom tip existed for it.** The stylesheet's only tooltip mechanism was
+   `.flag-mark:hover + .flag-tip` — bound to the amber `!` *by selector*, so the control
+   beside it could not use it and fell back to the native `title`. Two tooltips in one
+   column: one instant and styled, one delayed and drawn by the OS.
+2. **Keyboard focus was never covered.** A native `title` does not appear on focus, so the
+   renter's address was pointer-only. Predicted in the request, and correct.
+3. **The screen reader never got it either — and this is the one nobody predicted.**
+   `aria-label` is *ignored* on a bare `<span>`, which maps to `role=generic`, where
+   naming is prohibited. The accessibility tree reported `generic "Rented"` with the
+   address dropped. The `!` announced in full only because it happened to carry
+   `role="img"`. The attribute was present, correct, and inert.
+
+That is the sharper version of the lesson the `!` taught: an attribute being in the DOM is
+not evidence that anything consumes it. I checked presence last time and stopped there.
+
+**Fixed by generalising rather than duplicating.** `.flag-holder`/`.flag-tip` became
+`.tip-holder`/`.tip`, opened on `:hover` and `:focus-within` so any trigger can use it.
+`title` removed from both controls — it can only ever be half an implementation, and
+alongside `.tip` it produced two tooltips. `role="img"` added so the label is announced.
+
+**And a fourth, found on the way.** `.held-by` matched no markup at all: the renter's
+address moved onto the tooltip during the visual pass and the rule outlived it. It was
+still attracting edits — last batch's contrast work recoloured it, so one of the three
+"table content" moves I reported styled nothing. Deleted.
+
+Verified in the browser on all three channels: hover shows the tip instantly, Tab shows a
+focus ring and the tip with the pointer parked elsewhere, and the accessibility tree now
+reports `img "Rented by j.doe@booksy.com"`.
+Commit: fix(phase-4): one tooltip mechanism, reachable three ways (pending)

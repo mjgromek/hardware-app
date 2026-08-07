@@ -576,15 +576,11 @@ tr.is-flagged td:first-child {
   font-size: 11px;
 }
 
-/* Who holds an item, beside its status. Renter identity is operational information —
- * the point of `In Use` on an internal tool is knowing who to ask (ADR-0012). */
-.held-by {
-  margin-left: 8px;
-  color: var(--ink-table);
-  font-family: var(--mono);
-  font-size: 11.5px;
-}
-
+/* `.held-by` stood here and matched no markup: the renter's address moved onto the
+ * `Rented` control's tooltip during the visual pass and the rule outlived it. It was
+ * still attracting edits — the table-content contrast pass recoloured a rule that styled
+ * nothing. Removed. Renter identity is still operational information an internal tool
+ * should show (ADR-0012); it is shown on the tooltip. */
 
 /* ---------------------------------------------------------------- filters */
 
@@ -926,21 +922,30 @@ th.col-date .sort-button {
   cursor: help;
 }
 
-/* Reachable by keyboard, not only by pointer: the tooltip below is the only place the
- * reason appears in this table, so a keyboard user who cannot open it cannot find out
- * why the item is blocked. */
-.flag-mark:focus-visible + .flag-tip,
-.flag-mark:hover + .flag-tip {
+/* One tooltip mechanism for the whole table, not one per control.
+ *
+ * This started as `.flag-mark:hover + .flag-tip` — tied to the amber `!` by selector, so
+ * the grey `Rented` control beside it could not use it and fell back to a native `title`.
+ * That gave the same column two different tooltips: one instant and styled, one delayed
+ * and drawn by the OS. Worse, a native `title` never appears on keyboard focus, so the
+ * renter's address was pointer-only while the review reason was not.
+ *
+ * `:focus-within` rather than `:focus-visible` on a sibling, because the holder wraps the
+ * trigger: focus landing anywhere inside opens the tip, which is what a keyboard user
+ * tabbing onto the control expects. Reachable by pointer and by keyboard through the same
+ * rule, with `aria-label` on the trigger carrying it to a screen reader. */
+.tip-holder:hover > .tip,
+.tip-holder:focus-within > .tip {
   opacity: 1;
   visibility: visible;
 }
 
-.flag-holder {
+.tip-holder {
   position: relative;
   display: inline-block;
 }
 
-.flag-tip {
+.tip {
   position: absolute;
   right: 0;
   bottom: calc(100% + 6px);
@@ -962,7 +967,7 @@ th.col-date .sort-button {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .flag-tip {
+  .tip {
     transition: opacity 90ms ease-out;
   }
 }

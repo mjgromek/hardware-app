@@ -222,31 +222,39 @@ function shown(value) {
                  is a single rule down the page rather than four shapes. `In Repair` is
                  the deliberate exception: an empty cell, because the pill already says
                  it and there is nothing here for anyone to do. -->
-            <span
-              v-else-if="item.status === 'In Use'"
-              class="button button-quiet is-static"
-              :title="`Rented by ${item.assigned_to || 'an unknown holder'}`"
-              :aria-label="`Rented by ${item.assigned_to || 'an unknown holder'}`"
-              tabindex="0"
-            >
-              Rented
+            <!-- Both tooltips use one mechanism, and neither uses `title`.
+                 A native `title` never appears on keyboard focus, so it can only ever be
+                 half an implementation; and leaving it on beside `.tip` gives the same
+                 control two tooltips, one instant and one drawn by the OS a second later.
+                 `.tip` covers hover and focus, `aria-label` covers the screen reader. -->
+            <span v-else-if="item.status === 'In Use'" class="tip-holder">
+              <!-- `role="img"` is load-bearing, not decoration. `aria-label` is ignored
+                   on a bare `<span>`, which maps to `role=generic`, and naming is
+                   prohibited there — the accessibility tree reported this control as
+                   `generic "Rented"` with the holder's address dropped entirely, while
+                   the `!` beside it announced in full because it already carried a role.
+                   Any role that permits naming fixes it; `img` is the one this table
+                   already uses for a non-interactive marker whose meaning is its label. -->
+              <span
+                class="button button-quiet is-static"
+                tabindex="0"
+                role="img"
+                :aria-label="`Rented by ${item.assigned_to || 'an unknown holder'}`"
+              >
+                Rented
+              </span>
+              <span class="tip" role="presentation" aria-hidden="true">
+                Rented by {{ item.assigned_to || 'an unknown holder' }}
+              </span>
             </span>
-            <!-- Three channels, because a native `title` only covers one and a half.
-                 `title` gives the pointer its familiar tooltip; `aria-label` gives the
-                 screen reader the reason with its label; and `.flag-tip` is what a
-                 *keyboard* user gets, since browsers never show a `title` on focus. The
-                 styles for this pair shipped in the visual finish pass and the markup
-                 did not, so the rule matched nothing — dead CSS on one side, an
-                 unreachable reason on the other. -->
-            <span v-else-if="item.needs_review" class="flag-holder">
+            <span v-else-if="item.needs_review" class="tip-holder">
               <span
                 class="button flag-mark"
                 tabindex="0"
                 role="img"
-                :title="item.review_reason || 'The record could not be verified at import.'"
                 :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
               >!</span>
-              <span class="flag-tip" role="presentation" aria-hidden="true">
+              <span class="tip" role="presentation" aria-hidden="true">
                 {{ item.review_reason || 'The record could not be verified at import.' }}
               </span>
             </span>
