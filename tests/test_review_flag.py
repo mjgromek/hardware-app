@@ -43,7 +43,7 @@ UNFLAGGED_ITEM = 1
 
 NO_SUCH_ITEM = 9999
 
-REASON = "Inspected on 2026-08-06; purchase date corrected in the asset register"
+REASON = "fixed: purchase date corrected in the asset register on 2026-08-06"
 
 
 def _flag_of(admin_client: TestClient, item_id: int) -> bool:

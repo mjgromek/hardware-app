@@ -1379,3 +1379,16 @@ rows that predate the column, `persist` for seeded rows, `add_item` as today for
 devices. Seed id 10 stays null — an honest unknown, per the red pass's open pin.
 Add-device modal gains Serial number and the closed Category dropdown (wireframe).
 Commit: feat(phase-4): serial number, category and date added (pending)
+
+---
+
+## [P4 · c4] The needs-review tab owns the release, and a release states its fix
+
+Red first (4 tests: three non-conforming reasons refused with nothing written, the
+bare prefix refused, the conforming note clearing end-to-end into a rental, casing
+forgiven), then the rule in the route after authorization — a `user`'s 403 outranks
+their prose. Four existing tests migrated to the contract. The Review action leaves
+the main table for the tab (ADR-0017 amendment, dated), arrives prefilled "fixed: ",
+and a released row holds its resolved state for 2s then fades — reduced-motion drops
+the fade, keeps the state. 138/138.
+Commit: feat(phase-4): the needs-review tab and the fixed: release note (pending)

@@ -24,7 +24,7 @@ const props = defineProps({
   busyId: { type: [Number, null], default: null },
 })
 
-const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', 'force-return', 'clear-review'])
+const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', 'force-return'])
 
 //: Why this row cannot be rented, in the words the API would use. Shown *before* the
 //: click rather than only after it: the reason is already in the row, and making
@@ -174,17 +174,6 @@ function shown(value) {
           </td>
 
           <td v-else-if="props.manage" class="cell-actions">
-            <button
-              v-if="item.needs_review"
-              type="button"
-              class="icon-button"
-              :disabled="props.busyId === item.id"
-              :title="`Clear the review flag on ${item.name}`"
-              :aria-label="`Clear the review flag on ${item.name}`"
-              @click="emit('clear-review', item)"
-            >
-              <Icon name="flag" />
-            </button>
             <button
               v-if="item.status === 'In Use'"
               type="button"

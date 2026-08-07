@@ -52,7 +52,7 @@ AUDIT_COLUMNS = (
 )
 
 RECALL_REASON = "Reported battery swelling; recalled for service on 2026-08-06"
-CLEAR_REASON = "Bench-tested by IT; purchase date was a data-entry error"
+CLEAR_REASON = "fixed: bench-tested by IT; the purchase date was a data-entry error"
 
 
 def test_force_return_writes_an_audit_event(

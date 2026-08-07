@@ -31,3 +31,13 @@ mandatory reason, and writes an `audit_events` row — the `action` enum grows
   spending grilling rounds on what does not change the decision's meaning.
 - Symmetry with `clear-review` (ADR-0010): admin-only, mandatory reason, `409`
   refused on an item already in the state the verb produces.
+- **Amended 2026-08-07 (Phase 4):** `clear-review`'s reason must begin with
+  `fixed:` — "fixed: battery replaced, safe to issue" — validated server-side,
+  `422` otherwise, case-insensitive, and the prefix alone is refused as an empty
+  reason wearing a costume. An admin must state what *changed*, not merely that
+  they looked: ADR-0010 accepted "ok" as the floor for overrides generally; a
+  release is the one override whose claim — fit to issue — an incident
+  interrogates directly, so its floor is higher. The flag verb's reason is
+  deliberately not prefixed: restricting an item asserts a problem, not a fix.
+  The Review action also moves to the needs-review tab exclusively — one place to
+  release an item, next to the reason it was held.

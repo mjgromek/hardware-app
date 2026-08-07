@@ -625,7 +625,20 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
         The reason goes with the flag: a cleared item still showing "purchase date is
         in the future" explains a restriction that no longer applies.
+
+        The reason must begin with `fixed:` (ADR-0017 as amended in Phase 4): a
+        release asserts what *changed*, not that somebody looked. Checked here,
+        after authorization, so a `user` still gets their `403` whatever their
+        reason says — only an authorized admin's prose is worth validating.
         """
+        release = body.reason
+        if not release.lower().startswith("fixed:") or not release[len("fixed:"):].strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='A release note must state what changed, starting with '
+                '"fixed:" — e.g. "fixed: battery replaced, safe to issue". '
+                f'Got {release!r}.',
+            )
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if not item.needs_review:

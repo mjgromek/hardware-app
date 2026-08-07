@@ -202,11 +202,28 @@ function askClearReview(item) {
   override.value = {
     kind: 'clear-review',
     item,
-    title: 'Clear the review flag',
+    title: 'Review this item',
     subject: `${item.name} — ${item.review_reason || 'flagged at import'}`,
-    prompt: 'What did you check?',
-    confirm: 'Clear the flag',
+    prompt: 'What was fixed? The note must start with "fixed:".',
+    confirm: 'Release it',
+    // The server refuses anything that does not state a change (ADR-0017 as
+    // amended); prefilling the prefix turns the rule into a prompt.
+    prefill: 'fixed: ',
   }
+}
+
+//: The row just released, kept visible in its resolved state for two seconds and
+//: then faded — the admin sees the result rather than watching it vanish.
+const justResolved = ref(null)
+
+function markResolved(item) {
+  justResolved.value = { item, fading: false }
+  setTimeout(() => {
+    if (justResolved.value?.item.id === item.id) justResolved.value.fading = true
+  }, 2000)
+  setTimeout(() => {
+    if (justResolved.value?.item.id === item.id) justResolved.value = null
+  }, 2600)
 }
 
 // From a finding, not from a row: the auditor proposed (ADR-0014), and this is the
@@ -234,7 +251,10 @@ function submitOverride(reason) {
   } else if (kind === 'flag-review') {
     act(() => api.flagReview(item.id, reason), `${item.name} is flagged and unrentable`)
   } else {
-    act(() => api.clearReview(item.id, reason), `${item.name} is no longer flagged`)
+    act(async () => {
+      await api.clearReview(item.id, reason)
+      markResolved(item)
+    }, `${item.name} released — resolved`)
   }
 }
 
@@ -353,7 +373,14 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         @return="returnItem"
       />
 
-      <ReviewQueue v-else-if="view === 'review'" :items="flagged" />
+      <ReviewQueue
+        v-else-if="view === 'review'"
+        :items="flagged"
+        :is-admin="isAdmin"
+        :busy-id="busyId"
+        :just-resolved="justResolved"
+        @review="askClearReview"
+      />
 
       <AdminPanel
         v-else-if="view === 'admin' && isAdmin"

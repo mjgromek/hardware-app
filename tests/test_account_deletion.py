@@ -140,7 +140,7 @@ def test_audit_event_still_names_its_actor_after_that_account_is_deleted(
 
     cleared = actor_client.post(
         clear_review_path(FLAGGED_ITEM),
-        json={"reason": "Bench-tested by IT; purchase date was a data-entry error"},
+        json={"reason": "fixed: bench-tested by IT; the date was a data-entry error"},
     )
     assert cleared.status_code in (200, 201, 204), (
         f"setup: an admin must be able to clear a review flag; POST "

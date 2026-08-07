@@ -59,7 +59,7 @@ def test_reset_restores_the_seed_fingerprints(
     )
     for item_id in FLAGGED_IDS:
         admin_client.post(
-            f"{HARDWARE_PATH}/{item_id}/clear-review", json={"reason": "demo walkthrough"}
+            f"{HARDWARE_PATH}/{item_id}/clear-review", json={"reason": "fixed: demo walkthrough"}
         )
     assert user_client.post(rent_path(1)).status_code in (200, 201), "setup"
 

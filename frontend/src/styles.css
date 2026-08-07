@@ -816,3 +816,27 @@ tr.is-flagged td:first-child {
     padding: 20px 16px 48px;
   }
 }
+
+/* ------------------------------------------------ the resolved row (Phase 4) */
+
+/* Two seconds of "done", then gone. `prefers-reduced-motion` keeps the state and
+ * drops the fade — the information is the row, the animation is courtesy. */
+tr.is-resolved {
+  background: var(--focus-wash);
+  transition: opacity 0.6s ease;
+}
+
+tr.is-resolved .resolved-note {
+  color: var(--ink-muted);
+  font-weight: 550;
+}
+
+tr.is-resolved.is-fading {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  tr.is-resolved {
+    transition: none;
+  }
+}
