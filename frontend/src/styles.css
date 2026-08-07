@@ -1433,15 +1433,19 @@ th.cell-status .th-label {
   padding: 2px;
   background: linear-gradient(110deg, var(--ai), var(--focus), var(--ai-soft), var(--ai));
   background-size: 300% 100%;
-  /* Punch the middle out, leaving the gradient as an outline only. */
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
+  /* Punch the middle out, leaving the gradient as an outline only. The -webkit-* pair
+   * must come first: Chrome aliases `-webkit-mask` onto the standard longhands, so
+   * written the other way round the shorthand reset `mask-composite` back to `add`
+   * after the `exclude` had been declared — the computed style on the live deploy read
+   * `add, add`, and only the input covering the middle kept the ring looking right. */
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
   pointer-events: none;
 }
 
@@ -1465,6 +1469,39 @@ th.cell-status .th-label {
 .search-field input[type='search'] {
   position: relative;
   z-index: 1;
+}
+
+/* In flight the sparkle's slot holds a spinner instead: motion exactly where the
+ * question was typed, because the gradient ring is not readable there — Enter means
+ * the field is focused, and the focus ring occupies the same 2px footprint at the
+ * same weight. Two-tone so it reads as a ring even between frames. */
+.search-spinner {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--ai-soft);
+  border-top-color: var(--ai);
+  transform: translateY(-50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-spinner {
+    animation: ask-spin 0.7s linear infinite;
+  }
+}
+
+@keyframes ask-spin {
+  from {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
 }
 
 /* Present to a screen reader, absent to everyone else. The clip-rect idiom rather than

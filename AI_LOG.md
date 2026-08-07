@@ -2507,3 +2507,31 @@ hardware matches this filter" — `apple laptops` matches no single name or bran
 question is asked the text is the question, not a substring, so the local filter stands
 down while results are showing and the full list returns beneath them.
 Commit: fix(phase-4): unclip the focus ring, move Clear to the results (pending)
+
+## [polish · c1] The AI's answer narrows the table it was asked about
+
+Diagnosed on the live deploy before editing, as directed. The busy state was real —
+`is-busy`, `aria-busy` and `readonly` all held for the full 6.3s call — and the gradient
+ring renders, but Enter focuses the field, and the focus ring sits in the ring's exact
+2px footprint. Meanwhile the local filter kept treating the question as a substring, so
+the visible response to Enter was six seconds of "No hardware matches this filter."
+Results now intersect the one table in place (header chip: mode + query + Clear), the
+filter stands down in flight, and a spinner replaces the sparkle with a visible status
+chip for reduced-motion. Also found `mask-composite: exclude` computing to `add, add` —
+Chrome's `-webkit-mask` alias reset it; reordered.
+Commit: feat(polish): AI search filters the table in place, loading you can see (pending)
+
+## [polish · c2] The ask voice, outside the family on purpose
+
+Six voices report outcomes; this marks the app posing a question. A seventh contour on
+the family triangle would have claimed otherwise, so the synthesis changes instead:
+sawtooth glide 220→880Hz through an opening lowpass, quieter than any outcome. ADR-0018
+amended with the boundary — outcomes join the family, questions vary the glide.
+Commit: feat(polish): the ask voice, outside the six-voice family (pending)
+
+## [polish · c3] Delete leaves the admin's own row
+
+For the sole admin the button could only die on the zero-admin guard — a 409 toast
+dressed up as an action. Hidden on the signed-in row; ADR-0005 keeps enforcing the rule
+for every path the UI does not draw.
+Commit: fix(polish): hide Delete on the signed-in admin's own row (pending)

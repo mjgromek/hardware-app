@@ -23,6 +23,9 @@ const props = defineProps({
   manage: { type: Boolean, default: false },
   sort: { type: String, default: null },
   busyId: { type: [Number, null], default: null },
+  //: What an empty table means depends on what emptied it — a keystroke filter and an
+  //: AI answer deserve different advice, and only the caller knows which happened.
+  emptyText: { type: String, default: 'No hardware matches this filter.' },
 })
 
 // Every event the table can raise must be declared here or Vue drops it silently — the
@@ -332,7 +335,7 @@ function shown(value) {
 
         <tr v-if="props.items.length === 0">
           <td :colspan="props.manage ? 6 : 5" class="empty">
-            No hardware matches this filter.
+            {{ props.emptyText }}
           </td>
         </tr>
       </tbody>
