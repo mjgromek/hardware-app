@@ -23,8 +23,8 @@ was done with the time left.
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
 | v2 | Phase 2 — rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
-| **v3** | Phase 3 — semantic search, Inventory Auditor, flag-review | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| **v4** | Phase 4 — wireframe fidelity, dark mode, return-with-issue, two-outcome review | *(deploys to the v3 URL above)* | ⏳ built and green, not yet deployed |
+| v3 | Phase 3 — semantic search, Inventory Auditor, flag-review | *(superseded by v4 on the same URL)* | ✅ shipped |
+| **v4** | Phase 4 — wireframe fidelity, dark mode, return-with-issue, two-outcome review, company-domain accounts | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 
 ### Signing in
 

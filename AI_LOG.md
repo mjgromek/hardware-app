@@ -2419,3 +2419,32 @@ and would have sat there styling nothing, which is the fourth dead-block in this
 Deleted in the same edit rather than noticed later. Verified in the browser: all 11 rows
 grouped correctly, every chip agreeing with its group, and a Name click still reordering.
 Commit: feat(phase-4): default sort follows the display state (pending)
+
+---
+
+## [P4 · c39] Deploy v4
+
+`railway up`, then the smoke check against the live URL — passed, and it is the gate the
+last two rollbacks went undetected without.
+
+**The `200` would have lied again.** `/api/health` answered `200` on the first poll, which
+proves only that *something* is serving. I polled the bundle hash instead and watched three
+attempts return `index-DoBvDVnp.js` before `index-CjDp7Hj-.js` appeared — the old build was
+still up for roughly a minute after `railway up` returned. Reporting the deploy done on the
+health check would have repeated Correction #5 exactly.
+
+**And the browser lied after that.** The first live screenshot showed the *old* UI —
+flagged rows chipped `Available`, the old placeholder, ungrouped sort. The server was
+serving v4; the tab had `DoBvDVnp` cached. A hard reload fixed it. Two instrument checks in
+one deploy, both caught by comparing against a known value rather than reading a page.
+
+**One reading I nearly filed as a defect.** Under `body { zoom: 1.8 }` the sidebar scrolled
+away — but `zoom` rescales `vh`, which is the unit the sidebar's height is expressed in, so
+the test distorted the thing it was testing. Re-run at a real 223px viewport: top stays 0,
+the wordmark stays put, the rail scrolls internally so Sign out stays reachable. The zoom
+result was the instrument, not the product.
+
+Every item on the verification list checked live in both themes. Demo reset afterwards,
+because the checks themselves rented, returned, flagged and edited rows: all five
+fingerprints confirmed by assertion, not by eye.
+Commit: chore(phase-4): deploy v4 (pending)
