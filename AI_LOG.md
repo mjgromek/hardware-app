@@ -2167,3 +2167,25 @@ left as a second answer to the same question.
 deliberate values, and "still looks small" without a number is not an instruction I can
 execute without inventing the target.
 Commit: fix(phase-4): the Ask AI focus indicator carries its own contrast (pending)
+
+---
+
+## [P4 · c32] The fresh-clone check found a real defect
+
+`python -m scripts.seed` — the README's fourth setup step — died on
+`NameError: _create_rentals_schema is not defined`, on every clone, for anyone who
+followed the instructions. The `if __name__ == "__main__": main()` block sat directly
+under `main`, *above* the two helpers it calls. Importing the module binds every name
+regardless of order, so all 181 tests were green; only executing the file top to bottom
+fails, and nothing did that.
+
+This is the same blind spot as the deploy smoke check, one layer down: the suite tests
+what it imports, and the two things a reader actually runs — the deployed URL and the
+setup script — were the two nothing exercised. Both are now covered, and both defects
+were found by a human asking for a check rather than by the suite.
+
+Red first: `tests/test_seed_script_runs.py` runs it as a subprocess, the only arrangement
+where definition order matters, and asserts the fingerprints a reader compares against —
+11 items, 3 quarantine records. Then the entrypoint moved to the end of the file with a
+comment saying why it lives there.
+Commit: fix: the README's seed step runs (pending)
