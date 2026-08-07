@@ -1295,7 +1295,7 @@ brainstorm's status note marks Phase 3 shipped. Brief check: README's four secti
 present, ⚡ all carry Why+Future, AI_LOG covers Tooling / Data strategy / Prompt Trail
 / five Corrections, setup runs from a fresh clone with no new dependencies (the AI
 client is stdlib). No gap left open.
-Commit: docs(phase-3): bring every document to v3 reality (pending)
+Commit: docs(phase-3): bring every document to v3 reality (731ee2f)
 
 ---
 
@@ -1307,7 +1307,7 @@ diff at HEAD, zero findings. Filed per the blockers-only rule: the README's over
 "add form rejects" chain claim corrected, post-import semantic-validation gap and the
 flag-review race added to ⚠️ (same class as the last-admin race), the empty-filter
 `semantic` label to BACKLOG. AI_LOG's remaining `(pending)` stays owed to final polish.
-Commit: docs(phase-3): file the gate findings (pending)
+Commit: docs(phase-3): file the gate findings (3770b70)
 
 ---
 
@@ -1318,7 +1318,7 @@ containing the word. Red first (two tests: mobile-app terms, laptop terms, the m
 as ride-along detector), then the predicate: OR within the list, case-insensitive,
 `name`/`brand` only — the model names concrete product terms, SQLite still decides
 which rows exist. ADR-0004 intact, ADR-0015 oracle untouched. 120/120.
-Commit: feat(phase-3): the model contributes vocabulary, not results (pending)
+Commit: feat(phase-3): the model contributes vocabulary, not results (86af8e2)
 
 ---
 
@@ -1331,7 +1331,7 @@ searches. The auditor caches findings keyed on the catalogue fingerprint, built 
 the same payload the prompt carries: staleness is structurally impossible, and
 ADR-0014 gains a dated amendment instead of silent drift. README ⚡ owns the
 free-tier rate limit, with the fallback named as the design working. 123/123.
-Commit: feat(phase-3): cache the model's replies, never the rows (pending)
+Commit: feat(phase-3): cache the model's replies, never the rows (c4b561d)
 
 ---
 
@@ -1342,7 +1342,7 @@ no hardcoded hex — decided *before* any visual work, because retrofitting toke
 the expensive version), dark mode with per-status light/dark stops, the bounded
 "sleeker than the prototype" finish list, the structure-vs-finish honesty line, and
 a revised cut order that drops the toggle before the tokens. Docs only, no code.
-Commit: docs(phase-4): design system, dark mode and the finish boundary (pending)
+Commit: docs(phase-4): design system, dark mode and the finish boundary (62b9237)
 
 ---
 
@@ -1355,7 +1355,7 @@ properties (regrouped into surface/text/border/status with the two interaction h
 `--shadow-pop`). The `[data-theme="dark"]` block restops every token — status hues
 get their own dark stops, the amber re-stopped against the red — and is inert until
 something sets the attribute, which is the proof of light-mode neutrality. 123/123.
-Commit: refactor(phase-4): extract the colour token layer (pending)
+Commit: refactor(phase-4): extract the colour token layer (839f0fc)
 
 ---
 
@@ -1366,7 +1366,7 @@ green, 0 broken. The migration file boots over the *Phase 3* table shape in raw 
 and asserts a logged-in request serves the three new columns — the blind spot that
 cost two production defects, covered before the code exists. Seed id 10's backfill
 value deliberately left a product call; two findings filed in BACKLOG.
-Commit: test(phase-4): failing specs for the schema slice (pending)
+Commit: test(phase-4): failing specs for the schema slice (ad439e5)
 
 ---
 
@@ -1378,7 +1378,7 @@ Commit: test(phase-4): failing specs for the schema slice (pending)
 rows that predate the column, `persist` for seeded rows, `add_item` as today for new
 devices. Seed id 10 stays null — an honest unknown, per the red pass's open pin.
 Add-device modal gains Serial number and the closed Category dropdown (wireframe).
-Commit: feat(phase-4): serial number, category and date added (pending)
+Commit: feat(phase-4): serial number, category and date added (f4592aa)
 
 ---
 
@@ -1391,7 +1391,7 @@ their prose. Four existing tests migrated to the contract. The Review action lea
 the main table for the tab (ADR-0017 amendment, dated), arrives prefilled "fixed: ",
 and a released row holds its resolved state for 2s then fades — reduced-motion drops
 the fade, keeps the state. 138/138.
-Commit: feat(phase-4): the needs-review tab and the fixed: release note (pending)
+Commit: feat(phase-4): the needs-review tab and the fixed: release note (2f684c8)
 
 ---
 
@@ -1402,7 +1402,7 @@ Red first (7 tests; the one that matters is `test_edit_changes_only_the_fields_s
 so the Repair guard cannot be routed around; `model_fields_set` carries the partial
 semantics; a nameless item and an empty edit are both 422. `StatusChange` retired —
 `HardwareEdit` subsumes it. 145/145.
-Commit: feat(phase-4): admin edit (pending)
+Commit: feat(phase-4): admin edit (0e0be61)
 
 ---
 
@@ -1433,7 +1433,7 @@ Five deviations recorded in `docs/WIREFRAME_JUSTIFICATION.md`, including that on
 wireframe omission we deliberately did not follow, which is the kind that most needs its
 argument written down.
 
-Commit: feat(phase-4): the visual finish pass and dark mode (pending)
+Commit: feat(phase-4): the visual finish pass and dark mode (76bb467)
 
 ---
 
@@ -1464,7 +1464,7 @@ its word, a `Needs review` chip, a row edge marker, and an `aria-label` on the m
 is now written down as an argument with numbers attached instead of a sentence about how
 it looks.
 
-Commit: fix(phase-4): raise muted text to AA and measure every pair (pending)
+Commit: fix(phase-4): raise muted text to AA and measure every pair (d2608fe)
 
 ---
 
@@ -1493,7 +1493,7 @@ No test covers any of this — the frontend still has no vitest, which is the do
 shortcut and the largest untested surface in the project. Said plainly rather than left for
 a reviewer to notice.
 
-Commit: feat(phase-4): four notification sounds over the toast layer (pending)
+Commit: feat(phase-4): four notification sounds over the toast layer (78e1587)
 
 ---
 
@@ -1515,7 +1515,7 @@ finding is a field, and seed id 10's problem is that nobody knows what the devic
 `ReviewRelease` is `HardwareEdit` with a mandatory `reason` rather than a reason with
 edits bolted on, because that is what the action is. ADR-0017 amended.
 
-Commit: fix(phase-4): the release note carries the change it describes (pending)
+Commit: fix(phase-4): the release note carries the change it describes (2722e1b)
 
 ---
 
@@ -1544,7 +1544,7 @@ The dot tokens and CSS are removed rather than left dead — a token layer whose
 through. `WIREFRAME_JUSTIFICATION.md` marks the pills→dots entry superseded and says what
 survived the detour: label separated from enum value, and two stops per tone.
 
-Commit: feat(phase-4): filled status pills, measured in both themes (pending)
+Commit: feat(phase-4): filled status pills, measured in both themes (87b47f1)
 
 ---
 
@@ -1569,7 +1569,7 @@ when deciding whether to issue the device.
 `edit_item` needed no change; it takes `**fields` and was already a pure row-mover, so this
 was a boundary change only.
 
-Commit: feat(phase-4): notes are editable by admins (pending)
+Commit: feat(phase-4): notes are editable by admins (94bc5c5)
 
 ---
 
@@ -1596,7 +1596,7 @@ Every voice finishes inside 400 ms.
 
 Still no test — the frontend has no vitest, and these six are verified by listening.
 
-Commit: feat(phase-4): six notification voices as one family (pending)
+Commit: feat(phase-4): six notification voices as one family (a55d5c1)
 
 ---
 
@@ -1617,7 +1617,7 @@ markup and found neither class exists — the panel is already built from `.pane
 construction. The CSS was dead against selectors nothing used. Removed rather than left in,
 and the item is satisfied because it was already true, not because I made it true.
 
-Commit: feat(phase-4): finish batch — column, pill, margins (pending)
+Commit: feat(phase-4): finish batch — column, pill, margins (c3f20ad)
 
 ---
 
@@ -1639,7 +1639,7 @@ that looks like a control a non-admin cannot press.
 
 152/152.
 
-Commit: feat(phase-4): an unrentable row shows nothing in Actions (pending)
+Commit: feat(phase-4): an unrentable row shows nothing in Actions (c53d669)
 
 ---
 
@@ -1663,7 +1663,7 @@ insufficient, which is the same instrument-error lesson as the contrast measurem
 synthetic-click "sort bug" — three now, all of them me believing a convenient reading of a
 noisy signal.
 
-Commit: docs: park the suite slowdown as two findings, one unexplained (pending)
+Commit: docs: park the suite slowdown as two findings, one unexplained (b8ef37d)
 
 ---
 
@@ -1984,7 +1984,7 @@ answers `401` and, under ADR-0013, is reserved permanently.
 items and 5 flagged rather than the seed's 11 and 2 — that is accumulated demo use
 (hand-added items, auditor-driven flags), not a reset, so `reset-demo` was not needed.
 
-Commit: docs: record the pre-auth deployment exposure (pending)
+Commit: docs: record the pre-auth deployment exposure (4e22ea3)
 
 ---
 
@@ -2023,7 +2023,7 @@ demo depends on those exact rows — the `Appel` typo, the duplicate re-keyed to
 4, item 7 held by `j.doe@booksy.com`. `reset-demo` restored all of them, so the README's
 fingerprint paragraph is now true line for line without being touched.
 
-Commit: test: the deployed smoke check, and the demo state it verifies against (pending)
+Commit: test: the deployed smoke check, and the demo state it verifies against (bd88c09)
 
 ---
 
@@ -2033,7 +2033,7 @@ Red on the seven rejection cases; four green already — acceptance, the case-in
 read, and the two pinning ADR-0019's *structural* exemption. Those two are the point: a
 failure there means `bootstrap_admin` has been routed through the validated path, and a
 deployment with an off-domain `ADMIN_EMAIL` no longer boots, with no admin left to fix it.
-Commit: test(phase-4): failing specs for creation-time domain validation (pending)
+Commit: test(phase-4): failing specs for creation-time domain validation (8709f53)
 
 ---
 
@@ -2057,7 +2057,7 @@ showed it. The field is now `type="text"` with `inputmode="email"` and a `patter
 company domain — a stricter client-side refusal than `type="email"` gave. Verified in the
 browser: caret 0, typing `j.doe` yields `j.doe@booksy.com`, the suffix attack and
 off-domain addresses fail `checkValidity`, mixed case passes.
-Commit: feat(phase-4): only company addresses may be created (pending)
+Commit: feat(phase-4): only company addresses may be created (51d9745)
 
 ---
 
@@ -2066,7 +2066,7 @@ Commit: feat(phase-4): only company addresses may be created (pending)
 Six red. Two of them passed on the first run for the wrong reason — the flag itself blocks
 rental and the reason itself failed the `fixed:` check, so neither could see the outcome
 it was named after. Strengthened until they can only pass for the reason claimed.
-Commit: test(phase-4): failing specs for concluding a review in Repair (pending)
+Commit: test(phase-4): failing specs for concluding a review in Repair (9f00a74)
 
 ---
 
@@ -2099,7 +2099,7 @@ rendered a `.flag-tip`: dead CSS on one side, an unreachable reason on the other
 `title` never appears on keyboard focus, so the gap was real even though the attributes
 were there. Verified all three channels by hand — hover shows the tip, Tab shows a focus
 ring and the tip with no pointer, `aria-label` carries the labelled reason.
-Commit: feat(phase-4): a review concludes in Release or Repair (pending)
+Commit: feat(phase-4): a review concludes in Release or Repair (e3a5ecd)
 
 ---
 
@@ -2108,7 +2108,7 @@ Commit: feat(phase-4): a review concludes in Release or Repair (pending)
 Five red. The three already green are the guards the new field must not loosen: a plain
 return stays unflagged, ADR-0009 still refuses closing somebody else's rental, and an
 already-flagged item still returns. Asserted through the renting seam, not the column.
-Commit: test(phase-4): failing specs for reporting a problem on return (pending)
+Commit: test(phase-4): failing specs for reporting a problem on return (515e110)
 
 ---
 
@@ -2136,7 +2136,7 @@ Python `str.replace`, which CLAUDE.md forbids outright. The insert count confirm
 four rows landed — but a count checked afterwards is not the loud failure the Edit tool
 gives before the fact, and "it worked this time" is precisely the reasoning that produced
 the non-negotiable.
-Commit: feat(phase-4): return with an issue, centred status, table ink with headroom (pending)
+Commit: feat(phase-4): return with an issue, centred status, table ink with headroom (d6f74f8)
 
 ---
 
@@ -2166,7 +2166,7 @@ left as a second answer to the same question.
 **Logo and padding left alone**, per the standing instruction: 44px and 40px are already
 deliberate values, and "still looks small" without a number is not an instruction I can
 execute without inventing the target.
-Commit: fix(phase-4): the Ask AI focus indicator carries its own contrast (pending)
+Commit: fix(phase-4): the Ask AI focus indicator carries its own contrast (1f969de)
 
 ---
 
@@ -2188,4 +2188,62 @@ Red first: `tests/test_seed_script_runs.py` runs it as a subprocess, the only ar
 where definition order matters, and asserts the fingerprints a reader compares against —
 11 items, 3 quarantine records. Then the entrypoint moved to the end of the file with a
 comment saying why it lives there.
-Commit: fix: the README's seed step runs (pending)
+Commit: fix: the README's seed step runs (7eb83de)
+
+---
+
+## Correction #7 — six instrument errors, one tell
+
+The consolidation the earlier entries kept deferring. Three places in this log carry
+pieces of it — a "Correction candidate" at the review-dialog entry, a "fourth instrument
+error" note under Correction #5, and Correction #6's three live-state inferences. This is
+the single entry; those stay where they are as the contemporaneous record.
+
+**Six, in order.**
+
+1. **The eyeballed contrast check.** I reported the amber `!` against the red Repair mark
+   as reading clearly. Measured: 1.52:1 light, 1.82:1 dark. The instrument was my own eye
+   on a screenshot.
+2. **The synthetic-click "sort bug".** I reported a defect in shipped code. A programmatic
+   click proved one click produced one state change; the artefact belonged to the
+   automation's first click after navigation. The instrument was the click driver.
+3. **The silent `str.replace` no-ops.** A replace that matched nothing wrote an identical
+   file, the build went green, and I published two wrong theories about Vue reactivity on
+   top of a file that had never changed. Then it happened again: three of four
+   replacements silently failed. The instrument was my own edit, and one `assert old in s`
+   would have caught it.
+4. **The live-state inferences.** Three in quick succession — mine from `bootstrap_admin`'s
+   logic, the user's from a local scratch database read as production, mine again asserting
+   ADR-0019 needed no change. One query settled it. My first claim was right *by luck*,
+   which is worse than being wrong, because it rewards the habit.
+5. **The focus measurement against the wrong state.** I measured the new Ask AI indicator
+   against the *unfocused* fill and wrote it into `ACCESSIBILITY.md` as the SC 2.4.11
+   figure. The adjacent colours the criterion names are the ones present while focused.
+   Both numbers cleared 3:1, so the conclusion survived — the method did not.
+6. **The stale `uvicorn`.** A submission failed with the server's old refusal and I was one
+   step from theorising about the client. Capturing the outgoing request body first showed
+   the client correct and the *server* stale. This one is in the list as the counter-case:
+   same situation, instrument checked first, two-minute diagnosis.
+
+**The tell, stated once.** Every failure above is a reading taken from an instrument I had
+not checked, reported as a finding about the system. And every one of them was a
+*convenient* reading — the kind that lets the work continue. A green build meant "it
+landed". An unchanged UI meant "Vue is misbehaving". A swallowed click meant "shipped code
+is broken". A plausible inference about `bootstrap_admin` meant "no need to query". The
+instrument was never the thing I doubted, and in each case it should have been the first.
+
+**What actually changed as a result**, since a lesson with no artefact is just a nicer way
+of repeating it:
+
+- `CLAUDE.md` forbids `str.replace` and `sed` outright — the Edit tool fails loudly on a
+  non-matching target (#3).
+- `docs/ACCESSIBILITY.md` carries computed ratios for every pair, and the tables now name
+  which state each figure was taken in (#1, #5).
+- `tests/test_smoke_deployed.py` gates a deploy on the live URL, because source-level green
+  said nothing about what was running (#4).
+- `tests/test_seed_script_runs.py` runs the README's setup step as a subprocess, because
+  importing a module binds names the way running it does not.
+
+The pattern that connects the last two: **the suite tests what it imports.** The deployed
+URL and the setup script were the two things a reader actually runs, and the two things
+nothing exercised. Both defects were found by a human asking for a check.
