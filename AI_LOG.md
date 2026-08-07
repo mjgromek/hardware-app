@@ -2024,3 +2024,13 @@ demo depends on those exact rows — the `Appel` typo, the duplicate re-keyed to
 fingerprint paragraph is now true line for line without being touched.
 
 Commit: test: the deployed smoke check, and the demo state it verifies against (pending)
+
+---
+
+## [P4 · c25] Failing specs for creation-time domain validation
+
+Red on the seven rejection cases; four green already — acceptance, the case-insensitive
+read, and the two pinning ADR-0019's *structural* exemption. Those two are the point: a
+failure there means `bootstrap_admin` has been routed through the validated path, and a
+deployment with an off-domain `ADMIN_EMAIL` no longer boots, with no admin left to fix it.
+Commit: test(phase-4): failing specs for creation-time domain validation (pending)
