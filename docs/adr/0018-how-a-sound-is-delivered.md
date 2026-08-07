@@ -65,6 +65,28 @@ Flag is the only voice given extra gain, because it is the only one that blocks 
 
 Every voice finishes inside 400 ms — the second note starts at 70 ms and decays over 160.
 
+## Amended — a seventh sound, outside the family on purpose
+
+Asking the AI got a sound, and it is **not a seventh member of the family**. The six
+voices report *outcomes*: the inventory changed, and contour says how it went. The ask
+marks a different kind of event — **the app posing a question, answer still ahead** — and
+a seventh contour on the same triangle would have claimed it was another outcome. The
+family's whole premise is that sameness of synthesis makes the contour carry the meaning;
+here the meaning is "this is not that kind of event", so the synthesis is what changes.
+
+The ask is a **sawtooth glide, 220→880 Hz over ~260 ms, through a lowpass filter that
+opens as the pitch rises** (500→4000 Hz, a little resonance). Continuous motion instead of
+discrete notes, brightening as it climbs — synthetic and forward-moving, the interrogative
+rise of a question rather than the cadence of a result. It is also quieter than any
+outcome: a question should not outrank its answer.
+
+The boundary this draws: outcomes join the family; **a second question-shaped event, if
+one ever appears, varies the glide** — the same split the six maintain internally.
+
+Its paired visible signal (the rule above stands: no sound carries information nothing
+else carries) is not a toast but the in-flight state itself — the spinner in the search
+field and the "Asking AI…" status the live region announces.
+
 ## Consequences
 
 - **This is notification on refresh, not realtime, and the phrase matters.** An admin

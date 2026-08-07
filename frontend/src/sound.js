@@ -57,6 +57,56 @@ export const sound = {
 
   /** One short low note. An error, not an alarm — blunt, and over before it annoys. */
   refused: () => play([[F3, 0]], 0.9, 0.09),
+
+  // ---- the seventh voice, outside the family ----------------------------------
+  //
+  // The six above report outcomes: something in the inventory changed and the sound
+  // says how it went. Asking the AI is a different kind of event — the app posing a
+  // question, with the answer still ahead — so its sound deliberately breaks the
+  // family rules rather than joining as a seventh contour. A sawtooth instead of the
+  // triangle, a continuous upward glide instead of two discrete notes, and a filter
+  // that opens as the pitch rises: synthetic and forward-moving, the interrogative
+  // rise of a question rather than the cadence of a result. A listener who has
+  // learned the family hears at once that this is not one of them. See ADR-0018.
+
+  /** A rising glide through an opening filter. The app asking, not reporting. */
+  ask: () => {
+    if (!sound.enabled) return
+
+    try {
+      context ??= new (window.AudioContext || window.webkitAudioContext)()
+      if (context.state === 'suspended') context.resume()
+
+      const at = context.currentTime
+      const oscillator = context.createOscillator()
+      const filter = context.createBiquadFilter()
+      const gain = context.createGain()
+
+      oscillator.type = 'sawtooth'
+      oscillator.frequency.setValueAtTime(220, at)
+      oscillator.frequency.exponentialRampToValueAtTime(880, at + 0.26)
+
+      // The opening filter is what makes it read as *forward* rather than merely up:
+      // the sound brightens as it climbs, like something accelerating away. A touch
+      // of resonance keeps it unapologetically electronic — this voice has no
+      // acoustic pretence to keep.
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(500, at)
+      filter.frequency.exponentialRampToValueAtTime(4000, at + 0.26)
+      filter.Q.value = 4
+
+      // Quieter than any outcome: a question should not outrank its answer.
+      gain.gain.setValueAtTime(0.0001, at)
+      gain.gain.exponentialRampToValueAtTime(0.04, at + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.3)
+
+      oscillator.connect(filter).connect(gain).connect(context.destination)
+      oscillator.start(at)
+      oscillator.stop(at + 0.32)
+    } catch {
+      // Same contract as the family: decoration over a visible signal, never load-bearing.
+    }
+  },
 }
 
 // Equal temperament, named so the intervals above are readable as intervals.
