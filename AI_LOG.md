@@ -2575,3 +2575,10 @@ the answer. The mount now applies the same rule typing does: the bar is the sour
 truth, so an empty bar drops the answer. Also: the reviewer-facing quota note beside
 the demo credentials, and the commit-count entry reworded to name the gate.
 Commit: fix(review): a remount drops the answer the bar no longer shows (self)
+
+## [review · c2-red] The ambiguous date the self-grilling found
+
+Red first: "05-04-2023" must quarantine with both readings named, date None, flagged;
+"22-05-2023" and "04-04-2023" still parse — one legal reading each. The old suite
+pinned "01-02-2020 → 1 February" as a feature; that case now asserts the refusal.
+Commit: test(review): ambiguous dates refuse to choose (self)
