@@ -9,9 +9,9 @@ Recruitment task, Early Careers Programme.
 ## Stack
 
 FastAPI + SQLAlchemy + SQLite. Vue 3 + Vite. pytest + vitest. Railway.
-**Single origin** — FastAPI serves the built `dist/`. One URL, no CORS. (ADR-0001)
+**Single origin**: FastAPI serves the built `dist/`. One URL, no CORS. (ADR-0001)
 
-## Working pace — read this first
+## Working pace: read this first
 
 Time is the binding constraint. Correctness that ships late loses to correctness
 that ships.
@@ -24,7 +24,7 @@ that ships.
   only for: security, data loss, or a contradiction with an ADR.
 - **Non-blocking findings go to `BACKLOG.md`.** Do not ask. Only interrupt if
   something makes the current work wrong.
-- **No mutation testing** unless the code is load-bearing — guards, concurrency,
+- **No mutation testing** unless the code is load-bearing: guards, concurrency,
   transaction boundaries. Conventional CRUD gets written, run, moved on.
 - **Three commits per phase:** one `test:` (red), one `feat:` (green), one
   `chore:` (deploy). Not per slice.
@@ -39,22 +39,23 @@ that ships.
   theories reasoned on top of files that never changed. A build succeeding is not
   evidence that a change landed.
 - **Every test that creates an entity gets a sibling that destroys it** and replays
-  every consumer of its identity — sessions, rentals, audit actors, whatever names it.
+  every consumer of its identity: sessions, rentals, audit actors, whatever names it.
   The class this suite was missing was not security, it was entity lifecycle: a
   recycled rowid produced full admin takeover under 91 green tests (ADR-0013), and the
   same blindness resurfaced as a rent racing a deletion (`test_lifecycle_race`). When
   the destroy path can race a consumer, the write goes before the read.
 - **Every schema change ships with a migration test.** Boot over the *previous*
-  table shape built in raw SQL, then assert a real request succeeds — not that
+  table shape built in raw SQL, then assert a real request succeeds, not that
   `create_app` returned. The suite builds every database from scratch, where
   `create_all` creates everything, so it is structurally blind to upgraded volumes.
   Two production defects have now come from exactly that blind spot.
 - **Never commit to `main`.** Branch per phase, merge by PR after human review.
-- **Conventional Commits.** Every commit updates `AI_LOG.md` — 3 lines, in the
-  moment. Long-form only for genuine corrections; 3–4 exist already, that's enough.
+- **Conventional Commits.** Every commit updates `AI_LOG.md`: 3 lines, in the
+  moment. Long-form only for genuine corrections; seven exist, indexed at the top of
+  AI_LOG.md, and the bar for an eighth is a genuine process failure, not a bad day.
 - **Secrets server-side only.** Nothing reaches the Vue bundle.
 - **Status enum is exactly** `Available | In Use | Repair`. `"Unknown"` maps to
-  `needs_review`. Nothing is silently deleted — bad rows go to
+  `needs_review`. Nothing is silently deleted; bad rows go to
   `hardware_quarantine` with a reason. (ADR-0002)
 - **`needs_review` blocks rental**, `409`, same guard as `Repair`. (ADR-0003)
 - **At least one admin must always exist**, `409` guard. (ADR-0005)
@@ -65,34 +66,34 @@ that ships.
 ## Phases
 
 ```
-P0  foundation, data audit, deploy v0     ✅ DONE — merged, tagged, live
-P1  auth, admin, dashboard                ✅ DONE — merged, tagged v1-admin, live
-P2  rental engine                         ✅ DONE — merged, tagged v2-rental, live
+P0  foundation, data audit, deploy v0     ✅ DONE, merged, tagged, live
+P1  auth, admin, dashboard                ✅ DONE, merged, tagged v1-admin, live
+P2  rental engine                         ✅ DONE, merged, tagged v2-rental, live
 P3  AI layer + production hardening       ◐ green, deployed v3, at the gate
-P4  UI fidelity to the wireframes         planned — starts only after P3 ships
-    final polish — one commit on main
+P4  UI fidelity to the wireframes         planned, starts only after P3 ships
+    final polish, one commit on main
 ```
 
 Each: branch → red → green → deploy → review gate → merge → tag.
 
-## Deploy — the fast path
+## Deploy: the fast path
 
 Railway, one service, SQLite on a persistent volume. Per phase:
 
-1. `npm run build` in `frontend/` — `test_serves_built_bundle_at_root` needs the
+1. `npm run build` in `frontend/`, because `test_serves_built_bundle_at_root` needs the
    real `dist/`
 2. **Deploy with `railway up --detach`** (CLI at `/opt/homebrew/bin/railway`, already
    authenticated). Pushing the branch does NOT deploy: the service's GitHub trigger
-   still tracks the Phase 0 branch, so a push deploys nothing — and **any variable
+   still tracks the Phase 0 branch, so a push deploys nothing, and **any variable
    change redeploys v0**, which has no auth and serves the volume's data publicly.
-   This happened once (2026-08-07, AI_LOG Correction #5). Until the tracked branch is
+   This happened once (2026-08-07, AI_LOG Correction #4). Until the tracked branch is
    fixed in the dashboard (human-only), follow every variable change with an
    immediate `railway up`.
-3. Seeding is automatic on boot **only when the table is empty** — never run a
+3. Seeding is automatic on boot **only when the table is empty**. Never run a
    seed command by hand, and never remove that guard (it's what stops a restart
    destroying rentals)
 4. **Run the smoke check. A deploy is not done until it passes against the live
-   URL** — not when `railway up` returns, not when the suite is green:
+   URL**, not when `railway up` returns, not when the suite is green:
 
    ```
    SMOKE_URL=<live URL> SMOKE_EMAIL=admin@booksy.com SMOKE_PASSWORD=… \
@@ -100,13 +101,13 @@ Railway, one service, SQLite on a persistent volume. Per phase:
    ```
 
    It skips silently without `SMOKE_URL`, so it never runs in the ordinary suite.
-   It is the only test that can fail while the code is correct — which is the
+   It is the only test that can fail while the code is correct, which is the
    point. All 152 local tests passed the whole time the live URL was serving a
-   pre-auth v0 image (Correction #5, and again #6). Source-level green says
+   pre-auth v0 image (Correction #4, and again #6). Source-level green says
    nothing about what is deployed.
 5. Add the URL to the README live-versions table
 
-No SSH, no `preDeployCommand` — both were tried and neither works on this plan.
+No SSH, no `preDeployCommand`: both were tried and neither works on this plan.
 
 ## Docs that must stay current
 

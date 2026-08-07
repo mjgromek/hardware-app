@@ -98,7 +98,7 @@ def create_schema(engine: Engine) -> None:
 
     The second half exists because `create_all` skips an existing table, columns and
     all — a live volume never received ADR-0013's columns and served 502s (AI_LOG
-    Correction #4). Idempotent by inspection: `ADD COLUMN` fails on a present column.
+    Correction #3). Idempotent by inspection: `ADD COLUMN` fails on a present column.
     """
     metadata.create_all(engine)
 

@@ -195,7 +195,7 @@ def reconcile_held_items(session: Session, items) -> int:
     Runs on every boot, unlike the seed — seeding *writes inventory* and must never
     repeat; this *reconciles* a row that already exists. Born of a production defect:
     a volume seeded before the rentals table existed held an item nobody could return
-    (AI_LOG Correction #5). Idempotent via `open_seed_rental`'s skip.
+    (AI_LOG Correction #4). Idempotent via `open_seed_rental`'s skip.
     """
     reconciled = 0
     for item in items:
