@@ -46,6 +46,11 @@ const query = ref('')
 const FILTERABLE = ['name', 'brand']
 
 const visible = computed(() => {
+  // Once the question has been asked, the text in the bar is the question — not a
+  // substring to filter by. Leaving the filter on showed the AI's answer above a full
+  // inventory table reading "No hardware matches this filter", because "apple laptops"
+  // matches no single name or brand. The full list returns underneath the results.
+  if (props.searchResults) return props.items
   const needle = query.value.trim().toLowerCase()
   if (!needle) return props.items
   return props.items.filter((item) =>
@@ -104,16 +109,12 @@ function clearSearch() {
     <!-- No submit button: Enter submits, which is what a search field has taught
          everyone to expect, and a button beside a full-width pill was a second target
          for no gain. The form still has `@submit`, so Enter and assistive technology
-         both reach it. Clear stays, but only once there is something to clear. -->
-    <button
-      v-if="props.searchResults"
-      class="button button-quiet"
-      type="button"
-      style="align-self: flex-end"
-      @click="clearSearch"
-    >
-      Clear
-    </button>
+         both reach it.
+
+         Clear used to live here as well, appearing *inside* this 52px form the instant
+         results arrived — it overlapped the bar and read as something popping up over
+         the control you had just typed into. It belongs to the results rather than to
+         the input, so it now sits in their header beside the mode chip. -->
   </form>
 
   <div v-if="props.searchResults" class="panel">
@@ -126,6 +127,12 @@ function clearSearch() {
           ? 'AI search'
           : 'Keyword results — AI search unavailable' }}
       </span>
+      <!-- Dismisses the results, so it sits with them. Beside the chip that says where
+           they came from, which is the other thing you read before deciding to keep or
+           drop them. -->
+      <button class="button button-quiet" type="button" @click="clearSearch">
+        Clear results
+      </button>
     </div>
     <p v-if="!props.searchResults.items.length" class="empty">
       Nothing matched. The filter only speaks in name, brand, status and dates — try

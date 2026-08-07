@@ -2484,3 +2484,26 @@ that takes longer than 150ms, which made both directions look like they snapped.
 2s control: mid-transition alpha 0.35 on the way in, 0.5 on the way out — it interpolates
 both ways.
 Commit: fix(phase-4): the Ask AI focus ring fades, and is still measurable (pending)
+
+---
+
+## [P4 · c41] Two reports on the focus ring's neighbours
+
+**"Weird only on the left and right."** `.panel` sets `overflow: hidden`, and the search
+form is exactly the input's own 52px, so the ring's top and bottom edges were clipped away
+and only the vertical sides survived — it read as two marks rather than a ring. The bar
+holds one input and needs none of that clipping: `overflow: visible` on `.search-bar`. My
+own earlier zoom had cropped to the left cap, which is why I called the ring correct after
+looking at exactly the part that still worked.
+
+**"A weird pop-up Clear after pressing Enter."** The Clear button lived *inside* that 52px
+form and appeared the instant results arrived, overlapping the bar it belonged to. It
+dismisses the results, not the input, so it moved into the results header beside the mode
+chip and became "Clear results". Nothing renders inside the form now.
+
+**And a third, found in the screenshot rather than reported.** After Enter the query kept
+filtering the table underneath, so the AI's answer sat above a full inventory reading "No
+hardware matches this filter" — `apple laptops` matches no single name or brand. Once the
+question is asked the text is the question, not a substring, so the local filter stands
+down while results are showing and the full list returns beneath them.
+Commit: fix(phase-4): unclip the focus ring, move Clear to the results (pending)

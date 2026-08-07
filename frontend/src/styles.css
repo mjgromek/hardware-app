@@ -1398,6 +1398,11 @@ th.cell-status .th-label {
 /* A beat between the question and the answer it filters. */
 .search-bar {
   margin-bottom: 22px;
+  /* `.panel` clips its children (`overflow: hidden`), and this form is exactly the
+   * input's own 52px, so the focus ring's top and bottom edges were cut off and only the
+   * left and right survived — the ring looked like two vertical marks. The bar needs
+   * none of that clipping: it holds one input, not a scrolling table. */
+  overflow: visible;
 }
 
 /* Less pill, more rounded rectangle — the wireframe's shape. 999px made a 52px field
