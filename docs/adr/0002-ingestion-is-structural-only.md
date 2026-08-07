@@ -49,6 +49,27 @@ Rentability does not depend on the choice — the ADR-0003 guard blocks a flagge
 item under either status — so the status should carry the weakest claim the
 evidence supports.
 
+## Amended 2026-08-07 — the parse rule, sharpened by its own example
+
+A self-grilling for the submission defense found this ADR's showpiece enforcing less
+than the ADR claimed. The text says parsing `"22-05-2023"` is deterministic; the parser
+as written tried ISO then day-first and **silently accepted day-first on ambiguous
+input** — `"05-04-2023"` returned 5 April, a guess about intent made by the exact
+function this document holds up as the structural side of the line. The suite pinned
+the guess as a feature (`01-02-2020 → 1 February`). The boundary held only because the
+seed happened to contain a date whose day cannot be a month.
+
+The rule, stated as a principle of the system rather than a property of the input:
+**a parse with exactly one legal reading is structural; a value with two quarantines,
+with both readings named in the reason** — the same treatment as an off-enum status.
+No date is stored (the weakest claim), the original survives verbatim in the payload,
+and `needs_review` hands the choice to a human. `"22-05-2023"` still imports — 22
+cannot be a month. `"04-04-2023"` still imports — the transposition lands on the same
+day, so nothing is being chosen.
+
+Pinned by `test_ambiguous_date_refuses_to_choose` and
+`test_seed_quarantines_ambiguous_date`.
+
 ## Consequences
 
 - The two contradictory records enter the `hardware` table, exactly as §7.2

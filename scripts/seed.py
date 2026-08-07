@@ -108,6 +108,21 @@ def ingest(
 
         try:
             purchase_date = normalise_purchase_date(row.get("purchaseDate"))
+        except AmbiguousDate as ambiguous:
+            # Two legal readings is a choice, and choices are not ingestion's
+            # (ADR-0002, amended). No date is stored — the weakest claim — and
+            # the reason names both candidates so the ruling human does not
+            # re-derive them.
+            purchase_date = None
+            first, second = ambiguous.readings
+            divergences.append(
+                _Divergence(
+                    f"purchase date {row.get('purchaseDate')!r} reads as "
+                    f"{first.isoformat()} or {second.isoformat()}; choosing one "
+                    "would be judgment, so neither was chosen",
+                    needs_decision=True,
+                )
+            )
         except ValueError:
             purchase_date = None
             divergences.append(
@@ -190,12 +205,33 @@ def ingest(
     return IngestReport(imported=tuple(imported), quarantined=tuple(quarantined))
 
 
-def normalise_purchase_date(raw: str | None) -> date | None:
-    """Parse a seed purchase date into a ``date``.
+class AmbiguousDate(ValueError):
+    """A date string with two legal readings, both named.
 
-    Accepts ISO ``YYYY-MM-DD`` and the seed's stray ``DD-MM-YYYY``. Returns
-    ``None`` for a null or empty value. Raises ``ValueError`` for a string that
-    is neither format — structural invalidity, which is ingestion's business.
+    A subclass of ``ValueError`` so an uninformed caller still treats it as a bad
+    date — but ``ingest`` catches it first and quarantines with both readings,
+    because "unrecognised" and "recognised twice" earn different reasons.
+    """
+
+    def __init__(self, raw: str, readings: tuple[date, date]) -> None:
+        self.readings = readings
+        super().__init__(
+            f"{raw!r} reads as {readings[0].isoformat()} or {readings[1].isoformat()}"
+        )
+
+
+def normalise_purchase_date(raw: str | None) -> date | None:
+    """Parse a seed purchase date that has exactly one legal reading.
+
+    Accepts ISO ``YYYY-MM-DD`` and the seed's stray day-first ``DD-MM-YYYY``.
+    Returns ``None`` for a null or empty value. Raises ``ValueError`` for a
+    string matching neither format, and ``AmbiguousDate`` for one matching the
+    day-first pattern where the month-first transposition is *also* legal and
+    lands on a different day — "05-04-2023" is 5 April or 4 May, and choosing is
+    the same guess about intent ADR-0002 refuses over ``"Appel"``. "22-05-2023"
+    stays structural: 22 cannot be a month, so it has one reading. (The first
+    version of this function chose day-first silently, which enforced less than
+    the ADR claimed — caught by a self-grilling, not by the suite.)
     """
     if raw is None:
         return None
@@ -204,15 +240,27 @@ def normalise_purchase_date(raw: str | None) -> date | None:
     if not text:
         return None
 
-    # ISO first. "22-05-2023" cannot match it — day 2023 is out of range — so the
-    # two formats stay unambiguous and DD-MM-YYYY is never read month-first.
-    for pattern in ("%Y-%m-%d", "%d-%m-%Y"):
-        try:
-            return datetime.strptime(text, pattern).date()
-        except ValueError:
-            continue
+    # ISO first, and ISO is never ambiguous: the standard fixes the field order.
+    # "22-05-2023" cannot match it — day 2023 is out of range.
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date()
+    except ValueError:
+        pass
 
-    raise ValueError(f"{raw!r} is not a recognised purchase date format")
+    try:
+        parsed = datetime.strptime(text, "%d-%m-%Y").date()
+    except ValueError:
+        raise ValueError(f"{raw!r} is not a recognised purchase date format")
+
+    # One legal reading, or none at all. The transposition is ambiguous only when
+    # it is itself a real date (day fits a month slot) *and* differs — 04-04 reads
+    # the same both ways, so nothing is being chosen.
+    if parsed.day <= 12 and parsed.day != parsed.month:
+        transposed = date(parsed.year, parsed.day, parsed.month)
+        return_first, return_second = sorted((parsed, transposed))
+        raise AmbiguousDate(raw, (return_first, return_second))
+
+    return parsed
 
 
 def main() -> None:
