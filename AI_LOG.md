@@ -2602,3 +2602,12 @@ write. Outcome: rent committed, delete answered 204, account soft-deleted holdin
 active rental it can never return — ADR-0013's "no active rental outlives its owner"
 broken. The guess did not survive contact; it was correct.
 Commit: test(review): a rent racing a deletion strands the rental (self)
+
+## [review · c3] The write comes before the read
+
+ADR-0008's lesson one layer up: guard-then-delete read "holds nothing" without a
+lock, so the fix inverts the order — soft-delete first (takes SQLite's write lock),
+rentals check behind it, guard refusal rolls the uncommitted delete back. The racing
+rent now waits on the lock and loses cleanly; a rental committed first still 409s the
+delete. 197 green, including the sequential delete-with-rental test, untouched.
+Commit: fix(review): delete writes before it reads, closing the strand (self)
