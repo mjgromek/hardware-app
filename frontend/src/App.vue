@@ -261,9 +261,36 @@ function rentItem(item) {
   act(() => api.rent(item.id), `${item.name} is yours`, sound.rent)
 }
 
+// The return asks before it acts (ADR-0020). Not a confirmation step — the question is
+// the feature: the person handing the device back is the only one who can report what
+// they noticed, and the moment they let go of it is the last moment they will think of it.
 function returnItem(item) {
-  busyId.value = item.id
-  act(() => api.returnItem(item.id), `${item.name} returned`, sound.returned)
+  override.value = {
+    kind: 'return',
+    item,
+    title: 'Return this item',
+    subject: item.name,
+    outcomeLabel: 'Anything wrong with it?',
+    outcomes: [
+      {
+        value: 'ok',
+        label: 'All good',
+        hint: 'Goes straight back to Available for the next person.',
+        //: The honest majority stays one click. A flow that makes every return fill in
+        //: a field teaches people to type nothing into it.
+        reasonRequired: false,
+      },
+      {
+        value: 'issue',
+        label: 'Report a problem',
+        hint: 'Returns it and holds it for review, so nobody else takes it out.',
+        prompt: 'What did you notice?',
+        placeholder: 'Screen flickers when the lid moves',
+      },
+    ],
+    prompt: 'What did you notice?',
+    confirm: 'Return it',
+  }
 }
 
 function askForceReturn(item) {
@@ -288,9 +315,22 @@ function askClearReview(item) {
     subject: `${item.name} — ${item.review_reason || 'flagged at import'}`,
     prompt: 'What was fixed? The note must start with "fixed:".',
     confirm: 'Record the outcome',
-    //: A review concludes two ways (ADR-0017, second Phase 4 amendment). The dialog is
-    //: the only place that choice exists, so this is the only verb that sets it.
-    outcomes: true,
+    //: A review concludes two ways (ADR-0017, second Phase 4 amendment). Release first,
+    //: because it is the common case and the default.
+    outcomes: [
+      {
+        value: 'released',
+        label: 'Release',
+        hint: 'The record is correct and the item is fit to issue.',
+      },
+      {
+        value: 'repair',
+        label: 'Send to Repair',
+        hint: 'The fault is real. The item stays unrentable until it is fixed.',
+        prompt: 'What is wrong with it?',
+        placeholder: 'Battery is swelling, confirmed by inspection',
+      },
+    ],
     // The server refuses anything that does not state a change (ADR-0017 as
     // amended); prefilling the prefix turns the rule into a prompt.
     prefill: 'fixed: ',
@@ -350,6 +390,15 @@ function submitOverride(reason, edits = {}, outcome = 'released') {
       return say('Nothing changed.')
     }
     act(() => api.editHardware(item.id, edits), `${item.name} updated`, sound.returned)
+  } else if (kind === 'return') {
+    const issue = outcome === 'issue' ? reason : null
+    act(
+      () => api.returnItem(item.id, issue),
+      issue ? `${item.name} returned and held for review` : `${item.name} returned`,
+      // No voice on a reported return: the change observer plays `flag` when it sees
+      // the item enter review, which is the more important of the two events.
+      issue ? undefined : sound.returned,
+    )
   } else if (kind === 'force-return') {
     act(() => api.forceReturn(item.id, reason), `${item.name} recalled`)
   } else if (kind === 'flag-review') {
@@ -548,7 +597,8 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
     :prompt="override?.prompt ?? ''"
     :confirm="override?.confirm ?? ''"
     :prefill="override?.prefill ?? ''"
-    :outcomes="override?.outcomes === true"
+    :outcomes="override?.outcomes ?? []"
+    :outcome-label="override?.outcomeLabel ?? 'Outcome'"
     @submit="submitOverride"
     @cancel="override = null"
   />

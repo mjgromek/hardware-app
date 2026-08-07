@@ -32,6 +32,11 @@
   --ink: #0b0c10;             /* primary */
   --ink-muted: #5b6270;       /* secondary */
   --ink-faint: #6a7283;       /* muted — 4.83:1 on card, 4.55:1 on page */
+  /* Table content: dates, the renter's address, the `—` placeholders. Its own token
+   * because these are data a person reads across a row, not the chrome around it —
+   * 4.55:1 passes AA and is the floor, and the floor is the wrong place for the numbers
+   * somebody is comparing. 7.96:1 on card, 7.49:1 on page — AAA on both. */
+  --ink-table: #4a5160;
   --ink-inverse: #ffffff;     /* on ink-filled elements */
 
   /* border */
@@ -91,6 +96,7 @@
   --ink: #e8eaee;
   --ink-muted: #9aa1ae;
   --ink-faint: #79818f;       /* 4.52:1 on card, 4.78:1 on page */
+  --ink-table: #b9c0cc;       /* 9.70:1 on card, 10.24:1 on page */
   --ink-inverse: #101216;
 
   /* border */
@@ -495,7 +501,7 @@ td {
 }
 
 .cell-mono {
-  color: var(--ink-muted);
+  color: var(--ink-table);
   font-family: var(--mono);
   font-size: 12.5px;
 }
@@ -511,7 +517,7 @@ td {
 }
 
 .missing {
-  color: var(--ink-faint);
+  color: var(--ink-table);
   font-family: var(--mono);
   font-size: 12.5px;
 }
@@ -574,7 +580,7 @@ tr.is-flagged td:first-child {
  * the point of `In Use` on an internal tool is knowing who to ask (ADR-0012). */
 .held-by {
   margin-left: 8px;
-  color: var(--ink-faint);
+  color: var(--ink-table);
   font-family: var(--mono);
   font-size: 11.5px;
 }
@@ -1256,4 +1262,18 @@ th[aria-sort] .sort-arrow {
 .panel.is-flat {
   border: 0;
   background: var(--ground);
+}
+
+/* ---------------------------------------------------------------- Phase 4, finish III */
+
+/* Status centred under its own heading. The column holds one pill of varying width —
+ * left-aligned, the pills' right edges ragged against a wide gap before Actions, which
+ * read as a column that had lost its contents. Centring both the cell and the header
+ * keeps the chip and its label on one axis. */
+.cell-status {
+  text-align: center;
+}
+
+th.cell-status .th-label {
+  justify-content: center;
 }

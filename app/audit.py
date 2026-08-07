@@ -57,7 +57,19 @@ class Action:
     #: from "confirmed unfit" cannot answer the first question an incident asks.
     REVIEW_TO_REPAIR = "review_to_repair"
 
-    ALL = (FORCE_RETURN, CLEAR_REVIEW_FLAG, FLAG_REVIEW, REVIEW_TO_REPAIR)
+    #: A returner reporting a fault in the device they were holding (ADR-0020). Its own
+    #: action rather than `flag_review`, because the actor class is the point: this flag
+    #: rests on direct observation, and a reviewing admin's next move is to ask the
+    #: person named on the row.
+    REPORT_ON_RETURN = "report_on_return"
+
+    ALL = (
+        FORCE_RETURN,
+        CLEAR_REVIEW_FLAG,
+        FLAG_REVIEW,
+        REVIEW_TO_REPAIR,
+        REPORT_ON_RETURN,
+    )
 
 
 audit_events = Table(

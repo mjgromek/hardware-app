@@ -88,7 +88,10 @@ export const api = {
   deleteHardware: (id) => request('DELETE', `/api/hardware/${id}`),
 
   rent: (id) => request('POST', `/api/hardware/${id}/rent`),
-  returnItem: (id) => request('POST', `/api/hardware/${id}/return`),
+  //: `issue` omitted entirely for a clean return, rather than sent as null — the server
+  //: treats a present-but-blank issue as a refusal, and an absent one as "all good".
+  returnItem: (id, issue = null) =>
+    request('POST', `/api/hardware/${id}/return`, issue ? { issue } : {}),
   forceReturn: (id, reason) => request('POST', `/api/hardware/${id}/force-return`, { reason }),
   // The release carries the change it certifies (ADR-0017 as amended): one request,
   // one transaction, one audit row. `edits` holds only the fields the admin actually

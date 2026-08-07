@@ -89,6 +89,19 @@ class NewAccount(BaseModel):
         return candidate
 
 
+class ReturnReport(BaseModel):
+    """The optional half of a return: what the person handing it back noticed.
+
+    `issue` is optional because nearly every return is fine, and a flow that makes the
+    honest majority fill in a field teaches people to type nothing into it. But an
+    `issue` that is present and blank is refused rather than ignored — a flag reading
+    `"   "` blocks the item and tells the admin resolving it nothing, which is worse
+    than no flag at all.
+    """
+
+    issue: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
+
+
 class RoleChange(BaseModel):
     role: Role
 
@@ -699,14 +712,52 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.post(f"{HARDWARE}/{{item_id}}/return")
     def return_hardware(
-        item_id: int, account: Account = Depends(current_account)
+        item_id: int,
+        body: ReturnReport | None = None,
+        account: Account = Depends(current_account),
     ) -> dict[str, Any]:
-        """Close your own rental. Somebody else's is a `409` (ADR-0009)."""
+        """Close your own rental, optionally reporting a fault. `409` on somebody else's (ADR-0009).
+
+        **The returner may raise the flag the auditor may not** (ADR-0020). ADR-0014
+        denies `needs_review` to a judge that reasons over stored text; this person had
+        the device in their hands. The line is direct observation against inference, not
+        human against model — an admin acting on a *finding* still goes through the admin
+        verb.
+
+        The note becomes `review_reason` verbatim. It is the only first-hand account
+        anyone will get, and rewriting it into house style is how the detail that mattered
+        gets lost.
+
+        Two orderings matter here:
+
+        - **The return happens first, and unconditionally.** A report is not a refusal to
+          hand the item back; refusing would leave somebody holding a device the system
+          still believes they have.
+        - **An already-flagged item still returns.** `flag-review` answers `409` there,
+          because filing a mandatory reason against a non-event hides a UI bug (ADR-0017).
+          That reasoning does not survive contact with a physical handover, so the report
+          is folded into the existing flag instead of refusing it.
+        """
+        issue = body.issue.strip() if body and body.issue else None
         with new_session(engine) as session:
             _item_or_404(session, item_id)
             rental = _claim(lambda: rentals.return_(session, item_id, account))
+            if issue:
+                flag_review(session, item_id, issue)
+                audit.record(
+                    session,
+                    actor=account,
+                    action=audit.Action.REPORT_ON_RETURN,
+                    reason=issue,
+                    item_id=item_id,
+                )
             session.commit()
-        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "return"}
+        return {
+            "item_id": item_id,
+            "rental_id": rental.id,
+            "close_kind": "return",
+            "needs_review": bool(issue),
+        }
 
     @app.post(f"{HARDWARE}/{{item_id}}/force-return")
     def force_return_hardware(

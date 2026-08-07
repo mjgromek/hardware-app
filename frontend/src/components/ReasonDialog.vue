@@ -41,15 +41,22 @@ const props = defineProps({
   // flow (ADR-0017): the auditor's explanation is a starting point, and what gets
   // recorded is whatever the human leaves in the field, because the claim is theirs.
   prefill: { type: String, default: '' },
-  //: Turns the dialog into a review, which concludes two ways rather than one. Only
-  //: `clear-review` sets it; every other verb has a single outcome and shows no choice.
-  outcomes: { type: Boolean, default: false },
+  //: Two named exits instead of one, as a toggle above the note. `[]` means the verb has
+  //: a single outcome and no choice is shown. Each entry is
+  //: `{ value, label, hint, reasonRequired, prompt, placeholder }` — `reasonRequired`
+  //: defaults to true, which is what makes "All good" a one-click return while
+  //: "Report a problem" still demands words.
+  outcomes: { type: Array, default: () => [] },
+  //: The legend over the toggle. "Outcome" for a review, "Anything wrong with it?" for a
+  //: return — the question is the label, so the dialog reads as one sentence.
+  outcomeLabel: { type: String, default: 'Outcome' },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
 const reason = ref('')
-//: Released is the default because it is the common case and the pre-existing behaviour.
-const outcome = ref('released')
+//: The first outcome is the default, and each verb lists its common case first: a review
+//: usually releases, a return is usually fine.
+const outcome = ref('')
 const field = ref(null)
 const draft = ref({})
 
@@ -83,26 +90,36 @@ watch(
   async ([open]) => {
     if (!open) return
     reason.value = props.prefill
-    outcome.value = 'released'
+    outcome.value = props.outcomes[0]?.value ?? ''
     resetDraft()
     await nextTick()
     field.value?.focus()
   },
 )
 
-//: The server exempts a repair reason from the `fixed:` prefix, because it describes what
-//: is *wrong*. The dialog has to agree, or it would demand words the server refuses.
-const reviewingRepair = computed(() => props.outcomes && outcome.value === 'repair')
+const chosen = computed(
+  () => props.outcomes.find((o) => o.value === outcome.value) ?? null,
+)
+
+//: A note is mandatory unless the chosen outcome says otherwise. "All good" is the only
+//: exit in the product that asks for nothing, and it has to stay one click.
+const reasonRequired = computed(() => {
+  if (!props.requireReason) return false
+  if (chosen.value) return chosen.value.reasonRequired !== false
+  return true
+})
 
 // The release prefill is `fixed: `, and carrying it into a repair note would produce
 // "fixed: battery is swelling" — the false record wearing the other outcome's words.
 // Only an *untouched* prefill is swapped; anything the admin typed is theirs and stays.
 watch(outcome, (now, before) => {
-  if (now === 'repair' && reason.value === props.prefill) reason.value = ''
-  else if (now === 'released' && before === 'repair' && !reason.value.trim()) {
+  const wasPrefilled = reason.value === props.prefill
+  const nowNeedsOwnWords = chosen.value?.prompt !== undefined
+  if (nowNeedsOwnWords && wasPrefilled) reason.value = ''
+  else if (!nowNeedsOwnWords && before && !reason.value.trim()) {
     reason.value = props.prefill
   }
-  field.value?.focus()
+  if (reasonRequired.value) nextTick(() => field.value?.focus())
 })
 
 function onKeydown(event) {
@@ -125,33 +142,21 @@ function onKeydown(event) {
              radios rather than a select: there are exactly two conclusions and one of
              them makes the device rentable again, so both belong in view. Same reasoning
              as the role toggles on the account form. -->
-        <div v-if="props.outcomes" class="field">
-          <span class="field-label">Outcome</span>
-          <div class="toggle-group" role="group" aria-label="Review outcome">
+        <div v-if="props.outcomes.length" class="field">
+          <span class="field-label">{{ props.outcomeLabel }}</span>
+          <div class="toggle-group" role="group" :aria-label="props.outcomeLabel">
             <button
+              v-for="o in props.outcomes"
+              :key="o.value"
               type="button"
               class="toggle"
-              :aria-pressed="outcome === 'released'"
-              @click="outcome = 'released'"
+              :aria-pressed="outcome === o.value"
+              @click="outcome = o.value"
             >
-              Release
-            </button>
-            <button
-              type="button"
-              class="toggle"
-              :aria-pressed="outcome === 'repair'"
-              @click="outcome = 'repair'"
-            >
-              Send to Repair
+              {{ o.label }}
             </button>
           </div>
-          <span class="hint">
-            {{
-              reviewingRepair
-                ? 'The fault is real. The item stays unrentable until it is fixed.'
-                : 'The record is correct and the item is fit to issue.'
-            }}
-          </span>
+          <span v-if="chosen?.hint" class="hint">{{ chosen.hint }}</span>
         </div>
         <template v-if="props.item">
           <label v-for="f in EDITABLE" :key="f.key" class="field">
@@ -164,17 +169,13 @@ function onKeydown(event) {
             <input v-else v-model="draft[f.key]" :type="f.type" />
           </label>
         </template>
-        <label v-if="props.requireReason" class="field">
-          <span>{{ reviewingRepair ? 'What is wrong with it?' : props.prompt }}</span>
+        <label v-if="reasonRequired" class="field">
+          <span>{{ chosen?.prompt ?? props.prompt }}</span>
           <input
             ref="field"
             v-model="reason"
             required
-            :placeholder="
-              reviewingRepair
-                ? 'Battery is swelling, confirmed by inspection'
-                : 'Bench-tested by IT; battery replaced'
-            "
+            :placeholder="chosen?.placeholder ?? 'Bench-tested by IT; battery replaced'"
           />
           <span class="hint">
             Recorded against your name in the audit trail. It is what a later question
@@ -189,7 +190,7 @@ function onKeydown(event) {
           <button
             class="button"
             type="submit"
-            :disabled="props.busy || (props.requireReason && !reason.trim())"
+            :disabled="props.busy || (reasonRequired && !reason.trim())"
           >
             {{ props.confirm }}
           </button>

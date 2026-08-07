@@ -109,6 +109,18 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue, now with release** — every flagged item with the reason
   ingestion recorded, and an admin action that clears the flag, `409` on an unflagged
   item (ADR-0003)
+- **Return with an issue** — Return asks *"Anything wrong with it?"*; "All good" is the
+  one-click return it always was, and "Report a problem" takes a note, returns the item
+  and holds it for review with that note as the reason, attributed to the returner
+  (`report_on_return`). This closes the loop seed id 11's history implied — *"Returned
+  by user with liquid damage. Keyboard sticky."* was an event the application could not
+  previously have produced. The returner may raise a flag the auditor may not, because
+  the auditor reasons over stored text and the returner handled the equipment: direct
+  observation licenses direct action, inference does not (ADR-0020)
+- **A review concludes, both ways** — an admin who confirms the fault sends the item to
+  Repair with a reason describing it, rather than being forced to certify a repair
+  nobody performed; both outcomes clear the flag and write one audit row, and the trail
+  tells them apart (ADR-0017, second Phase 4 amendment)
 - **Audit trail** — force-return and clear-review each write an `audit_events` row
   with a mandatory reason, in the same transaction as the change; the transition
   itself writes it, so no caller can perform the override silently (ADR-0010)
@@ -289,27 +301,20 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
    handling. The two oldest ⚠️ entries, and the ones a reviewer hits first.
 2. **Logout and session expiry** — the remaining half of the session story: ending
    one session without retiring the account.
-3. **A user-facing "report an issue" path on return** — the last open loop in the
-   lifecycle, and the seed names it. Item 11's history reads *"Returned by user with
-   liquid damage. Keyboard sticky."* — an event this application could not have
-   produced. Only ingestion and admins can raise a flag, so an employee handing back a
-   damaged laptop has no way to say so; the note exists because somebody typed it into
-   a system that is not this one.
-
-   The report would **propose, never flag** — the same boundary ADR-0014 draws for the
-   auditor, and for the same reason: the person reporting is not the person accountable
-   for taking equipment out of service. An admin confirms it into `needs_review`, which
-   is the existing verb with the existing audit row.
-
-   That closes the loop end to end: **ingestion judges structure** (ADR-0002),
-   **the auditor judges prose** (ADR-0014), **admins decide** (ADR-0017) — and users,
-   who are the only ones who actually handle the equipment, currently cannot speak at
-   all. It is the one participant the design has no channel for, and the seed noticed
-   before we did.
-
-4. **Final polish** — one `docs:` commit on `main`: README read-through, empty
+3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
    states, favicon, and the remaining `(pending)` SHA back-annotations in
    `AI_LOG.md`.
+
+> **Shipped in Phase 4, and not as planned.** *A user-facing "report an issue" path on
+> return* was item 3 here, specified to **propose, never flag** — the boundary ADR-0014
+> draws for the auditor. Building it reversed that: **ADR-0020** lets the returner raise
+> `needs_review` directly. The reason the earlier plan gave — "the person reporting is not
+> the person accountable" — turned out to be the wrong axis. The auditor is held back
+> because it reasons over stored *text*; a returner reports what they had *in their
+> hands*, and direct observation is exactly what a proposal queue would have delayed
+> behind an admin who cannot re-observe it. The propose-only version would also have left
+> a device with a known fault rentable until somebody got round to the queue. See ADR-0020
+> for the full argument, including what it deliberately does not grant.
 
 Then **Phase 4 — wireframe fidelity** (planned 2026-08-07, does not start until
 Phase 3 ships): the UI becomes a close copy of the supplied wireframes — heading and
