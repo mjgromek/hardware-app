@@ -96,6 +96,11 @@ class FilterObject(BaseModel):
     needs_review: bool | None = None
     brand: str | None = None
     name_contains: str | None = None
+    #: The model's *vocabulary*, not its results: "laptop" has no column, so the model
+    #: names concrete product terms ("MacBook", "XPS", …) and SQLite still decides
+    #: which rows exist (ADR-0004). Matched over `name` and `brand` only, so the Q2
+    #: oracle stays shut — this widens what the model may *say*, not what it may see.
+    name_matches_any: list[str] | None = None
     purchased_before: date | None = None
     purchased_after: date | None = None
     rentable_only: bool | None = None
@@ -133,6 +138,21 @@ def select_items(session: Session, filters: FilterObject) -> tuple[HardwareItem,
         query = query.where(hardware.c.brand.ilike(filters.brand))
     if filters.name_contains is not None:
         query = query.where(hardware.c.name.ilike(f"%{filters.name_contains}%"))
+    if filters.name_matches_any:
+        terms = [term for term in filters.name_matches_any if term.strip()]
+        if terms:
+            query = query.where(
+                or_(
+                    *(
+                        clause
+                        for term in terms
+                        for clause in (
+                            hardware.c.name.ilike(f"%{term}%"),
+                            hardware.c.brand.ilike(f"%{term}%"),
+                        )
+                    )
+                )
+            )
     if filters.purchased_before is not None:
         query = query.where(hardware.c.purchase_date < filters.purchased_before)
     if filters.purchased_after is not None:
@@ -301,7 +321,12 @@ def _search_prompt(query_text: str) -> str:
         "prose. Omit fields you are not using. The only legal fields are exactly "
         f"those in this schema:\n{json.dumps(schema)}\n\n"
         f'Statuses are exactly "Available", "In Use", "Repair". If the question asks '
-        "for something rentable/borrowable today, set rentable_only. If the question "
+        "for something rentable/borrowable today, set rentable_only. When the "
+        "question names a *category* of device rather than a product — laptop, "
+        "phone, headphones, tablet, mouse, monitor — populate name_matches_any with "
+        "concrete product and model terms that category implies, e.g. \"laptop\" -> "
+        '["MacBook", "XPS", "ThinkPad", "Latitude"], "headphones" -> ["WH-1000", '
+        '"AirPods", "headset"]. Prefer terms over guessing a status. If the question '
         "cannot be expressed with these fields, reply with an empty JSON object.\n\n"
         f"Question: {query_text}"
     )

@@ -59,6 +59,10 @@ NOTES_QUERY = "which laptops have battery swelling problems"
 #: implementation that returns nothing for everything would pass the oracle test.
 BRAND_QUERY = "Dell"
 
+#: Seed id 6, the Logitech MX Master 3 — matched by no phone, tablet or laptop term,
+#: which is what makes it the ride-along detector for `name_matches_any`.
+MOUSE = 6
+
 
 def test_search_requires_a_session(anonymous_client: TestClient) -> None:
     """Nobody signed out gets to ask the inventory anything (ADR-0006).
@@ -243,6 +247,94 @@ def test_search_is_not_an_oracle_over_notes(
         "their nulled `notes` field says (ADR-0015). The filter schema has no "
         "`notes`/`history`/`review_reason` predicate for anyone, and the keyword "
         f"fallback searches `name` and `brand` only. Got {sorted(ids_in(response))}"
+    )
+
+
+def test_category_query_maps_to_concrete_product_terms(
+    monkeypatch, app, admin_client: TestClient
+) -> None:
+    """"Something to test a mobile app on" finds the phones and the tablet.
+
+    No item's name contains "mobile" and the schema has no category column, so the
+    model's contribution is *vocabulary*: `name_matches_any` carries the concrete
+    product terms it infers — and SQLite still decides which rows exist (ADR-0004).
+    The mock emits the terms, so what this pins is the plumbing: OR within the list,
+    case-insensitive, against `name` and `brand`, and nothing else sneaking in.
+
+    Expected ids are derived with a plain Python containment check — independent of
+    the SQL that implements the predicate — and the mouse is asserted absent by id,
+    because "the terms matched something" must not decay into "everything matched".
+    """
+    terms = ["iPhone", "Galaxy", "iPad"]
+    inventory = items_by_id(admin_client)
+    expected = {
+        item_id
+        for item_id, item in inventory.items()
+        if any(
+            term.lower() in (item["name"] or "").lower()
+            or term.lower() in (item["brand"] or "").lower()
+            for term in terms
+        )
+    }
+    assert expected and MOUSE not in expected and expected != set(inventory), (
+        "setup: the seed must contain some but not all term-matched items, and the "
+        f"mouse must not be one of them; got {sorted(expected)} of {sorted(inventory)}"
+    )
+
+    enable_ai(monkeypatch, app, reply={"name_matches_any": terms})
+
+    response = search(admin_client, "something to test a mobile app on")
+
+    assert response.status_code == 200, response.text
+    assert mode_of(response) == "semantic", (
+        f"the model answered, so the label says so (ADR-0016); got {response.json()}"
+    )
+    assert ids_in(response) == expected, (
+        "`name_matches_any` is OR-within-the-list, case-insensitive, over `name` and "
+        f"`brand` only. Expected exactly {sorted(expected)}, got "
+        f"{sorted(ids_in(response))}"
+    )
+    assert MOUSE not in ids_in(response), (
+        "the mouse matches no term and must not ride along — a predicate that "
+        "degenerates into the whole catalogue is a passthrough wearing a filter's name"
+    )
+
+
+def test_category_terms_match_name_and_brand_case_insensitively(
+    monkeypatch, app, admin_client: TestClient
+) -> None:
+    """"laptop" finds the MacBooks and the XPS, and never the mouse.
+
+    The model turns the category word into concrete product terms
+    (`["MacBook", "XPS", "ThinkPad", "Latitude"]`); terms that match nothing in this
+    inventory are simply inert, and lowercase "macbook" must still find "MacBook" —
+    the model's casing is not part of the contract.
+    """
+    terms = ["macbook", "XPS", "ThinkPad", "Latitude"]
+    inventory = items_by_id(admin_client)
+    expected = {
+        item_id
+        for item_id, item in inventory.items()
+        if any(
+            term.lower() in (item["name"] or "").lower()
+            or term.lower() in (item["brand"] or "").lower()
+            for term in terms
+        )
+    }
+    assert expected and MOUSE not in expected, (
+        f"setup: the laptop terms must match something and never the mouse; got "
+        f"{sorted(expected)}"
+    )
+
+    enable_ai(monkeypatch, app, reply={"name_matches_any": terms})
+
+    response = search(admin_client, "laptop")
+
+    assert response.status_code == 200, response.text
+    assert mode_of(response) == "semantic", response.text
+    assert ids_in(response) == expected, (
+        f"expected exactly the laptop-term matches {sorted(expected)}; got "
+        f"{sorted(ids_in(response))}"
     )
 
 
