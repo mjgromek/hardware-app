@@ -2592,3 +2592,13 @@ feature. Now: two legal readings quarantine with both named, no date stored, fla
 for a human; one reading (22-05, 04-04) still imports. ADR-0002 amended with the
 sharpened rule; DATA_AUDIT's boundary paragraph corrected. 196 green.
 Commit: feat(review): an ambiguous date quarantines instead of choosing (self)
+
+## [review · c3-red] The blind-spot bet, tested — and it was a bug
+
+The grilling's Q5 answer named "a rent racing an account deletion" as the likely next
+lifecycle blind spot. Tested deterministically: the delete route's rentals read is
+wrapped so a racing rent commits on a second connection between the read and the
+write. Outcome: rent committed, delete answered 204, account soft-deleted holding an
+active rental it can never return — ADR-0013's "no active rental outlives its owner"
+broken. The guess did not survive contact; it was correct.
+Commit: test(review): a rent racing a deletion strands the rental (self)
