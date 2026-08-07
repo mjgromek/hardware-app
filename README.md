@@ -389,6 +389,7 @@ a note on when it becomes urgent.
 | [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
 | [`docs/adr/`](docs/adr/) | Architectural decisions, with the reasoning that produced them. |
 | [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
+| [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | Measured WCAG contrast for every colour pair in both themes, and the one check that does not pass on colour alone. |
 | [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |

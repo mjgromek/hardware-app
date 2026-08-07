@@ -245,6 +245,12 @@ separate red from green — which the pill's reversed-out label does not, becaus
 colour *is* the background the text depends on for contrast. Each hue carries two stops
 so the dot stays distinguishable on a dark surface without changing hue.
 
+Measured rather than eyeballed: every dot clears the 3:1 non-text threshold in both themes
+(3.30–5.17:1 light, 6.42–10.19:1 dark), and the amber `!` beside the red Repair dot does
+**not** separate on luminance — 1.52:1 light, 1.82:1 dark. It is safe because colour is
+never the only signal, which is the argument and the numbers in
+[`docs/ACCESSIBILITY.md`](ACCESSIBILITY.md).
+
 ### "Rented" is the label; `In Use` is still the value
 
 **The wireframe showed:** `Rented`.

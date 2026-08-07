@@ -1434,3 +1434,34 @@ wireframe omission we deliberately did not follow, which is the kind that most n
 argument written down.
 
 Commit: feat(phase-4): the visual finish pass and dark mode (pending)
+
+---
+
+## [P4 · c6] Contrast, measured — and the check I had passed by eye
+
+Computed WCAG 2.1 ratios for every text-on-surface and indicator-on-surface pair in both
+themes, parsed straight out of `styles.css` so the numbers cannot drift from the tokens.
+`docs/ACCESSIBILITY.md` carries the tables and how to recompute them.
+
+**Two failures, both `--ink-faint`, both in every theme.** 3.16:1 light and 3.78:1 dark
+against a 4.5:1 requirement. That token carries placeholders, the `—` in empty cells, the
+sort arrows, "somebody else has it" and the signed-in address — so the failure was
+everywhere and had been since Phase 1. Fixed by walking lightness in HLS with hue and
+saturation held (`#8a91a0` → `#6a7283`, `#6d7482` → `#79818f`), which is shifting the
+token rather than the design.
+
+**And the correction that matters more than the fix.** Last commit I wrote that the amber
+`!` "reads clearly" beside the red Repair dot, and said the check passed. Measured, they
+are **1.52:1** apart in light and **1.82:1** in dark — close in luminance, separated
+almost entirely by hue, which is the one axis red-green colour deficiency removes. My eye
+was answering "can *I* tell these apart" and reporting it as "these are distinguishable".
+
+The finding does not change the colours: each contrasts fine with its own background,
+which is what WCAG actually requires, and pulling them apart in lightness would push amber
+toward either the Repair red or the Available green. What makes it safe is that colour is
+never the only signal — different columns, different shapes, the dot always followed by
+its word, a `Needs review` chip, a row edge marker, and an `aria-label` on the mark. That
+is now written down as an argument with numbers attached instead of a sentence about how
+it looks.
+
+Commit: fix(phase-4): raise muted text to AA and measure every pair (pending)

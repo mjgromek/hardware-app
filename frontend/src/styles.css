@@ -30,7 +30,7 @@
   /* text */
   --ink: #0b0c10;             /* primary */
   --ink-muted: #5b6270;       /* secondary */
-  --ink-faint: #8a91a0;       /* muted */
+  --ink-faint: #6a7283;       /* muted — 4.83:1 on card, 4.55:1 on page */
   --ink-inverse: #ffffff;     /* on ink-filled elements */
 
   /* border */
@@ -99,7 +99,7 @@
   /* text */
   --ink: #e8eaee;
   --ink-muted: #9aa1ae;
-  --ink-faint: #6d7482;
+  --ink-faint: #79818f;       /* 4.52:1 on card, 4.78:1 on page */
   --ink-inverse: #101216;
 
   /* border */
