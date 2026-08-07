@@ -1269,3 +1269,13 @@ budget, and an audit prompt carrying the whole catalogue is not a search. 30s fo
 audit route, 5s stays the search's (its degradation is designed and announced).
 Refusing slowly is honest; refusing on a borrowed budget is just wrong. 118/118.
 Commit: fix(phase-3): the audit gets its own timeout budget (pending)
+
+---
+
+## [P3 · c13] The search budget meets the provider's actual latency
+
+Live: every search degraded to keyword because gemini-flash-latest spends ~7.5s
+thinking before emitting one small JSON object, and the thinking-off knob answers an
+opaque 400. The spec's 5s was a guess; 12s is a measurement. The spec is amended in
+place with the reason. 118/118.
+Commit: fix(phase-3): search timeout meets measured provider latency (pending)

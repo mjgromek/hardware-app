@@ -51,8 +51,12 @@ __all__ = [
 #: ADR-0014's closed vocabulary — exactly the three classes ADR-0002 deferred.
 FINDING_KINDS = ("status_contradiction", "unidentifiable", "probable_misspelling")
 
-#: Spec: 5 seconds, then search degrades — announced (ADR-0016).
-REQUEST_TIMEOUT_SECONDS = 5.0
+#: Then search degrades — announced (ADR-0016). The spec said 5s; the live provider
+#: spends ~7.5s thinking before one small JSON object and rejects the budget-0 knob
+#: with an opaque 400, so 5s meant the semantic path could never answer. 12s is the
+#: measured latency with headroom — a slower true answer with an honest label beats
+#: a fast one that is always the fallback.
+REQUEST_TIMEOUT_SECONDS = 12.0
 
 #: The audit reads the whole catalogue and writes a findings document; 5 seconds is
 #: a search budget, not an audit budget. Found live: the first audit run timed out

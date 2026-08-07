@@ -40,8 +40,10 @@ leaks what the primary cannot.
 Response: `{"mode": "semantic" | "keyword", "items": [...]}` — items through
 `visible_to` (now in `app/domain.py`), so a `user` gets the restricted fields as
 `null`. `mode` is asserted by tests, not just rows: a fallback that lies about being
-the primary is the bug (ADR-0016). Timeout 5s, then fallback; API error, same;
-key absent, same — always labelled.
+the primary is the bug (ADR-0016). Timeout 12s, then fallback; API error, same;
+key absent, same — always labelled. *(Amended from 5s at the live verification:
+the provider's measured latency for one filter object is ~7.5s and its
+thinking-off knob 400s, so 5s made the semantic path unreachable.)*
 
 ```
 test_semantic_query_maps_to_filter_schema        # mocked LLM, deterministic
