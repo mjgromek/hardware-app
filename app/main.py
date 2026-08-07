@@ -105,6 +105,21 @@ class HardwareEdit(BaseModel):
     category: Category | None = None
 
 
+class ReviewRelease(HardwareEdit):
+    """`POST /api/hardware/{id}/clear-review` — the edit and the note it describes.
+
+    An edit with a mandatory reason attached, rather than a reason with optional edits
+    bolted on, because that is what the action *is*: releasing an item asserts that the
+    record is now correct, and the change making it correct belongs in the same request.
+
+    Every field is optional except `reason` — some findings are resolved by inspecting
+    the device rather than by editing a column (seed id 10's problem is that nobody
+    knows what it is), so the edit is optional and the note never is.
+    """
+
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
 #: Typed in full so the request cannot be issued by accident. The route destroys rental
 #: history on a live instance, and a bare POST that fires on the first request is one
 #: mistyped URL away from wiping what ADR-0011 exists to protect.
@@ -659,7 +674,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.post(f"{HARDWARE}/{{item_id}}/clear-review")
     def clear_review_flag(
-        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+        item_id: int, body: ReviewRelease, admin: Account = Depends(current_admin)
     ) -> dict[str, Any]:
         """Release an item from `needs_review`. Admin-only, reason mandatory.
 
@@ -675,6 +690,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         release asserts what *changed*, not that somebody looked. Checked here,
         after authorization, so a `user` still gets their `403` whatever their
         reason says — only an authorized admin's prose is worth validating.
+
+        **And the release carries the change it describes.** Demanding "fixed:" while
+        offering no way to fix anything made the note certify work the system had not
+        done: an admin resolving seed id 6 wrote "fixed: corrected the purchase date"
+        and the date stayed 2027-10-10. The edit fields travel with the reason, both
+        land in one transaction, and one `audit_events` row holds both — two rows would
+        let the pair come apart, and a reader finding the release would have to join it
+        to an edit by timestamp to learn whether the certified change happened.
         """
         release = body.reason
         if not release.lower().startswith("fixed:") or not release[len("fixed:"):].strip():
@@ -684,6 +707,14 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 '"fixed:" — e.g. "fixed: battery replaced, safe to issue". '
                 f'Got {release!r}.',
             )
+        edited = body.model_fields_set - {"reason"}
+        if "name" in edited and body.name is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An item cannot lose its name — it is the one field that "
+                "identifies the device.",
+            )
+
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if not item.needs_review:
@@ -692,6 +723,34 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     detail=f"{item.name} is not flagged for review, so there is "
                     "nothing to clear.",
                 )
+
+            # The edit first, the release second, one commit. Order matters only for
+            # readability — nothing is written until the commit, so a refused edit
+            # (an off-enum `category` never reaches here; a guard violation raises)
+            # leaves the item flagged rather than released against a rejected fix.
+            if body.status is Status.REPAIR:
+                _enforce(
+                    guards.ensure_no_active_rental,
+                    rentals.active_rental(session, item_id),
+                    item,
+                    "sent to Repair",
+                )
+            if body.status is not None:
+                set_status(session, item_id, body.status)
+            fields = {
+                key: value
+                for key, value in (
+                    ("name", body.name),
+                    ("brand", body.brand),
+                    ("purchase_date", body.purchase_date),
+                    ("serial_number", body.serial_number),
+                    ("category", body.category.value if body.category else None),
+                )
+                if key in edited
+            }
+            if fields:
+                edit_item(session, item_id, **fields)
+
             clear_review(session, item_id)
             audit.record(
                 session,

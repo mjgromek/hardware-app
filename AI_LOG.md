@@ -1494,3 +1494,25 @@ shortcut and the largest untested surface in the project. Said plainly rather th
 a reviewer to notice.
 
 Commit: feat(phase-4): four notification sounds over the toast layer (pending)
+
+---
+
+## [P4 · c8] The release note now describes something that happened
+
+`clear-review` demanded a note beginning `fixed:` and offered no way to fix anything.
+Resolving seed id 6 meant writing "fixed: corrected the purchase date" while the date
+stayed 2027-10-10 — the note certified work the system had not done, and `audit_events`
+filed the certification as though it had. In the one table ADR-0010 built so an incident
+could be interrogated, that is worse than no note: a false record with an actor's name on
+it.
+
+Red first, because it changes an endpoint's contract. Four tests: the edit lands, one
+event carries both halves, a **refused** edit leaves the item flagged rather than
+releasing it against a rejected fix, and a release with no edit still works — not every
+finding is a field, and seed id 10's problem is that nobody knows what the device is.
+149/149.
+
+`ReviewRelease` is `HardwareEdit` with a mandatory `reason` rather than a reason with
+edits bolted on, because that is what the action is. ADR-0017 amended.
+
+Commit: fix(phase-4): the release note carries the change it describes (pending)
