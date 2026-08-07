@@ -355,3 +355,52 @@ does not already know.
 Note what this does **not** remove: the Repair toggle itself, which lives in the admin
 table as a wrench glyph labelled `Send {name} to Repair` / `Release {name} from Repair` —
 already an action rather than a state, and untouched.
+
+### One control per Actions cell, at one size
+
+**The wireframe showed:** a `Rent` button on every row, greyed where unavailable.
+**What was built:** exactly one control per cell at a uniform 96×32 — black `Rent` on
+`Available`, a grey non-interactive `Rented`, the amber `!` at that same size on a flagged
+row, and nothing at all on `In Repair`.
+**Why:** the column previously held a filled button, a bare icon and a small chip at three
+different sizes, which made it read as three unrelated things stacked in a stripe rather
+than as one column. Equal boxes turn it into a rule the eye can run down.
+
+**The precedence, stated so it is a decision rather than an accident.** A cell holds one
+control, so a row that is both rented *and* flagged shows `Rented` — `In Use` is tested
+before `needs_review`. Nothing is lost by that ordering: a rented item is already
+unrentable, so the flag changes nothing a reader could act on here, and the needs-review
+tab lists flagged items regardless of rental state. Both flagged seed rows are `Available`,
+so the case does not arise today; it is written down because the next person to add a
+branch to this cell needs to know an order was chosen.
+
+### The renter's name leaves the table
+
+**The wireframe showed:** a `Status` column with no holder.
+**What was built:** the holder moved out of the row entirely and onto the grey `Rented`
+control, carried by `title` *and* `aria-label`, with `tabindex="0"` so it is reachable by
+keyboard and by screen reader rather than by pointer alone.
+**Why:** inline, it sat between the pill and the next column and only some rows had one,
+so every `Status` cell resolved to a different width and the column's spacing looked
+accidental. This is presentation only — **ADR-0012 is unchanged**, the field is still
+served to every signed-in account and still visible; it is no longer a column that most
+rows leave empty.
+
+### The search bar has no submit button
+
+**The wireframe showed:** a search field with `Ask AI…`, a magnifier and a sparkle.
+**What was built:** the same, flat — no border or stroke — and with no submit button.
+Enter submits.
+**Why:** a full-width pill with a button beside it gives two targets for one intention, and
+a search field pressing Enter is the most thoroughly taught interaction on the web. The
+`<form>` keeps its `@submit`, so Enter and assistive technology reach the same handler. The
+`Clear` control stays, but only appears once there is a result to clear.
+
+### The auditor panel is flat
+
+**The wireframe showed:** no auditor at all — it is Phase 3 work.
+**What was built:** the panel in the search bar's language: the same fill, the same radius,
+no card border.
+**Why:** it is a second reading of the inventory the table already shows, so it should
+recede rather than compete with it. A bordered card beside a bordered table reads as two
+peers disagreeing about which one to look at.

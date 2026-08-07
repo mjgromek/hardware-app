@@ -199,12 +199,13 @@ function shown(value) {
             <span v-if="shown(item.purchase_date)">{{ item.purchase_date }}</span>
             <span v-else class="missing" title="No purchase date recorded">—</span>
           </td>
-          <td>
-            <StatusChip :status="item.status" />
-            <span v-if="item.status === 'In Use'" class="held-by">
-              {{ heldByMe(item) ? 'you' : item.assigned_to || 'unknown holder' }}
-            </span>
-          </td>
+          <!-- The holder is no longer inline. It sat between the pill and the next
+               column and pushed every Status cell to a different width, which is what
+               made the table's spacing look accidental. It moves to the "Rented"
+               control in Actions, reachable by pointer *and* by keyboard and screen
+               reader — ADR-0012 is untouched, the field is still served and still
+               visible, just not as a column that only some rows fill. -->
+          <td><StatusChip :status="item.status" /></td>
           <td v-if="props.rentable" class="cell-actions">
             <button
               v-if="heldByMe(item)"
@@ -215,25 +216,27 @@ function shown(value) {
             >
               Return
             </button>
-            <template v-else-if="item.needs_review">
-              <span class="flag-holder">
-                <span
-                  class="flag-mark"
-                  tabindex="0"
-                  role="img"
-                  :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
-                >!</span>
-                <span class="flag-tip" role="tooltip">
-                  {{ item.review_reason || 'The record could not be verified at import.' }}
-                </span>
-              </span>
-            </template>
-            <!-- A row that cannot be rented shows nothing here. The Status pill one cell
-                 left already says "In Repair" or "Rented", and the absence of the button
-                 is itself the signal — a label repeating the pill made Actions a second
-                 status column. A refused attempt still states its cause: the 409 carries
-                 the server's own reason, which is the case where the reader genuinely
-                 does not already know. -->
+            <!-- One control per cell, all at the same width and height, so the column
+                 is a single rule down the page rather than four shapes. `In Repair` is
+                 the deliberate exception: an empty cell, because the pill already says
+                 it and there is nothing here for anyone to do. -->
+            <span
+              v-else-if="item.status === 'In Use'"
+              class="button button-quiet is-static"
+              :title="`Rented by ${item.assigned_to || 'an unknown holder'}`"
+              :aria-label="`Rented by ${item.assigned_to || 'an unknown holder'}`"
+              tabindex="0"
+            >
+              Rented
+            </span>
+            <span
+              v-else-if="item.needs_review"
+              class="button flag-mark"
+              tabindex="0"
+              role="img"
+              :title="item.review_reason || 'The record could not be verified at import.'"
+              :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
+            >!</span>
             <button
               v-else-if="item.status === 'Available'"
               type="button"

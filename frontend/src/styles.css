@@ -1125,3 +1125,91 @@ th[aria-sort] .sort-arrow {
  * reach it by construction. Writing `.auditor-panel` selectors would have been dead CSS
  * against markup that does not use them — checked before adding, and removed after
  * adding them anyway. */
+
+/* ================================================================ Phase 4, finish III */
+
+/* One control per Actions cell, all the same box. The column previously held a filled
+ * button, a bare icon and a small chip at three sizes, which is what made it read as
+ * three unrelated things stacked in a stripe. */
+.cell-actions .button,
+.cell-actions .flag-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  width: 96px;
+  height: 32px;
+  padding: 0;
+}
+
+/* The "Rented" control is a label wearing a button's shape: same box, so the column
+ * stays a rule, but nothing to press. `tabindex` is what carries the holder to a
+ * keyboard — the name is in `title` for a pointer and `aria-label` for a screen reader,
+ * and hover alone would have hidden it from both. */
+.is-static {
+  cursor: default;
+  color: var(--ink-muted);
+}
+
+.cell-actions .flag-mark {
+  border: 1px solid var(--flag-edge);
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* Equal spacing, enforced rather than hoped for. Percentages fix the geometry so no
+ * column widens because of what happens to be in it — a long device name used to steal
+ * width from Status and leave the header ragged. `table-layout: fixed` is what makes
+ * the percentages binding instead of advisory. */
+.table-scroll table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.table-scroll th:nth-child(1) { width: 28%; }
+.table-scroll th:nth-child(2) { width: 16%; }
+.table-scroll th:nth-child(3) { width: 18%; }
+.table-scroll th:nth-child(4) { width: 18%; }
+.table-scroll th:nth-child(5) { width: 20%; }
+
+.cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Air between the heading and the question box. They were one block. */
+.main > h1 {
+  margin-bottom: 22px;
+}
+
+/* The search bar, flat. No border, no stroke, no submit button — Enter submits, which
+ * is what every search field on the internet has taught people to expect, and a button
+ * beside a full-width pill was a second thing to aim at for no gain. */
+.search-bar {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.search-bar input[type='search'] {
+  border: 0;
+  background: var(--ground);
+}
+
+.search-bar input[type='search']:focus-visible {
+  border: 0;
+  background: var(--ground);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The auditor panel in the same language as the search bar: the flat fill, the same
+ * radius, no card border. Quiet, because it is a second reading of the inventory rather
+ * than a competing surface. */
+.panel.is-flat {
+  border: 0;
+  background: var(--ground);
+}

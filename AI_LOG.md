@@ -1760,4 +1760,36 @@ deployed volume, but it is worth saying rather than leaving for someone to find.
 
 152/152.
 
-Commit: fix(phase-4): declare the edit-hardware event so the pencil works (pending)
+Commit: fix(phase-4): declare the edit-hardware event so the pencil works (1edef24)
+
+---
+
+## [P4 · c17] Uniform actions, flat search, the renter off the row
+
+Six finish items, all made with the Edit tool and all checked on screen rather than by a
+green build.
+
+The Actions column now holds one control per cell at a uniform 96×32 — it previously held a
+filled button, a bare icon and a small chip at three sizes, which is what made it read as
+three unrelated things in a stripe. Column widths are percentages under
+`table-layout: fixed`, which is what makes them binding rather than advisory; a long device
+name used to steal width from Status and leave the header ragged.
+
+The renter's name leaves the row and rides the grey `Rented` control on `title` **and**
+`aria-label`, with `tabindex="0"`. Hover alone would have hidden it from keyboard and
+screen-reader users, which is the trap in "show it on hover" — ADR-0012 is untouched, the
+field is still served, it is simply no longer a column most rows leave empty.
+
+**One precedence chosen, and written down as a choice.** A cell holds one control, so a
+row that is both rented and flagged shows `Rented`: `In Use` is tested first. Nothing is
+lost — a rented item is already unrentable, and the needs-review tab lists flagged items
+regardless. Both seed flags are `Available`, so it does not arise today, which is exactly
+why it needed stating rather than leaving for someone to discover as a bug.
+
+**And one thing I could not verify, recorded rather than glossed.** The flagged branch of
+that cell has no screenshot behind it: both flagged rows on the scratch database had been
+released during earlier testing, so the amber `!` at the new size is markup I have read and
+not seen. In `BACKLOG.md`, pointed at the deploy verification against a reset instance,
+which restores ids 6 and 10 as flagged.
+
+Commit: feat(phase-4): uniform actions, flat search, hover-only renter (pending)

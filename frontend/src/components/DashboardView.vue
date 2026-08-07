@@ -64,9 +64,10 @@ function clearSearch() {
       />
       <Icon name="sparkle" class="search-spark" :size="18" />
     </div>
-    <button class="button" type="submit" style="align-self: flex-end" :disabled="props.searching">
-      {{ props.searching ? 'Searching…' : 'Search' }}
-    </button>
+    <!-- No submit button: Enter submits, which is what a search field has taught
+         everyone to expect, and a button beside a full-width pill was a second target
+         for no gain. The form still has `@submit`, so Enter and assistive technology
+         both reach it. Clear stays, but only once there is something to clear. -->
     <button
       v-if="props.searchResults"
       class="button button-quiet"

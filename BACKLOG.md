@@ -423,3 +423,12 @@ has now been wrong twice here, which is enough to treat "I can think of a reason
 insufficient evidence in this repository specifically. *Urgent when: it recurs — and the
 first move is a measurement (time one fixture, compare a cold and warm run) rather than a
 story.*
+
+**The flagged branch of the Actions column is visually unverified.** The uniform-size pass
+gives a flagged row an amber `!` at the same 96×32 as the `Rent` button, and the markup is
+in `HardwareTable.vue` — but no screenshot shows it, because both flagged rows on the local
+scratch database had been released during earlier testing. Every other branch of that cell
+was confirmed on screen: `Rent`, the grey `Rented`, and the empty `In Repair`. The
+deployment verification against a freshly reset live instance covers it, since a reset
+restores ids 6 and 10 as flagged. *Urgent when: the v4 deploy is verified — and if the
+`!` is the wrong size there, this entry is why nobody caught it earlier.*

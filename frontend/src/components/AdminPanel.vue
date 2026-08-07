@@ -103,7 +103,10 @@ function submitAccount() {
     />
   </div>
 
-  <div class="panel">
+  <!-- Flat, in the search bar's language: same fill, same radius, no card border. It is
+       a second reading of the same inventory, so it should recede rather than compete
+       with the table it comments on. -->
+  <div class="panel is-flat">
     <div class="panel-head">
       <h2>Inventory Auditor</h2>
       <button type="button" class="button" :disabled="props.auditing" @click="emit('run-audit')">
