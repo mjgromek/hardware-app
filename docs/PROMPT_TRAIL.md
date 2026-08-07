@@ -33,6 +33,40 @@ the commit and the ADR it produced, so a claim here can be checked against the c
 | 18 | The company domain, and the lockout check | ADR-0019 |
 | 19 | A review concludes; it does not only absolve | ADR-0017 second amendment |
 | 20 | The returner gets a channel | ADR-0020 |
+| 21 | Phase 4 finish: the exclusion, the ring, the sort *(reconstructed)* | ADR-0003 second Phase 4 amendment |
+| 22 | Final polish: the answer lands in the table *(reconstructed)* | ADR-0018 third amendment (the ask voice) |
+| 23 | Self-grilling for the submission defense *(reconstructed)* | ADR-0002 second amendment |
+| 24 | Curation: the comment diet and the reading path *(reconstructed)* | none; restructured README, AI_LOG, this file |
+| 25 | The over-engineering audit, recorded and unapplied *(reconstructed)* | none; eleven findings to BACKLOG.md |
+| 26 | The final documentation pass and the deploy trigger | none |
+
+### Index: which session each ADR traces to
+
+Every ADR and every amendment, so nothing sits in `docs/adr/` without a prompt behind it.
+Amendments carry the commit that made them, because they are the entries hardest to check.
+
+| ADR | Produced by | Amended by |
+| --- | --- | --- |
+| ADR-0001 Single-origin deployment | Session 1 | — |
+| ADR-0002 Ingestion validates structure only | Session 1 | Session 14 (`adca539`, the deferred typo); Session 23 (`b11e7e9`, the ambiguous date) |
+| ADR-0003 `needs_review` is a rentability guard | Session 1 | Session 9 (grilling 2, the guard is not the sole decision point); Session 21 (`c158b54`, review and Repair exclude each other) |
+| ADR-0004 Structured filter extraction | Session 1 | — |
+| ADR-0005 Admin bootstrap, zero-admin invariant | Session 1 | Session 13 (`eec6b5b`, `architecture-scout` at the Phase 2 gate: check-then-act) |
+| ADR-0006 No public read surface | Session 4 | — |
+| ADR-0007 The rental record | Session 9 | — |
+| ADR-0008 The atomic claim, and what a refusal says | Session 9 | — |
+| ADR-0009 Who may end a rental | Session 9 | — |
+| ADR-0010 One audit table for admin overrides | Session 9 | Session 13 (`e77355d`, the transition owns its record) |
+| ADR-0011 Rental data survives reseed and delete | Session 9 | — |
+| ADR-0012 Who sees what on a hardware item | Session 9 | — |
+| ADR-0013 Accounts are soft-deleted | Session 12 | — |
+| ADR-0014 The auditor proposes, never disposes | Session 14 | Session 15 (`c4b561d`, post-gate reply cache) |
+| ADR-0015 No restricted-field predicates | Session 14 | — |
+| ADR-0016 Degradation is announced | Session 14 | Session 15 (`d6868f4`, `97b6967`, the measured timeout budgets) |
+| ADR-0017 The flag-review verb | Session 14 | Session 16 (`2f684c8`, `2722e1b`, a release states its fix); Session 19 (`e3a5ecd`, a review concludes in Release or Repair) |
+| ADR-0018 How a sound is delivered | Session 16 | Session 16 (`a55d5c1`, `c3f20ad`, `fde6603`, four voices become six); Session 22 (`364d4ce`, the ask voice) |
+| ADR-0019 Every account is on the company domain | Session 18 | — |
+| ADR-0020 The returner may flag what they handled | Session 20 | — |
 
 ---
 
@@ -1141,3 +1175,154 @@ above two functions `main()` calls. Importing binds names in any order, so 181 t
 green. The same blind spot as the deploy smoke check, one layer down: **the suite tests
 what it imports**, and the two things a reader actually runs were the two things nothing
 exercised.
+
+---
+
+## Session 21 — 2026-08-07 — Phase 4 finish: the exclusion, the ring, the sort — *reconstructed*
+
+**Status:** ✅ closed. **Commits:** `c158b54`, `41444fe`, `f201adf`, `751db0e`, `2719a1a`,
+`b44635d`, `63ae93f`, `90b47d3` (`AI_LOG.md` P4 · c34 to c41). Reconstructed: these were
+short interactive UI requests and the wording did not survive, but one of them amended an
+ADR and two others changed how a claim gets checked, so the session belongs here.
+
+**Produced the second ADR-0003 amendment: review and Repair exclude each other, by
+construction.** The phrase is what makes it architectural rather than a validation rule.
+The guard shipped on `flag-review`, the suite went green, and the dashboard immediately
+showed the state the guard forbids: admin edit reaches `Repair` too, and
+`PATCH {"status": "Repair"}` on a flagged row wrote the pair with nothing in the way. The
+test that passed, *no seeded item is both*, could not have failed, because the seed cannot
+contain the pair. "By construction" is a claim about every route that reaches the state,
+and one route had been checked. The second guard refuses rather than silently clearing the
+flag, because clearing it there would conclude a review with no reason and no audit row,
+which is exactly what `clear-review` exists to prevent.
+
+**A deviation stated rather than absorbed.** The request asked that the Repair reason
+prefill *when the review came from a return-with-issue report*. The row does not record a
+flag's origin, and adding a `review_source` column is a schema change carrying a migration
+test. It prefills for every flagged item instead, which is the requested case plus one
+harmless neighbour, and the difference is written down in the log rather than left for a
+reader to discover.
+
+**Two findings that were instrument errors, not defects.** The reported Ask AI focus ring
+"not fading" was three separate faults, none of them the cascade everyone assumed: an
+opaque 2px border reading as a hard edge, a ring at 0.22 alpha that was visually nothing,
+and no `transition` declared by any matching rule. Then the fix itself exposed a real bug
+only testing could find, since `box-shadow` interpolates only between layer lists of equal
+length, so `none` to three layers is a discrete jump. And the ring that looked correct in
+an earlier zoom looked correct because the zoom had cropped to the part that still worked.
+
+**The sort rule became a module rather than a second copy.** `displayState.js` holds two
+orderings that are deliberately different lists: resolution precedence decides which state
+wins when several are true of a row, and sort order decides where those resolved states sit
+down the page. Conflating them would have put Available last.
+
+---
+
+## Session 22 — 2026-08-07 — Final polish: the answer lands in the table — *reconstructed*
+
+**Status:** ✅ closed. **Commits:** `b6cb738`, `364d4ce`, `fbe7343`, `639e456`, `ccab055`,
+`dd1c30a` (`AI_LOG.md` polish · c1 to c6). Reconstructed, with one standing instruction
+that did survive: diagnose on the live deploy before editing.
+
+**Produced the third ADR-0018 amendment: the ask voice sits outside the family on
+purpose.** Six voices report outcomes. This one marks the app posing a question, and a
+seventh contour on the same triangle would have claimed it was an outcome. The synthesis
+changes instead, a sawtooth glide through an opening lowpass, quieter than any outcome. The
+amendment records the boundary rather than the sound: outcomes join the family, questions
+vary the glide.
+
+**The AI answer had been arriving somewhere the user was not looking.** Results lived
+beside the table rather than in it, and the local type-to-filter kept treating the question
+as a substring, so the visible response to pressing Enter was six seconds of "No hardware
+matches this filter" while a real call was in flight. Results now narrow the one table in
+place and the filter stands down while a question is being answered.
+
+**Delete left the admin's own row.** For a sole admin the button could only ever die on the
+zero-admin guard, which is a `409` dressed up as an action. Hiding it is a UI decision and
+explicitly not a move of the invariant: ADR-0005 keeps enforcing the rule for every path
+the interface does not draw.
+
+**Found while doing something else, and not a defect.** The live model calls began
+answering `429`, free-tier quota spent, so the mode chip reads "AI search unavailable".
+That is ADR-0016 doing precisely its job, and it is recorded here because a reviewer
+opening the demo will see it and reasonably suspect otherwise.
+
+---
+
+## Session 23 — 2026-08-07 — Self-grilling for the submission defense — *reconstructed*
+
+**Status:** ✅ closed. **Commits:** `8b51619`, `9122b2b`, `b11e7e9`, `3b393f0`, `aabfd58`,
+`878c1e7` (`AI_LOG.md` review · c1 to c4). Reconstructed: the questions were put to the
+project rather than by the user, so no prompt text survives. Its numbered questions are
+referenced in the log entries as Q1 and Q5, which is how the two findings below are
+attributed.
+
+The session asked what a hostile reviewer would ask at the defense, then tested the answers
+instead of writing them. Two of the answers were wrong, which is the entire reason this
+entry exists.
+
+**Q1 produced the second ADR-0002 amendment.** The ADR holds `normalise_purchase_date` up
+as the structural side of the structural-versus-semantic line, and the function was
+silently choosing day-first on ambiguous input: `"05-04-2023"` returned 5 April, a judgment
+about intent made by the exact function the document cites as making no judgments. The
+suite had pinned the guess as a feature (`01-02-2020 → 1 February`). The boundary had held
+only because the seed happens to contain a date whose day cannot be a month. The rule is
+now stated as a property of the system rather than of the input: **a parse with exactly one
+legal reading is structural, a value with two quarantines with both readings named**. No
+date is stored, the original survives in the payload, and `needs_review` hands the choice
+to a human.
+
+**Q5 was a guess about where the next defect lived, and the guess was right.** The answer
+named "a rent racing an account deletion" as the likely next lifecycle blind spot. Tested
+deterministically by wrapping the delete route's rentals read so a racing rent commits on a
+second connection between the read and the write: the rent committed, the delete answered
+`204`, and the account was soft-deleted holding an active rental it can never return, which
+breaks ADR-0013's "no active rental outlives its owner". The fix is ADR-0008's lesson one
+layer up. Guard-then-delete holds nothing without a lock, so the order inverts: soft-delete
+first, which takes SQLite's write lock, then check rentals behind it, and a guard refusal
+rolls the uncommitted delete back.
+
+**Three non-code closures shipped in the same session.** Lifecycle-pair testing became a
+`CLAUDE.md` non-negotiable rather than an interview answer. The four smoke assertions were
+put on a 30-minute GitHub Actions schedule, which is the between-deploys detector
+Corrections #5 and #6 both lacked. And the README retrospective closed its own arithmetic
+rather than leaving the reader to do it.
+
+---
+
+## Session 24 — 2026-08-07 — Curation: the comment diet and the reading path — *reconstructed*
+
+**Status:** ✅ closed. **Commits:** `43d9099`, `bea41bd` (`AI_LOG.md` curation · c1 to c2).
+Reconstructed. Not architecture, but it changed what a reviewer meets first, which is the
+one thing a submission cannot fix later.
+
+**Backend comment prose went from 1,397 lines to 571**, verified AST-fingerprint identical
+before and after, suite green. The keep-rules are the interesting part, because they are
+the argument for why the survivors survived: the why-not-recoverable set (delete writes
+first, the UPDATE is the decision, no `StaticPool`, persist does not commit, readonly not
+disabled, the `-webkit` mask ordering), one-line ADR pointers, and module responsibility
+statements. Test docstrings were not touched. The cut stopped above its own target, because
+the next lines to go were lines the keep-rules protect.
+
+**The documentation gained a reading path.** README opens with a ten-minute tour, AI_LOG
+opens with the corrections indexed, and this file gained the session-to-ADR index above.
+The corrections were renumbered one to seven, with the drift owned in place rather than
+quietly fixed: no #1 was ever written and #5 was used twice.
+
+---
+
+## Session 25 — 2026-08-07 — The over-engineering audit, recorded and unapplied — *reconstructed*
+
+**Status:** ✅ closed. **Commit:** `a41df34` (`AI_LOG.md` curation · c3). Reconstructed.
+
+A read-only `ponytail` pass over the whole repo within the hour before submission, ranked
+by reviewer visibility. Eleven findings went to `BACKLOG.md` with what each would become and
+the condition that makes the cut worth taking. **Nothing was applied, deliberately**, and
+that is the decision worth recording: an unreviewed simplification landing an hour before a
+deadline is how a green suite turns into a broken demo, and the audit is more useful to a
+reviewer as evidence of judgment than as a diff.
+
+The headline finding is not flattering in the way an author would choose. The code is lean,
+with dependencies at the floor, two dead paths and a handful of shrinks available. The
+over-build is the elective sound system and the roughly 4:1 documentation-to-code ratio,
+both of which this particular brief happens to grade.
