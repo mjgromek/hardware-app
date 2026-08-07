@@ -28,10 +28,21 @@ const items = ref([])
 const mine = ref([])
 const accounts = ref([])
 
-//: The pending admin override, or null. One dialog serves both verbs (ADR-0010).
+//: The pending admin override, or null. One dialog serves all three verbs (ADR-0010).
 const override = ref(null)
 const busyId = ref(null)
 const toasts = ref([])
+
+//: `{ mode, items }` from the last search, or null when the dashboard shows the
+//: whole inventory. The mode is displayed, not swallowed (ADR-0016).
+const searchResults = ref(null)
+const searching = ref(false)
+
+//: The auditor's last run: findings, or the refusal it answered with. Computed
+//: server-side per run and never persisted (ADR-0014), so this is the only copy.
+const findings = ref(null)
+const auditError = ref(null)
+const auditing = ref(false)
 
 const isAdmin = computed(() => account.value?.role === 'admin')
 const flagged = computed(() => items.value.filter((item) => item.needs_review))
@@ -198,14 +209,62 @@ function askClearReview(item) {
   }
 }
 
+// From a finding, not from a row: the auditor proposed (ADR-0014), and this is the
+// human deciding (ADR-0017). The reason arrives prefilled from the finding and stays
+// editable — what gets recorded is whatever the admin leaves in the field.
+function askFlagReview(finding) {
+  const item = items.value.find((candidate) => candidate.id === finding.item_id)
+  override.value = {
+    kind: 'flag-review',
+    item: item ?? { id: finding.item_id, name: `item ${finding.item_id}` },
+    title: 'Flag for review',
+    subject: `${item?.name ?? `item ${finding.item_id}`} — ${finding.kind.replaceAll('_', ' ')}`,
+    prompt: 'Why is it being restricted?',
+    confirm: 'Flag it',
+    prefill: `${finding.explanation} Evidence: ${finding.evidence}`,
+  }
+}
+
 function submitOverride(reason) {
   const { kind, item } = override.value
   override.value = null
   busyId.value = item.id
   if (kind === 'force-return') {
     act(() => api.forceReturn(item.id, reason), `${item.name} recalled`)
+  } else if (kind === 'flag-review') {
+    act(() => api.flagReview(item.id, reason), `${item.name} is flagged and unrentable`)
   } else {
     act(() => api.clearReview(item.id, reason), `${item.name} is no longer flagged`)
+  }
+}
+
+async function runSearch(query) {
+  searching.value = true
+  try {
+    searchResults.value = await api.search(query)
+  } catch (e) {
+    say(e.detail ?? 'Search failed.', 'error')
+  } finally {
+    searching.value = false
+  }
+}
+
+function clearSearch() {
+  searchResults.value = null
+}
+
+async function runAudit() {
+  auditing.value = true
+  auditError.value = null
+  try {
+    findings.value = (await api.runAudit()).findings
+  } catch (e) {
+    // The refusal is a result, not a crash: ADR-0016 wrote the 503's detail to be
+    // shown to exactly this admin, so it lands in the panel rather than a toast.
+    findings.value = null
+    auditError.value = e.detail ?? 'The audit could not run.'
+  } finally {
+    auditing.value = false
   }
 }
 
@@ -276,10 +335,14 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         :counts="counts"
         :current-email="account.email"
         :busy-id="busyId"
+        :search-results="searchResults"
+        :searching="searching"
         @filter="setFilter"
         @sort="setSort"
         @rent="rentItem"
         @return="returnItem"
+        @search="runSearch"
+        @clear-search="clearSearch"
       />
 
       <MyRentals
@@ -298,11 +361,16 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         :accounts="accounts"
         :current-email="account.email"
         :busy-id="busyId"
+        :findings="findings"
+        :audit-error="auditError"
+        :auditing="auditing"
         @add-hardware="addHardware"
         @toggle-repair="toggleRepair"
         @delete-hardware="deleteHardware"
         @force-return="askForceReturn"
         @clear-review="askClearReview"
+        @flag-finding="askFlagReview"
+        @run-audit="runAudit"
         @add-account="addAccount"
         @set-role="setRole"
         @delete-account="deleteAccount"
@@ -316,6 +384,7 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
     :subject="override?.subject ?? ''"
     :prompt="override?.prompt ?? ''"
     :confirm="override?.confirm ?? ''"
+    :prefill="override?.prefill ?? ''"
     @submit="submitOverride"
     @cancel="override = null"
   />

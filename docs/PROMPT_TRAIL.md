@@ -822,3 +822,182 @@ and `mvp-reviewer` caught a session signature that 47 passing tests did not defe
 the two places where the project's direction can still change cheaply. Spending the
 deepest model there and not on the loop is the same trade as the agent-brief revision in
 Session 10 — buying rigor where it compounds and paying for it where it does not.
+
+
+---
+
+## Session 12 — 2026-08-06 — `/security-review` at the Phase 2 gate → ADR-0013 — *reconstructed*
+
+**Status:** ✅ settled → **ADR-0013**. **Commit:** `5d33b44`. Backfilled at the
+pre-submission doc audit — every other Phase 2 ADR traces to a session here, and this one
+did not: its trail lived only in `AI_LOG.md` P2 · c9 and the ADR itself.
+
+The invocation was the standing gate instruction, not a bespoke prompt: run
+`/security-review` before the gate (`brainstorm.md` §5, phases 1 and 3 — extended to
+Phase 2 because the phase added authentication-adjacent surface). The review returned two
+findings; both were reproduced before being believed, per the Correction #2 rule.
+
+What made it architecture rather than a patch: both findings shared one root —
+`users.id` is a SQLite rowid alias, so a deleted account's id is reissued, and sessions,
+`?held_by=me`, and `audit_events` actors were all keyed on it. The prompt-shaped decision
+was rejecting the local fix (`sqlite_autoincrement=True` changes only `CREATE TABLE` and
+would have left the deployed volume vulnerable) for an identity decision: a per-account
+session token issued once and never reissued, and soft-deleted accounts. → **ADR-0013**.
+
+---
+
+## Session 13 — 2026-08-07 — `mvp-reviewer` at the Phase 2 gate, and who owns the audit write — *verbatim*
+
+**Status:** ✅ settled — an ADR-0010 invariant made structural. **Commits:** `8f127df`
+(red), `e77355d` (green), `eb5b20a` (docs).
+
+The gate ran twice. The invoking prompt both times:
+
+> Use the mvp-reviewer agent for Phase 2.
+
+First verdict: **FAIL** — a docs-only blocker (the README's graded sections still
+described Phase 1) and, among the non-blockers, one that turned out to be design: the
+route wrote the `audit_events` row and `rentals.force_return` accepted a `reason` it
+ignored. The instruction that reopened the gate (verbatim):
+
+> force_return ignores its reason param (app/rentals.py:191). Not cosmetic — ADR-0010
+> makes the reason mandatory, and an override recorded without one defeats the table.
+> Red test first, then fix.
+
+The design consequence goes one level past the finding: rather than the route continuing
+to write the event, the transition now writes its own record, in the same transaction as
+the close — so no future caller of `rentals.force_return` (Phase 3's auditor is the
+likely one) can end a rental and leave no trace. ADR-0010's mandatory reason moved from
+convention (every caller remembers) to structure (the function cannot be called without
+producing the row). Second verdict: **PASS WITH NOTES**, gate cleared, merged as PR #3,
+tagged `v2-rental`.
+
+
+---
+
+## Session 14 — 2026-08-07 — Grilling 3, Phase 3 scope — *verbatim*
+
+**Skill:** `/grill-me` → `/grilling` **Scope:** Phase 3, the AI layer only.
+**Status:** ✅ **Settled in two rounds**, the second answered inline with the closing
+instruction. Produced ADR-0014–0017 and `docs/specs/phase-3.md`. Remaining detail on the
+flag verb (refusal semantics, prefill) was assigned to `/to-spec` rather than a third
+round — the Session 9 precedent.
+
+### The invoking prompt (verbatim)
+
+> Phase 3, the AI layer. Read brainstorm.md §3 Phase 3, ADR-0004, ADR-0012.
+>
+> Architecture is settled — the LLM emits a schema-validated filter object, SQLite
+> returns the rows. Provider is Gemini Flash, key in GEMINI_API_KEY, server-side only.
+>
+> Push on: what the auditor may and may not assert; whether search results can leak
+> notes/history to a non-admin, given ADR-0012 restricts them but the auditor reads
+> them; fallback when the API is down; and whether the auditor writing into
+> review_reason changes who may see that field.
+>
+> Short session. Don't relitigate ADR-0004. Phase 4 (UI fidelity) is out of scope.
+
+### Facts established before Round 1 (looked up, not asked)
+
+- `visible_to` nulls the restricted fields in `app/main.py`, and `architecture-scout`'s
+  filed finding says it must move to `app/domain.py` *before* Phase 3 adds its two
+  second callers.
+- ADR-0010: `clear-review` has **no re-flag counterpart** — withheld deliberately.
+- CONTEXT.md fixes the fallback vocabulary: keyword search on LLM timeout/error.
+- `review_reason` has exactly one author (ingestion) and one consumer (`clear-review`,
+  which deletes it with the flag).
+
+### Round 1
+
+**Q1 — What may the auditor assert, and may it act?** Free prose or a closed
+finding-kind enum; and may it set `needs_review` itself?
+→ **Recommended a closed enum** (`status_contradiction`, `unidentifiable`,
+`probable_misspelling` — the three classes ADR-0002 deferred), each with evidence quote
+and explanation, and **propose-never-dispose**: no setting `needs_review`, no writing
+`review_reason`, no correcting `"Appel"`. ADR-0004's logic one layer up — model output
+is validated data; deterministic code and humans are the only actors. An open
+vocabulary invites untestable prose. **Answer — accepted.** → **ADR-0014**
+
+**Q2 — Can search leak restricted fields through the *filter*, not the payload?**
+Nulling `notes` in results is the easy half; a predicate *over* `notes` makes result-set
+membership an oracle — a `user` learns the Dell XPS has battery notes by seeing it match.
+→ **Recommended: no `notes`/`history`/`review_reason` predicate in the filter schema,
+for anyone**, and the keyword fallback obeys the same rule. The oracle becomes
+structurally unreachable; one schema for both roles; it is ADR-0004's accepted
+expressiveness trade, not a new one. **Answer — accepted.** → **ADR-0015**
+
+**Q3 — Fallback shape: visible? does the auditor get one? what does a missing key do?**
+→ **Recommended announced degradation** (`mode: "semantic" | "keyword"`, UI labels it —
+a silent fallback means a reviewer cannot tell the AI ever ran); **no auditor fallback —
+it refuses loudly** (a keyword auditor cannot find id 10, and a degraded audit wearing
+the AI's name is worse than a `503`); **feature-off, not boot refusal** for
+`GEMINI_API_KEY` (`SECRET_KEY` guards a security invariant, this key guards a feature —
+rentals must not go down because a demo key rotated). **Answer — accepted.** → **ADR-0016**
+
+**Q4 — Where do findings live, and does the auditor writing `review_reason` change who
+may see it?** Into `review_reason`; their own table; or a computed payload.
+→ **Recommended the computed payload from an admin-only route, persisted nowhere — and
+the auditor never touches `review_reason`, so the visibility question dissolves rather
+than gets answered.** The field keeps one author and one consumer; LLM prose in a field
+an admin's clear action erases would entangle two lifecycles. Admin-only is forced, not
+chosen: findings quote `notes`/`history`, and derived content inherits its source's
+restriction. **Answer — accepted.** → **ADR-0014**
+
+### Round 2
+
+**Q5 — Does Phase 3 add the admin `flag-review` verb ADR-0010 deliberately withheld,
+so a finding can make the Dell XPS unrentable?**
+
+**Answer (verbatim):**
+
+> yes, Phase 3 adds the admin flag-review verb. Without it the auditor finds the Dell
+> XPS and nothing can happen, which is the same "a flag that changes nothing is
+> decoration" argument ADR-0003 already made, one level up: a finding nobody can act on
+> is a report, not a product. It also completes the loop ADR-0002 opened — ingestion
+> deliberately declined to judge, the auditor judges, a human decides. Writes an
+> audit_events row, which is exactly the actor ADR-0010 reserved it for.
+
+→ **ADR-0017.** The closing instruction ended the session, ordered the trail entry, the
+four ADRs, the `visible_to` move (the scout's "urgent when a second caller appears" —
+this phase adds two), the sliced spec (A: search + fallback · B: auditor · C: re-flag
+verb + UI, first to cut), and production hardening as a gate checklist rather than a
+slice.
+
+
+---
+
+## Session 15 — 2026-08-07 — The live verification that amended the spec — *verbatim*
+
+**Status:** ✅ closed. **Commits:** `bd5961d`, `189815c`, `d6868f4`, `97b6967` —
+`AI_LOG.md` Correction #5 and c11–c13. Not a grilling: a verification instruction
+whose results changed a spec value and the deploy documentation, which is what earns
+it a place here.
+
+### The invoking prompt (verbatim)
+
+> Rerun the live verification now the key is attached:
+> - semantic search returns mode: "semantic", not "keyword"
+> - the auditor returns 200 rather than 503
+> - it flags id 10 (unidentifiable) and id 9 ("Appel")
+
+### What the verification found, in order
+
+1. **The deploy trigger was a landmine.** Attaching `GEMINI_API_KEY` redeployed the
+   service's tracked branch — Phase 0's build, no auth, open read surface, live for
+   ~4 minutes. `railway up` replaced it; CLAUDE.md now orders one after every
+   variable change until the trigger is repointed (dashboard-only).
+2. **The Gemini client imported a test-extra.** The auditor's own `503` reason read
+   `No module named 'httpx'` — ADR-0016's refusal-with-a-reason turned a debugging
+   session into one line. Fix: stdlib `urllib`.
+3. **The pinned model is retired for new keys.** `gemini-2.5-flash` → 404 "no longer
+   available to new users". Default became the `gemini-flash-latest` alias.
+4. **The 5s search budget was below the provider's floor.** Measured ~7.5s of
+   thinking per filter object, thinking-off knob 400s — under 5s the semantic path
+   could never answer, which the mode chip made visible. The spec's 5s is amended to
+   12s in place, with the measurement.
+
+Final state, all three checks green: `mode: "semantic"` on the live search, auditor
+`200` with exactly `(5, status_contradiction)`, `(9, probable_misspelling)`,
+`(10, unidentifiable)`, `(11, status_contradiction)` — and the oracle probe returning
+the *whole catalogue* for the battery query (n=12, zero selectivity), confirming
+ADR-0015's structural claim on the real model: it cannot leak what it never sees.

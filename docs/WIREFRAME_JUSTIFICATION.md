@@ -190,3 +190,29 @@ flagged item is an override, and the reason is what a later incident interrogate
 dialog rather than two because they are the same kind of event; the field is `required`
 client-side because the server rejects an empty reason and a client that lets you submit
 one just turns a considered refusal into a `422`.
+
+---
+
+## Phase 3 — the AI surfaces
+
+### The "Ask AI…" bar arrives, labelled with which path answered
+
+**The wireframe showed:** a search field reading `Ask AI…` with a sparkle affordance.
+**What was built:** the search field, above the inventory table where the wireframe put
+it — with a visible mode chip the wireframe never had: "AI search" when the model
+answered, "Keyword results — AI search unavailable" when it degraded (ADR-0016).
+**Why the deviation:** the wireframe's bar makes no claim about what happens when the
+provider is down, and a fallback that looks identical to the primary makes the README's
+"graceful fallback" unverifiable from the screen. Honesty is a feature; the chip is the
+feature. The Phase 1 justification for the bar's absence is above and is now closed.
+
+### Added: the Inventory Auditor panel
+
+**The wireframe showed:** nothing — no auditor surface exists in the wireframes.
+**What was built:** an admin-panel section with a Run audit button, the findings as a
+table (kind, evidence, explanation), and a "Flag for review" action per finding that
+opens the existing reason dialog *prefilled from the finding but editable* (ADR-0017).
+**Why:** ADR-0014 makes findings a computed payload an admin acts on; a surface had to
+exist for the acting, and the admin panel is where every other override lives. The
+prefill is a convenience; the edit is the point — the recorded reason is the human's
+claim, not the model's.

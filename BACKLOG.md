@@ -23,14 +23,6 @@ reviving as whoever inherited its recycled id. What remains is the weaker origin
 property: no way to end *your own* session, and no expiry. *Urgent when: a per-session
 revocation is needed — logging out one device rather than retiring the account.*
 
-**`/api/hardware` returns every field**, including `notes` and `history` — the free
-text the Phase 3 auditor reads. **Narrowed, not closed:** ADR-0006 put the endpoint
-behind a session, so a stranger with the URL no longer sees the contradiction material.
-What remains is field-level: every signed-in employee sees `notes`, `history` and
-`review_reason`, which are admin- and auditor-facing rather than employee-facing, and
-no test asserts who may see them. *Urgent when: `/security-review` before the Phase 1
-gate, or when the auditor writes findings into these fields in Phase 3.*
-
 **No per-user-salt test, now that there is a users table to write one against.**
 `test_password_is_hashed_not_stored_plaintext` asserts no stored value equals the
 plaintext, its hex or base64 encoding, or an unsalted MD5/SHA-1/SHA-256 of it — which
@@ -309,14 +301,6 @@ reproduce rather than something the module hands over. One caller today, so noth
 duplicated. *Urgent when: a second caller appears — Phase 3's semantic search returning
 rentable items is the likely one.*
 
-**`visible_to` and `ADMIN_ONLY_FIELDS` live in `app/main.py`.** They encode ADR-0012's rule
-about who may see `notes`, `history` and `review_reason` — a domain concern that the routes
-module currently owns, so any other caller has to import it from `app.main` and invert the
-dependency. ~15 lines to `app/domain.py`, one file. ***Urgent in Phase 3, and it is not a
-maybe:*** the Inventory Auditor reads exactly those three fields and semantic search
-returns items through a different path, so Phase 3 brings two second callers at once. Move
-it before either is written, not after both have copied it.
-
 **The boot sequence is ~90 lines inside `create_app`.** Schema creation, migration, seed,
 rental reconciliation, admin bootstrap, demo bootstrap, token backfill. `app/main.py` at
 702 lines is otherwise legitimate composition — fifteen thin routes over deep modules, not
@@ -326,18 +310,6 @@ needs its own test.*
 
 
 ## Phase 2 — `mvp-reviewer` at the gate
-
-**Commit `a44f85f` (grilling 2, the six Phase 2 ADRs) has no `AI_LOG.md` entry.** The
-log's own rule, and the pre-commit hook that now enforces it landed two commits later —
-this is the one gap the hook postdates. The Phase 1 audit set the precedent: backfill it
-and *label it as backfilled*, because a reconstructed entry passed off as contemporaneous
-is worse than the gap. *Urgent when: before the final submission — a graded deliverable
-with a known hole and a known precedent for filling it honestly should use it.*
-
-**Every Phase 2 AI_LOG entry still reads `Commit: … (pending)`.** Phase 1 entries carry
-their SHAs; Phase 2's were written before committing (which is the point) and never
-back-annotated after. One pass over `git log` fixes all of them. *Urgent when: same as
-above — the final submission pass.*
 
 **`chore(phase-2): deploy v2` (`3bce364`) ships production code under a `chore` label.**
 The reconcile fix and the seed backfill ride a commit whose type says "no production
@@ -350,3 +322,52 @@ clearing whatever the item's status (`app/main.py`), and ADR-0010 says so, but n
 pins it — a regression that quietly restricted clearing to `Available` items would be
 green. One test clearing a flagged `Repair` item covers the claim. *Urgent when: anyone
 touches the clear-review route or the guard layer it deliberately bypasses.*
+
+
+## Phase 3 — the red pass (test-author)
+
+**"Off-enum kinds are dropped *and counted*" has no surface in the spec.**
+`docs/specs/phase-3.md` says the count exists but names no field, so
+`test_auditor_drops_off_enum_finding_kinds` pins the drop and not the count — an
+implementation that discards silently is green. *Urgent when: the audit response shape is
+settled; add `{"dropped": n}` to the spec table and one assertion.*
+
+**The LLM seam is fixed by a test module, not by an ADR.** `tests/llm_seam.py` decides
+that the key is read from `os.environ` at request time and that the client lives at
+`app.state.llm` — the spec fixes only "server-side, read at request time". Same shape as
+`conftest.py` fixing the HTTP contract in Phase 1, and recorded here for the same reason.
+*Urgent when: a second consumer of the model appears, or the seam moves into `Settings`.*
+
+**`test_auditor_flags_misspelled_brand` (id 9, `"Appel"`) was cut at the 12-test cap.**
+ADR-0002's deferred typo therefore still has no test closing the loop; the
+`probable_misspelling` member of the enum is exercised by nothing. Plumbing-identical to
+`test_auditor_flags_unidentifiable_item`. *Urgent when: the cap lifts, or before the phase
+gate if ADR-0002's closure is claimed in the README.*
+
+**Slice C has no tests.** The six named in the spec (`flag-review`) were out of the
+red pass's scope. If Slice C ships, it ships untested unless a second red pass runs
+first. *Urgent when: Slice C is not cut.*
+
+---
+
+## Deploy trigger — found at the v3 deploy
+
+**The Railway service's GitHub trigger tracks the Phase 0 branch.** A branch push has
+not deployed anything since Phase 0 ended; every phase since has shipped through some
+other path, and the stale trigger sat harmless until 2026-08-07, when attaching
+`GEMINI_API_KEY` made Railway redeploy its configured source — putting v0 (no auth,
+open read surface) on the public URL for ~4 minutes until a `railway up` replaced it.
+The CLI cannot change the tracked branch; the dashboard can. *Urgent when: anyone
+touches a variable, which is why CLAUDE.md now orders a `railway up` after every
+variable change — and permanently fixed only by pointing the trigger at `main` in the
+dashboard, a human-only action.*
+
+---
+
+## Phase 3 — `mvp-reviewer` at the gate
+
+**A valid-but-empty filter returns the whole catalogue labelled `semantic`, pinned by
+no test.** Observed live (the oracle probe's zero-selectivity answer, n=12). Correct
+behaviour — the model legitimately said "no constraints" — but nothing asserts it, so
+a regression that errored on `{}` or mislabelled it would be green. *Urgent when: the
+search route or `parse_filter` is next touched.*

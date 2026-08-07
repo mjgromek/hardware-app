@@ -681,7 +681,7 @@ bad commit with a note is worth more than an invisible one.
 
 All 25 entries now carry their commit sha instead of `(pending)`.
 
-Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (pending)
+Commit: fix(phase-1): session integrity, add-hardware race, demo bootstrap (4f9b07c)
 
 ---
 
@@ -708,7 +708,22 @@ entry from "urgent before the Phase 1 gate" to an *Owned by Phase 2* section; th
 says it in `⚠️ Partial`, and three other places that still said "due before the Phase 2
 gate" now agree with the ADR.
 
-Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (pending)
+Commit: docs(phase-2): assign the clear-flag mechanism to Phase 2 (7ae6eac)
+
+---
+
+## [P2 · c1a] Grilling 2, six ADRs, and the phase spec
+
+**Backfilled at the pre-submission doc audit, 2026-08-07** — the second entry in this log
+to be written late, and labelled so for the same reason as the first. `a44f85f` shipped
+grilling 2's output (ADR-0007–0012, the ADR-0003 amendment, `docs/specs/phase-2.md`) with
+no entry; `mvp-reviewer` caught it at the gate, and the pre-commit hook that would have
+refused it landed two commits *later* — this is the one gap the hook postdates. The
+session itself is in `docs/PROMPT_TRAIL.md` Session 9, recorded in the moment; only this
+pointer to it was missing. Numbered c1a because every later entry was already numbered
+when the gap was found.
+
+Commit: docs(phase-2): grilling 2, six ADRs, and the phase spec (a44f85f)
 
 ---
 
@@ -740,7 +755,7 @@ but ADR-0002 makes ingestion structural-only, so the Dell XPS imports `Available
 inventory instead, which covers both and survives Phase 3 flagging more. Filed rather than
 escalated — it changes no behaviour, only a claim.
 
-Commit: test(phase-2): failing specs for the rental engine and the review flag (pending)
+Commit: test(phase-2): failing specs for the rental engine and the review flag (3629b17)
 
 ---
 
@@ -760,7 +775,7 @@ remembered it, and the Phase 1 audit found the two places I had not. Merges and
 commits behind when first audited), and work visible in the diff that never reached the
 README's four graded sections.
 
-Commit: chore: enforce AI log as a commit gate (pending)
+Commit: chore: enforce AI log as a commit gate (87167d1)
 
 ---
 
@@ -799,7 +814,7 @@ in one project — the reflex I need is to read my own brief before I read the a
 because if the output is consistently off in one direction, the instruction is where the
 direction came from.
 
-Commit: chore: tighten test-author brief for pace (pending)
+Commit: chore: tighten test-author brief for pace (253b254)
 
 ---
 
@@ -827,7 +842,7 @@ then for a row, so it survives the engine every storage test builds, where `rent
 never existed. `app/storage.py` still knows nothing about what a rental *is* — only that
 rows in that table mean the inventory is not replaceable.
 
-Commit: feat(phase-2): rental engine, clear-flag and audit trail (pending)
+Commit: feat(phase-2): rental engine, clear-flag and audit trail (07120d4)
 
 ---
 
@@ -851,7 +866,7 @@ explicit focus on open plus `Escape` to cancel. The Phase 1 add-hardware dialog 
 same defect and is now in `BACKLOG.md` — worth noticing that a bug shipped in Phase 1,
 survived a review gate, and was only caught by driving the thing.
 
-Commit: feat(phase-2): rent, return and the admin overrides in the UI (pending)
+Commit: feat(phase-2): rent, return and the admin overrides in the UI (5fc9bcb)
 
 ---
 
@@ -883,7 +898,7 @@ Worth stating plainly: this class of defect is invisible to a fresh-database tes
 88 tests passed against a database that had never been upgraded, and the item was stranded
 the moment the code met a real volume.
 
-Commit: chore(phase-2): deploy v2 (pending)
+Commit: chore(phase-2): deploy v2 (3bce364)
 
 ---
 
@@ -928,7 +943,7 @@ hole, and `mvp-reviewer` caught a session signature that no test defended.
 Put plainly: I am spending the deeper model at the two gates where a miss is silent, and
 not on the loop where a miss is loud.
 
-Commit: feat(phase-2): repeatable demo reset (pending)
+Commit: feat(phase-2): repeatable demo reset (139e262)
 
 ---
 
@@ -948,7 +963,7 @@ Worth noting what it does *not* do: the auditor flags the brand as a probable mi
 It does not correct it. Correcting is still judgement, and the item still belongs to a
 human.
 
-Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (pending)
+Commit: docs(phase-3): the auditor owns ADR-0002's deferred typo (adca539)
 
 ---
 
@@ -988,7 +1003,7 @@ That is why the belt was missing: declaring it required reconciling two ADRs, no
 keyword. And `current_account`'s docstring, which claimed a deleted account's session was
 refused, is now true instead of aspirational.
 
-Commit: fix(phase-2): soft-delete accounts and sign a session token (pending)
+Commit: fix(phase-2): soft-delete accounts and sign a session token (5d33b44)
 
 ---
 
@@ -1034,7 +1049,7 @@ earn it. The claim I should have checked was the adjacent one nobody had made: *
 migration happening at all?* When a design decision is justified by what it avoids, the
 thing to verify is that the alternative is actually being done.
 
-Commit: fix(phase-2): migrate the users table on boot (pending)
+Commit: fix(phase-2): migrate the users table on boot (4fc27c5)
 
 ---
 
@@ -1051,7 +1066,7 @@ which is the one condition under which `create_all` does the migration for you.
 Also corrected the phase table in the same file, which still described Phase 1 as in
 progress two tags later.
 
-Commit: docs: migration tests are mandatory for schema changes (pending)
+Commit: docs: migration tests are mandatory for schema changes (6e1216a)
 
 ---
 
@@ -1078,7 +1093,7 @@ shared it. A single-guard framing hid a class.
 ADR-0005 now says the invariant holds only under sequential access, which is what it always
 meant rather than what it claimed.
 
-Commit: docs(phase-2): file the architecture-scout findings (pending)
+Commit: docs(phase-2): file the architecture-scout findings (eec6b5b)
 
 ---
 
@@ -1087,7 +1102,7 @@ Commit: docs(phase-2): file the architecture-scout findings (pending)
 `rentals.force_return` demands a mandatory `reason` (ADR-0010) and ignores it — the
 audit write lives in the route, so any second caller ends a rental unrecorded. Red at
 the direct call: 0 audit events.
-Commit: test(phase-2): pin the audit write inside force_return (pending)
+Commit: test(phase-2): pin the audit write inside force_return (8f127df)
 
 ---
 
@@ -1095,7 +1110,7 @@ Commit: test(phase-2): pin the audit write inside force_return (pending)
 
 `audit.record` moves from the route into `rentals.force_return`, same transaction as
 the close; the route-level "exactly one event" test proves nothing double-writes. 98/98.
-Commit: fix(phase-2): force_return writes its own audit event (pending)
+Commit: fix(phase-2): force_return writes its own audit event (e77355d)
 
 ---
 
@@ -1105,4 +1120,191 @@ mvp-reviewer's blocker: the graded sections said the rental engine did not exist
 branch that shipped it. Brought to v2 reality, Reseeding now points at the reset route
 (ADR-0011), the 41-vs-15–20 commit count is acknowledged in ⚡ with its why, and the
 four non-blocking findings are filed in BACKLOG.md.
-Commit: docs(phase-2): bring the README to Phase 2 reality (pending)
+Commit: docs(phase-2): bring the README to Phase 2 reality (eb5b20a)
+
+---
+
+## [P3 · c1] Pre-submission doc audit against the brief
+
+Every `.md` checked against the brief's deliverables. AI_LOG: 17 SHAs back-annotated,
+`a44f85f` backfilled as c1a. PROMPT_TRAIL: Sessions 12–13 close the ADR-0013 and
+gate-review gaps — 13/13 ADRs now trace to a prompt. README: 🔮 lists three next steps,
+seed-on-boot gets its Why/Future. BACKLOG drops three done/false entries; brainstorm.md
+gets a dated status note instead of a rewrite.
+Commit: docs(phase-3): audit every doc against the brief (1aff2db)
+
+---
+
+## [P3 · c2] Phase 4 — wireframe fidelity — enters the plan
+
+New phase in `brainstorm.md` §3, after Phase 3, not started: close-copy UI fidelity,
+three schema columns with the mandatory migration test, an ADR-0012 amendment (renter
+hidden from non-admins) written rather than silently reversed, and two brief-mandated
+wireframe deviations (Purchase Date, filtering) pre-registered for
+`WIREFRAME_JUSTIFICATION.md`. §0, CLAUDE.md's phase table and the README (🔮 + a v4 row)
+now agree there are five gates.
+Commit: docs(phase-4): plan the wireframe-fidelity phase (b059470)
+
+---
+
+## [P3 · c3] Grilling 3, four ADRs, and the phase spec
+
+Two rounds, frontier cut deliberately — flag-verb detail assigned to the spec, the
+Session 9 precedent. ADR-0014–0017: propose-never-dispose, no restricted-field
+predicates, announced degradation, and the flag-review verb ADR-0010 withheld.
+Spec sliced A/B/C with hardening as a gate checklist.
+Commit: docs(phase-3): grilling 3, four ADRs, and the phase spec (270df1d)
+
+---
+
+## [P3 · c4] `visible_to` moves to the domain, ahead of its two new callers
+
+The architecture-scout finding executed on its own trigger: "urgent when a second
+caller appears" — Phase 3 adds two (search, auditor). Pure move, `app/main.py` →
+`app/domain.py`, plus one stale comment fixed (findings are never written into these
+columns, ADR-0014). 98/98 before and after.
+Commit: refactor(phase-3): move field visibility to the domain (082ac46)
+
+---
+
+## [P3 · c5] Phase 3 red — slices A and B
+
+`test-author` against `docs/specs/phase-3.md` and ADR-0014–0017. 12 red on their own
+assertions, 99 green, 0 broken — the bundle leak guard is green before the feature
+exists, by design. Cut under the 12-cap: `test_auditor_flags_misspelled_brand`
+(plumbing-identical to id 10's), filed in BACKLOG with the cost named — ADR-0002's
+typo loop has no test until green adds it back.
+Commit: test(phase-3): failing specs for semantic search and the inventory auditor (7ce8e05)
+
+---
+
+## [P3 · c6] Phase 3 green — slices A and B
+
+`/tdd` against the red pass. 111/111, `tests/` untouched. One module (`app/ai.py`)
+owns the schema and its SQL, per the ADR-0008 precedent; `extra="forbid"` on the
+filter model is what makes the oracle rejection wholesale rather than salvaged.
+The real Gemini client is built lazily so the socket-refusing suite never sees it.
+Commit: feat(phase-3): semantic search and the inventory auditor (f126893)
+
+---
+
+## [P3 · c7] Slice C — the flag-review verb, and the finding that becomes a flag
+
+Red first (6 tests, all failing on their own assertions), then green: `flag_review`
+in storage as `clear_review`'s mirror, the action enum grows `flag_review`
+(ADR-0017's own consequence), route `409`s an already-flagged item. UI: dashboard
+search with the mode label shown (ADR-0016), auditor panel where each finding is a
+button whose reason arrives prefilled and editable — the recorded claim is the
+human's. 117/117.
+Commit: feat(phase-3): admin flag-review verb (c516ce3)
+
+---
+
+## [P3 · c8] Deploy v3 — hardening at the gate
+
+Health endpoint red-then-green (sessionless by design, touches nothing), bundle
+grepped clean of the provider and any key, README at v3 reality, wireframe doc gains
+the two AI surfaces. 118/118. Live verification after the push: smoke flow, one
+semantic search, one audit run — the auditor's live judgment on ids 9 and 10 is the
+claim the suite cannot make (mocked model), so it is checked on the deployment.
+Commit: chore(phase-3): deploy v3 (32279ef)
+
+---
+
+## [P3 · c9] Phase 4 spec extended — the wireframe-fidelity decisions land in the plan
+
+Slice C confirmed shipped first (the conditional must-ship dissolves). Phase 4 gains:
+the table rules (amber ! as the affordance, holder admin-only, 32px targets, Tabler
+glyphs, bidirectional sort closing the Phase 1 BACKLOG entry), the needs-review tab
+with the only Review action, admin edit (wireframe-driven, not brief-required), the
+`fixed:` clearing note as an ADR-0017 amendment, four sound events, desktop-only
+scope. README documents the review-entry chain.
+Commit: docs(phase-4): extend the wireframe-fidelity spec (397a0f8)
+
+---
+
+## Correction #5 — the deploy path was a landmine, and the AI client was a test-extra
+
+Two production defects found by the live verification, neither visible to a 118-green
+suite.
+
+**What happened.** Attaching `GEMINI_API_KEY` made Railway redeploy from the branch
+the service has tracked since Phase 0 — putting **v0 live**: no login route, the whole
+inventory served without a session, ADR-0006 violated on the public URL until a
+`railway up` (~4 minutes). The deploy docs said "push the branch; Railway builds",
+which stopped being true the moment the phase branch changed names, and nobody noticed
+because pushes *appeared* to deploy — they deployed nothing, and the old build kept
+answering.
+
+**Second defect, surfaced by the first's fix.** With v3 back, the auditor refused with
+its own diagnosis: `No module named 'httpx'`. The Gemini client imported a library
+that exists locally only as a test dependency — the suite mocks the client (ADR-0004),
+so no test can ever import the real one. Replaced with stdlib `urllib`. ADR-0016's
+refusal-with-a-reason is what made this a one-line read instead of a debugging
+session: the 503 carried the ImportError verbatim.
+
+**What I am taking from it.** "The suite is green" says nothing about the two layers
+the suite deliberately never touches: the deploy trigger and the real provider call.
+Both defects lived exactly there. The live smoke is not a formality — it is the only
+test those layers have.
+
+Commit: fix(phase-3): stdlib Gemini client, deploy docs match reality (bd5961d)
+
+---
+
+## [P3 · c11] The model default becomes the alias
+
+`gemini-2.5-flash` answers 404 "no longer available to new users" on the deployment's
+key — a fact only the live call could know. Default is now `gemini-flash-latest`;
+a pin is one `GEMINI_MODEL` env var away. 118/118 (the suite mocks the client, as
+designed — which is exactly why this had to be found live).
+Commit: fix(phase-3): default to the gemini-flash-latest alias (189815c)
+
+---
+
+## [P3 · c12] The audit gets its own budget
+
+The live audit refused with a read timeout: it was running on the search's 5-second
+budget, and an audit prompt carrying the whole catalogue is not a search. 30s for the
+audit route, 5s stays the search's (its degradation is designed and announced).
+Refusing slowly is honest; refusing on a borrowed budget is just wrong. 118/118.
+Commit: fix(phase-3): the audit gets its own timeout budget (d6868f4)
+
+---
+
+## [P3 · c13] The search budget meets the provider's actual latency
+
+Live: every search degraded to keyword because gemini-flash-latest spends ~7.5s
+thinking before emitting one small JSON object, and the thinking-off knob answers an
+opaque 400. The spec's 5s was a guess; 12s is a measurement. The spec is amended in
+place with the reason. 118/118.
+Commit: fix(phase-3): search timeout meets measured provider latency (97b6967)
+
+---
+
+## [P3 · c14] Every document at v3 reality
+
+README: AI layer in ✅ as shipped, two new ⚡ entries (12s search budget, railway-up
+deploys) each with Why and Future, env table gains `GEMINI_API_KEY`/`GEMINI_MODEL` —
+including the distinction the incident taught: the key is read per request so
+*rotation* needs no redeploy, but *adding* the variable restarted the process, because
+that changes the environment rather than a value in it. PROMPT_TRAIL Session 15
+records the verification that amended the spec. DATA_AUDIT's "will show" became "did":
+the live auditor flags id 10 and the `"Appel"` typo. CONTEXT gains *Finding*;
+brainstorm's status note marks Phase 3 shipped. Brief check: README's four sections
+present, ⚡ all carry Why+Future, AI_LOG covers Tooling / Data strategy / Prompt Trail
+/ five Corrections, setup runs from a fresh clone with no new dependencies (the AI
+client is stdlib). No gap left open.
+Commit: docs(phase-3): bring every document to v3 reality (pending)
+
+---
+
+## [P3 · c15] Both gates answered — one blocker, already satisfied
+
+`mvp-reviewer`: PASS WITH NOTES; its sole blocker (rerun `/security-review`, which had
+only seen the docs+refactor state) was already met — the second run covered the full
+diff at HEAD, zero findings. Filed per the blockers-only rule: the README's overstated
+"add form rejects" chain claim corrected, post-import semantic-validation gap and the
+flag-review race added to ⚠️ (same class as the last-admin race), the empty-filter
+`semantic` label to BACKLOG. AI_LOG's remaining `(pending)` stays owed to final polish.
+Commit: docs(phase-3): file the gate findings (pending)

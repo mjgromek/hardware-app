@@ -3,7 +3,7 @@
 // date. Both are server-side (`?status=`, `?sort=`) rather than client-side, because
 // those query parameters are the tested contract — filtering in the browser would
 // leave the endpoint's own filter unexercised by the product that depends on it.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
 
@@ -14,13 +14,29 @@ const props = defineProps({
   counts: { type: Object, required: true },
   currentEmail: { type: String, required: true },
   busyId: { type: [Number, null], default: null },
+  // `{ mode, items }` or null. The mode is part of the answer, not plumbing: a
+  // keyword result presenting itself as the AI is the bug ADR-0016 names.
+  searchResults: { type: [Object, null], default: null },
+  searching: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['filter', 'sort', 'rent', 'return'])
+const emit = defineEmits(['filter', 'sort', 'rent', 'return', 'search', 'clear-search'])
 
 const STATUSES = ['Available', 'In Use', 'Repair']
 
 const flagged = computed(() => props.items.filter((item) => item.needs_review).length)
+
+const query = ref('')
+
+function submitSearch() {
+  const asked = query.value.trim()
+  if (asked) emit('search', asked)
+}
+
+function clearSearch() {
+  query.value = ''
+  emit('clear-search')
+}
 </script>
 
 <template>
@@ -31,6 +47,56 @@ const flagged = computed(() => props.items.filter((item) => item.needs_review).l
       {{ flagged }} of these need review before they can be rented.
     </template>
   </p>
+
+  <form class="panel panel-head search-bar" @submit.prevent="submitSearch">
+    <label class="field" style="flex: 1 1 320px">
+      <span>Ask the inventory</span>
+      <input
+        v-model="query"
+        type="search"
+        placeholder="e.g. apple gear we could hand out today"
+        :disabled="props.searching"
+      />
+    </label>
+    <button class="button" type="submit" style="align-self: flex-end" :disabled="props.searching">
+      {{ props.searching ? 'Searching…' : 'Search' }}
+    </button>
+    <button
+      v-if="props.searchResults"
+      class="button button-quiet"
+      type="button"
+      style="align-self: flex-end"
+      @click="clearSearch"
+    >
+      Clear
+    </button>
+  </form>
+
+  <div v-if="props.searchResults" class="panel">
+    <div class="panel-head">
+      <h2>Search results</h2>
+      <!-- The label is the honesty ADR-0016 requires: a reviewer can tell whether
+           the AI answered or the keyword fallback did, from the screen alone. -->
+      <span class="chip" :class="props.searchResults.mode === 'semantic' ? 'chip-role' : ''">
+        {{ props.searchResults.mode === 'semantic'
+          ? 'AI search'
+          : 'Keyword results — AI search unavailable' }}
+      </span>
+    </div>
+    <p v-if="!props.searchResults.items.length" class="empty">
+      Nothing matched. The filter only speaks in name, brand, status and dates — try
+      one of those.
+    </p>
+    <HardwareTable
+      v-else
+      :items="props.searchResults.items"
+      rentable
+      :current-email="props.currentEmail"
+      :busy-id="props.busyId"
+      @rent="emit('rent', $event)"
+      @return="emit('return', $event)"
+    />
+  </div>
 
   <div class="panel">
     <div class="panel-head">

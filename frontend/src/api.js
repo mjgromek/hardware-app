@@ -91,6 +91,13 @@ export const api = {
   returnItem: (id) => request('POST', `/api/hardware/${id}/return`),
   forceReturn: (id, reason) => request('POST', `/api/hardware/${id}/force-return`, { reason }),
   clearReview: (id, reason) => request('POST', `/api/hardware/${id}/clear-review`, { reason }),
+  flagReview: (id, reason) => request('POST', `/api/hardware/${id}/flag-review`, { reason }),
+
+  // The query is the caller's input; the filter object is the model's output and
+  // never crosses this boundary (ADR-0015). `mode` says which path answered — the
+  // UI shows it rather than hiding the fallback (ADR-0016).
+  search: (query) => request('POST', '/api/search', { query }),
+  runAudit: () => request('GET', '/api/admin/audit'),
 
   users: () => request('GET', '/api/users'),
   addUser: (account) => request('POST', '/api/users', account),

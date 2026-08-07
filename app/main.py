@@ -20,9 +20,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StringConstraints
 
-from app import accounts, audit, guards, rentals, sessions
+from app import accounts, ai, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
-from app.domain import Account, Role, Status
+from app.domain import Account, Role, Status, visible_to
 from app.storage import (
     add_item,
     persist,
@@ -30,7 +30,9 @@ from app.storage import (
     create_engine_for,
     create_schema,
     delete_item,
+    flag_review,
     load_items,
+    load_quarantine,
     new_session,
     set_status,
 )
@@ -102,23 +104,14 @@ class Reason(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
-#: Serialised for admins only (ADR-0012). Maintenance prose written for an auditor —
-#: Phase 3 writes findings into the same columns. Renter identity is *not* here: who
-#: holds a laptop is operational, and hiding it moves the question to Slack.
-ADMIN_ONLY_FIELDS = ("notes", "history", "review_reason")
+class SearchQuery(BaseModel):
+    """What `POST /api/search` accepts: a question, not a filter.
 
-
-def visible_to(item: dict[str, Any], account: Account) -> dict[str, Any]:
-    """One item, as this caller is allowed to see it.
-
-    The restricted fields are set to `None` rather than dropped, so the payload keeps
-    one shape and the client does not have to branch on which role it is.
+    The filter object is the *model's* output, never the caller's input — accepting one
+    here would hand every signed-in employee the raw query surface ADR-0015 closed.
     """
-    if account.role is Role.ADMIN:
-        return item
-    return {
-        key: (None if key in ADMIN_ONLY_FIELDS else value) for key, value in item.items()
-    }
+
+    query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class HeldBy(str, Enum):
@@ -196,6 +189,9 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     engine = create_engine_for(settings.database_url)
     create_schema(engine)
     app.state.engine = engine
+    #: The LLM seam (tests/llm_seam.py). A test's fake lands here; production leaves
+    #: it None and `ai.resolve_client` builds the real client per request (ADR-0016).
+    app.state.llm = None
 
     # Deploy shim, guarded by emptiness: a fresh volume gets the seed, a database
     # with anything in it is left alone. Imported here rather than at module level
@@ -638,6 +634,105 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             )
             session.commit()
         return {"item_id": item_id, "needs_review": False}
+
+    @app.get("/api/health")
+    def health() -> dict[str, str]:
+        """Alive, and nothing else. The deliberate second exception to ADR-0006.
+
+        No session (the caller is a load balancer) and no database read — it must be
+        able to answer while the volume is broken, which is exactly when somebody is
+        asking.
+        """
+        return {"status": "ok"}
+
+    @app.post(f"{HARDWARE}/{{item_id}}/flag-review")
+    def flag_review_item(
+        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+    ) -> dict[str, Any]:
+        """Put an item behind the review guard. Admin-only, reason mandatory (ADR-0017).
+
+        The verb that makes an auditor finding actionable: the model proposed
+        (ADR-0014), a human decides here, and the decision is recorded with its actor
+        — exactly what ADR-0010 reserved `audit_events` for. `409` on an item already
+        flagged, symmetric with `clear-review`: idempotency would file a mandatory
+        reason against a non-event.
+        """
+        with new_session(engine) as session:
+            item = _item_or_404(session, item_id)
+            if item.needs_review:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{item.name} is already flagged for review — clear the "
+                    "existing flag first if the reason has changed.",
+                )
+            flag_review(session, item_id, body.reason)
+            audit.record(
+                session,
+                actor=admin,
+                action=audit.Action.FLAG_REVIEW,
+                reason=body.reason,
+                item_id=item_id,
+            )
+            session.commit()
+        return {"item_id": item_id, "needs_review": True}
+
+    @app.post("/api/search")
+    def semantic_search(
+        body: SearchQuery, account: Account = Depends(current_account)
+    ) -> dict[str, Any]:
+        """Natural language in, real rows out — through the filter schema (ADR-0004).
+
+        `mode` is a claim about which path answered, and it is honest (ADR-0016): the
+        model errored, said something the schema forbids, or was never configured →
+        `keyword`. The model's illegal reply is an expected event, not a `500` —
+        rejected wholesale, no partial salvage (ADR-0015).
+        """
+        client = ai.resolve_client(app.state)
+        filters = None
+        if client is not None:
+            try:
+                filters = ai.semantic_filter(client, body.query)
+            except ai.ModelUnavailable:
+                filters = None
+
+        with new_session(engine) as session:
+            if filters is not None:
+                mode, items = "semantic", ai.select_items(session, filters)
+            else:
+                mode, items = "keyword", ai.keyword_search(session, body.query)
+        return {
+            "mode": mode,
+            "items": [visible_to(asdict(item), account) for item in items],
+        }
+
+    @app.get("/api/admin/audit")
+    def run_inventory_audit(admin: Account = Depends(current_admin)) -> dict[str, Any]:
+        """The Inventory Auditor: computed per run, persisted nowhere (ADR-0014).
+
+        Admin-only because every result quotes `notes`/`history`, and derived content
+        inherits its source's restriction (ADR-0012). No fallback: a keyword pass
+        cannot judge id 10, so unavailability is a `503` with a reason, never a
+        quieter answer under the auditor's name (ADR-0016).
+        """
+        client = ai.resolve_client(app.state, timeout=ai.AUDIT_TIMEOUT_SECONDS)
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The AI layer is not configured: set GEMINI_API_KEY to enable "
+                "the Inventory Auditor. Nothing else about the Hub is affected.",
+            )
+        with new_session(engine) as session:
+            items = load_items(session)
+            quarantine = tuple(asdict(record) for record in load_quarantine(session))
+        try:
+            results = ai.audit_catalogue(client, items, quarantine)
+        except ai.ModelUnavailable as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"The model could not be reached, so the audit did not run: "
+                f"{error}. Try again once the provider is back.",
+            )
+        return {"findings": results}
 
     @app.post("/api/admin/reset-demo")
     def reset_demo(

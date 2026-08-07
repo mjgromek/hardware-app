@@ -49,8 +49,10 @@ class Action:
 
     FORCE_RETURN = "force_return"
     CLEAR_REVIEW_FLAG = "clear_review_flag"
+    #: ADR-0017 — the enum growing is the ADR's own consequence, not drift.
+    FLAG_REVIEW = "flag_review"
 
-    ALL = (FORCE_RETURN, CLEAR_REVIEW_FLAG)
+    ALL = (FORCE_RETURN, CLEAR_REVIEW_FLAG, FLAG_REVIEW)
 
 
 audit_events = Table(

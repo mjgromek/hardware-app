@@ -14,8 +14,9 @@ Built as a recruitment task for the Early Careers Programme.
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
-| **v2** | Phase 2 — rental engine, review queue, audit trail | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v3 | Phase 3 — AI layer + hardening | — | 🔮 planned |
+| v2 | Phase 2 — rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
+| **v3** | Phase 3 — semantic search, Inventory Auditor, flag-review | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
+| v4 | Phase 4 — wireframe fidelity | — | 🔮 planned, after v3 |
 
 ### Signing in
 
@@ -109,8 +110,24 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`?held_by=me`** — the dashboard's "My Rentals" view, server-side
 - **Demo reset** — one confirmed admin route restores the seed's fingerprints
   (see "Restoring the demo" above)
+- **Semantic search** — natural language → schema-validated filter object → SQLite
+  (ADR-0004); the model cannot hallucinate inventory, the filter has no predicate
+  over restricted fields for anyone (ADR-0015), and every response is labelled
+  `semantic` or `keyword` so the fallback cannot pass as the primary (ADR-0016)
+- **The Inventory Auditor** — closed finding kinds, proposes and never disposes
+  (ADR-0014), admin-only, computed per run and persisted nowhere; refuses with a
+  `503` rather than degrading, because a keyword auditor cannot find id 10
+- **The flag-review verb** — a human acts on a finding: mandatory reason, audit
+  event, `409` when already flagged (ADR-0017); the loop ADR-0002 opened is closed
+  end to end — ingestion declined to judge, the auditor judges, an admin decides.
+  **How anything enters review after import** (the full chain, since ingestion flags
+  only at import, the add form neither flags nor validates semantics, and the auditor cannot
+  flag by design): *auditor proposes → admin flags → item unrentable (`409`) → admin
+  later clears, with a reason recorded at both ends.* Phase 4 tightens the clearing
+  reason to a mandatory `fixed:` note — what changed, not merely that somebody looked
+- **Health endpoint** — `GET /api/health`, sessionless by design, touches nothing
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 98 tests, all green
+- 118 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -133,6 +150,23 @@ Each of these works, and each cost something. The full table with reasoning is i
   access is what a reviewer needs and delete rights are what an attacker wants.
   **Future:** per-reviewer invite links, so access can be withdrawn without rotating a
   shared credential.
+- **Semantic search waits up to 12 seconds before degrading.** The spec said 5; the
+  live provider spends ~7.5s thinking before emitting one small filter object and
+  rejects its thinking-off knob with an opaque 400.
+  **Why:** a slower true answer with an honest label beats a fast one that is always
+  the fallback — under 5s the semantic path literally never answered, which the mode
+  chip made visible on the first live check.
+  **Future:** a provider or endpoint tier with sub-second extraction latency, or a
+  streaming call that can be cut off at the first complete JSON object.
+- **Deploys go through `railway up`, not the GitHub trigger.** The service still
+  tracks the Phase 0 branch, so a push deploys nothing — and a variable change
+  redeploys v0, which briefly put an unauthenticated build back on the public URL
+  (AI_LOG Correction #5).
+  **Why:** the trigger's tracked branch can only be changed in the dashboard, which
+  is a human-only action that has not happened yet; `railway up` ships the current
+  checkout deterministically in the meantime.
+  **Future:** point the trigger at `main` in the dashboard, then delete this entry
+  and the CLAUDE.md warning that orders a `railway up` after every variable change.
 - **41 commits against a 15–20 target.** The target is in `CLAUDE.md` and this is
   double it, so it is acknowledged here rather than left for a reviewer to count.
   **Why:** two security fixes (the demo account's role cut from `admin` to `user`, the
@@ -165,15 +199,24 @@ Each of these works, and each cost something. The full table with reasoning is i
   **Future:** vitest over the table's keyboard behaviour and the api client's `401`
   handling, both of which are logic rather than markup.
 - **The app seeds itself on boot when the database is empty.** A deploy shim, not a
-  migration strategy — Railway offered no way to run a one-off command against the
-  mounted volume. The emptiness guard is what makes it safe. Admin bootstrap now rides
-  the same path, though it is idempotent and additive rather than destructive.
+  migration strategy. Admin bootstrap now rides the same path, though it is idempotent
+  and additive rather than destructive.
+  **Why:** Railway offered no way to run a one-off command against the mounted volume —
+  no exec, no SSH, `preDeployCommand` silently did not run. The emptiness guard is what
+  makes it safe: once rentals exist the table is never empty, so a restart cannot wipe
+  them.
+  **Future:** a migration step or a one-off job. Boot logic should not write data.
 
 ### ⚠️ Partial / Missing
 
-- The AI layer — semantic search and the Inventory Auditor. The wireframe's "Ask AI…"
-  bar is absent for the same reason
 - Editing an item's name, brand or date — only status changes and deletion exist
+- **Post-import data is validated structurally, not semantically** — a manually added
+  item with a 2027 purchase date is caught by nothing: ingestion only sees the seed,
+  the add form checks shape, and the auditor's closed enum has no future-date kind
+  (mvp-reviewer, Phase 3 gate; live item 14 is the proof)
+- **`flag-review` shares the last-admin guard's read-then-write race** — two
+  concurrent flags both pass the `409` check and write two audit events; same
+  documented class as below, same conditional-`UPDATE` fix when it matters
 - **The last-admin guard is not race-safe** — it reads the admin count and writes in a
   separate statement, so two simultaneous demotions of the final two admins both pass and
   reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
@@ -181,7 +224,10 @@ Each of these works, and each cost something. The full table with reasoning is i
   conditional-`UPDATE` pattern is the known fix when it matters
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
-- CI, vitest, a health endpoint
+- CI and vitest
+- `test_auditor_flags_misspelled_brand` (id 9, `"Appel"`) — cut under the red-pass
+  test cap as plumbing-identical to id 10's test; ADR-0002's typo loop is exercised
+  live rather than pinned in the suite. See `BACKLOG.md`
 
 Carried over from `/security-review` as accepted rather than fixed, each with the reason
 (the field-level authorization finding that used to lead this list is closed —
@@ -198,11 +244,21 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
 
 ### 🔮 Next Steps (24h Roadmap)
 
-One branch and one deployed version — the last phase in the table above:
+1. **CI and the frontend test suite** — a workflow running both build steps and both
+   suites, and vitest over the table's keyboard behaviour and the api client's `401`
+   handling. The two oldest ⚠️ entries, and the ones a reviewer hits first.
+2. **Logout and session expiry** — the remaining half of the session story: ending
+   one session without retiring the account.
+3. **Final polish** — one `docs:` commit on `main`: README read-through, empty
+   states, favicon, and the remaining `(pending)` SHA back-annotations in
+   `AI_LOG.md`.
 
-1. **Phase 3 — AI layer and hardening.** Semantic search and the Inventory Auditor,
-   which has to flag record 10 to prove it does anything a regex could not, plus CI
-   and the frontend test suite. `/grill-me` first, per `CLAUDE.md`.
+Then **Phase 4 — wireframe fidelity** (planned 2026-08-07, does not start until
+Phase 3 ships): the UI becomes a close copy of the supplied wireframes — heading and
+label changes, the review badge, exact type scale, the Add New Device modal, three
+new schema columns with their migration test, an ADR-0012 amendment hiding renter
+identity from non-admins, and muteable notification toasts. Scope in
+`brainstorm.md` §3 Phase 4.
 
 ---
 
@@ -273,6 +329,8 @@ On a database with no rentals, the direct form still works locally:
 | `ADMIN_PASSWORD` | in production | Same. Booting without it reaches the zero-admin state the guard layer exists to prevent (ADR-0005). |
 | `ADMIN_EMAIL` | no | Defaults to a development address. |
 | `DATABASE_URL` | no | Defaults to a local SQLite file. On Railway it points at the persistent volume. |
+| `GEMINI_API_KEY` | no | Enables the AI layer. Absent: search runs keyword-labelled and the auditor answers `503` with the reason — feature-off, never a boot refusal (ADR-0016). Read per request, so *rotating* it needs no redeploy; *adding* it the first time restarts the process (new variable = new environment). |
+| `GEMINI_MODEL` | no | Defaults to `gemini-flash-latest`. The pin for anyone who needs one. |
 
 ---
 
