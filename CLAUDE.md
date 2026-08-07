@@ -85,7 +85,20 @@ Railway, one service, SQLite on a persistent volume. Per phase:
 3. Seeding is automatic on boot **only when the table is empty** — never run a
    seed command by hand, and never remove that guard (it's what stops a restart
    destroying rentals)
-4. Add the URL to the README live-versions table
+4. **Run the smoke check. A deploy is not done until it passes against the live
+   URL** — not when `railway up` returns, not when the suite is green:
+
+   ```
+   SMOKE_URL=<live URL> SMOKE_EMAIL=admin@booksy.com SMOKE_PASSWORD=… \
+     .venv/bin/python -m pytest tests/test_smoke_deployed.py -q
+   ```
+
+   It skips silently without `SMOKE_URL`, so it never runs in the ordinary suite.
+   It is the only test that can fail while the code is correct — which is the
+   point. All 152 local tests passed the whole time the live URL was serving a
+   pre-auth v0 image (Correction #5, and again #6). Source-level green says
+   nothing about what is deployed.
+5. Add the URL to the README live-versions table
 
 No SSH, no `preDeployCommand` — both were tried and neither works on this plan.
 

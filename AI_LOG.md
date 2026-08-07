@@ -1985,3 +1985,42 @@ items and 5 flagged rather than the seed's 11 and 2 — that is accumulated demo
 (hand-added items, auditor-driven flags), not a reset, so `reset-demo` was not needed.
 
 Commit: docs: record the pre-auth deployment exposure (pending)
+
+---
+
+## [P4 · c24] The test that can fail while the code is correct
+
+`brainstorm.md` §3 listed `smoke_deployed_login_and_rent_flow` in Phase 3's test set. It
+was never written, and nothing noticed, because every other test in this project passes
+whether or not the deploy exists.
+
+That is the exact shape of Corrections #5 and #6. Twice the live URL served a Phase 0
+image — no auth, the whole inventory readable anonymously, `notes` and `history` on the
+public wire, which is the one thing ADR-0006 exists to prevent — and 152 local tests were
+green throughout. They test *source*. Nothing tested the *deployment*, so the deployment
+was the only thing that could regress unobserved. Both times a human found it by opening
+the URL.
+
+`tests/test_smoke_deployed.py` asserts four things against a live URL: anonymous
+`GET /api/hardware` is `401`, `GET /api/health` is `200`, `/api/login` accepts real
+credentials, and the signed-in inventory comes back non-empty. The rolled-back image
+failed the first three — a `200` where a `401` belongs, and `404` on two routes that did
+not exist yet.
+
+It is skipped unless `SMOKE_URL` is set, so it never runs in the ordinary suite and never
+turns a laptop red because the internet is unreachable. One test rather than four,
+deliberately: a rollback fails all of them at once, and each assertion's message names
+what its own failure means, so a deploy log reads as a diagnosis rather than four copies
+of one symptom.
+
+`CLAUDE.md`'s deploy fast path now makes a deploy incomplete until it passes. Verified
+both ways — skipping locally, passing against the live URL.
+
+**The demo state was reset rather than the claim rewritten.** The volume had drifted to 12
+items and 5 flagged through accumulated demo use, against the README's documented 11 and
+2. Rewriting the README would have been the smaller edit and the wrong one: the auditor
+demo depends on those exact rows — the `Appel` typo, the duplicate re-keyed to `source_id`
+4, item 7 held by `j.doe@booksy.com`. `reset-demo` restored all of them, so the README's
+fingerprint paragraph is now true line for line without being touched.
+
+Commit: test: the deployed smoke check, and the demo state it verifies against (pending)
