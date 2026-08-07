@@ -254,6 +254,14 @@ Each of these works, and each cost something. The full table with reasoning is i
   reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
   the trigger is concurrent demotions on a two-admin internal tool, and ADR-0008's
   conditional-`UPDATE` pattern is the known fix when it matters
+- **Nothing detects a deployment serving a stale build.** The live instance was found
+  serving a **Phase 0 image** — no authentication, the whole inventory readable
+  anonymously, including the `notes` and `history` ADR-0006 exists to protect. It was
+  caught by a manual query during an unrelated check; the suite passes against source, and
+  the health endpoint that would have failed did not exist in the rolled-back image. Fixed
+  by redeploying, but the gap is the detection, not the incident: no smoke check runs
+  against the deployed URL after a deploy, so the next rollback is equally invisible. See
+  `AI_LOG.md` Correction #6
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
 - CI and vitest

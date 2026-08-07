@@ -1938,4 +1938,50 @@ The generalisable part: a validation rule is a claim about data that already exi
 the cheapest moment to test that claim is before writing the rule. "Only X may exist" is
 worth nothing until somebody counts the non-X.
 
-Commit: docs: put every account on the company domain (pending)
+Commit: docs: put every account on the company domain (2770379)
+
+---
+
+## Correction #6 — a stale deployment served a pre-auth build on a public URL
+
+**What happened.** While checking something unrelated — whether the admin account had been
+migrated to `@booksy.com` — a query against the live instance returned `200` for an
+anonymous `GET /api/hardware`. `/api/login`, `/api/session` and `/api/health` all answered
+`404`. The deployed image had rolled back to a **Phase 0 build**: no authentication of any
+kind, the entire inventory readable by anyone with the URL, and rows 5 and 11 serving the
+`notes` and `history` that ADR-0006 exists to keep off a public wire — the Dell XPS's
+"battery swelling" note and the MacBook's liquid-damage history, exactly the material the
+Phase 1 `/security-review` closed.
+
+**How long, and how it ended.** Unknown, and that is the finding. Nothing in this project
+detects a deployment serving an old build: the tests pass against source, the health
+endpoint it would have failed did not exist in the rolled-back image, and `railway status`
+reported no latest deployment at all. It was found by a human-directed query during another
+task, and nothing would have found it otherwise. A rebuild and `railway up` restored the
+current image; anonymous `/api/hardware` now returns `401`.
+
+**Three inferences about live state were published as fact inside ten minutes.** I claimed
+the instance was unmigrated, reasoning from `bootstrap_admin` only running when no admin
+exists. The correction that followed claimed it *was* migrated, from an accounts list that
+turned out to be the local scratch database read as production. I then said ADR-0019 needed
+no correction — before the deployed build was even serving `/api/login`, so I could not
+have known. Only a query settled it, and the answer was that the old address still worked
+and `admin@booksy.com` did not exist.
+
+The tell was identical each time: **reasoning about a system rather than asking it.** My
+first claim happened to be right, which is worse than being wrong — it rewards the habit.
+This is the same family as the eyeballed contrast check, the synthetic-click sort "bug" and
+the silent no-op replaces: a reading taken from something other than the thing itself.
+
+**The migration, done properly this time.** Logged in as `admin@hardwarehub.internal`,
+created `admin@booksy.com` (id 4), confirmed it logs in and reaches `GET /api/users`, then
+soft-deleted the old admin *as the new one* — so the zero-admin guard was never near
+firing. Accounts now: `demo@booksy.com` (user), `admin@booksy.com` (admin). The old address
+answers `401` and, under ADR-0013, is reserved permanently.
+
+**The volume survived.** Seed fingerprints intact: id 7 `In Use` held by
+`j.doe@booksy.com`, id 9's brand still `Appel`, id 12 carrying `source_id` 4. It holds 12
+items and 5 flagged rather than the seed's 11 and 2 — that is accumulated demo use
+(hand-added items, auditor-driven flags), not a reset, so `reset-demo` was not needed.
+
+Commit: docs: record the pre-auth deployment exposure (pending)
