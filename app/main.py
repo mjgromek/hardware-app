@@ -18,11 +18,11 @@ from typing import Annotated, Any, Literal, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, StringConstraints, field_validator
 
 from app import accounts, ai, audit, guards, rentals, sessions
 from app.config import PRODUCTION, load_settings
-from app.domain import Account, Role, Status, visible_to
+from app.domain import Account, Category, Role, Status, visible_to
 from app.storage import (
     add_item,
     persist,
@@ -30,6 +30,7 @@ from app.storage import (
     create_engine_for,
     create_schema,
     delete_item,
+    edit_item,
     flag_review,
     load_items,
     load_quarantine,
@@ -53,10 +54,52 @@ class Credentials(BaseModel):
     password: str
 
 
+#: Accounts belong to Booksy employees, so an address off the company domain is somebody
+#: who should not have a login (ADR-0019).
+COMPANY_DOMAIN = "@booksy.com"
+
+
 class NewAccount(BaseModel):
     email: str
     password: str
     role: Role
+
+    @field_validator("email")
+    @classmethod
+    def on_the_company_domain(cls, email: str) -> str:
+        """Refuse anything that is not a `@booksy.com` mailbox.
+
+        Validated here, on the request model, rather than in `accounts.create_account` —
+        and that placement is the decision, not an accident of layering. It puts the rule
+        on the API boundary, which `bootstrap_admin` does not cross: it reads `ADMIN_EMAIL`
+        from the environment, a value the deployment's owner sets, and creates the account
+        directly. So the bootstrap exemption is structural rather than a special case in a
+        conditional that somebody has to remember not to delete (ADR-0019).
+
+        `endswith` on the *whole* suffix, not `in`: `attacker@booksy.com.evil.net` contains
+        the domain and `someone@notbooksy.com` ends with `booksy.com`. Both are registrable
+        by an outsider, and both pass the looser checks.
+        """
+        candidate = email.strip()
+        if not candidate.lower().endswith(COMPANY_DOMAIN):
+            raise ValueError(f"email must be on the {COMPANY_DOMAIN} domain")
+        # `@booksy.com` itself ends with the domain and names no mailbox.
+        if not candidate[: -len(COMPANY_DOMAIN)]:
+            raise ValueError(f"email needs a name before {COMPANY_DOMAIN}")
+        return candidate
+
+
+class ReturnReport(BaseModel):
+    """The optional half of a return: what the person handing it back noticed.
+
+    `issue` is optional because nearly every return is fine, and a flow that makes the
+    honest majority fill in a field teaches people to type nothing into it. But an
+    `issue` that is present and blank is refused rather than ignored — a flag reading
+    `"   "` blocks the item and tells the admin resolving it nothing, which is worse
+    than no flag at all.
+    """
+
+    issue: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
 
 
 class RoleChange(BaseModel):
@@ -78,10 +121,69 @@ class NewHardware(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     brand: str | None = None
     purchase_date: date | None = None
+    serial_number: str | None = None
+    #: The closed set (brainstorm §3 Phase 4). Pydantic's enum validation is the
+    #: 422 — an off-enum category never reaches the database to become an item no
+    #: filter matches and no screen renders.
+    category: Category | None = None
 
 
-class StatusChange(BaseModel):
-    status: Status
+class HardwareEdit(BaseModel):
+    """`PATCH /api/hardware/{id}` — partial on purpose: only the fields sent change.
+
+    One mutation route rather than a second one for edits, because the status guards
+    live here and a parallel route would be a way around them. `model_fields_set` is
+    what distinguishes "brand: null" (clear it) from "brand absent" (leave it) —
+    treating absence as null is how fixing a typo in the name quietly blanks the
+    brand. Edit itself is wireframe-driven, not brief-required
+    (docs/WIREFRAME_JUSTIFICATION.md).
+    """
+
+    status: Status | None = None
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
+    brand: str | None = None
+    purchase_date: date | None = None
+    serial_number: str | None = None
+    category: Category | None = None
+    #: Admin-only on both axes (ADR-0012): restricted in the payload a `user` receives,
+    #: and behind `current_admin` here. Editable because `notes` is often the fault
+    #: itself — seed id 5 reads "Battery swelling, do not issue without service", and a
+    #: release certifying "fixed: replaced the battery" against that standing text is
+    #: the false record ADR-0017 was amended to close, one field over.
+    notes: str | None = None
+
+
+class ReviewOutcome(str, Enum):
+    """How a review concluded. A closed set, for the reason `Status` and `Action` are.
+
+    Two members and no third. `"dismissed"` is the one somebody will ask for, and it is
+    precisely what this verb refuses to offer: it would clear the flag while asserting
+    nothing about the device, which is the finding-shaped hole ADR-0017 exists to close.
+    """
+
+    #: The record is now correct and the item is fit to issue. Takes a `fixed:` note.
+    RELEASED = "released"
+    #: The finding was real. Takes a reason describing the fault, and sets `Repair`.
+    REPAIR = "repair"
+
+
+class ReviewRelease(HardwareEdit):
+    """`POST /api/hardware/{id}/clear-review` — the edit and the note it describes.
+
+    An edit with a mandatory reason attached, rather than a reason with optional edits
+    bolted on, because that is what the action *is*: releasing an item asserts that the
+    record is now correct, and the change making it correct belongs in the same request.
+
+    Every field is optional except `reason` — some findings are resolved by inspecting
+    the device rather than by editing a column (seed id 10's problem is that nobody
+    knows what it is), so the edit is optional and the note never is.
+    """
+
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    #: Defaulted rather than required, so every caller that predates the second outcome
+    #: keeps the behaviour it already had. A mandatory field would be the tidier schema
+    #: and would break the Phase 3 UI on deploy.
+    outcome: ReviewOutcome = ReviewOutcome.RELEASED
 
 
 #: Typed in full so the request cannot be issued by accident. The route destroys rental
@@ -492,20 +594,37 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                 name=new_item.name,
                 brand=new_item.brand,
                 purchase_date=new_item.purchase_date,
+                serial_number=new_item.serial_number,
+                category=new_item.category.value if new_item.category else None,
             )
             session.commit()
         return asdict(item)
 
     @app.patch("/api/hardware/{item_id}")
-    def change_status(
-        item_id: int, change: StatusChange, _: Account = Depends(current_admin)
+    def change_hardware(
+        item_id: int, change: HardwareEdit, _: Account = Depends(current_admin)
     ) -> dict[str, Any]:
-        """Move one item's status — the Repair toggle, in both directions.
+        """The status toggle and the Phase 4 edit, one guarded route.
 
-        `StatusChange.status` is a `Status`, so an off-enum value is a `422` and never
-        reaches the database. A fourth status in that column would break every guard
-        that pattern-matches on the three (CONTEXT.md).
+        `HardwareEdit.status` is a `Status` and `category` a `Category`, so an
+        off-enum value is a `422` and never reaches the database. An edit naming no
+        fields is a `422` too — a no-op UPDATE would report success for a request
+        that expressed no intent. Explicitly nulling `name` is refused: every other
+        editable field is nullable in the schema, the name is what identifies the
+        device (seed id 10 is the cautionary row).
         """
+        sent = change.model_fields_set
+        if not sent:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An edit must name at least one field to change.",
+            )
+        if "name" in sent and change.name is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An item cannot lose its name — it is the one field that "
+                "identifies the device.",
+            )
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if change.status is Status.REPAIR:
@@ -517,9 +636,30 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     item,
                     "sent to Repair",
                 )
-            set_status(session, item_id, change.status)
+                # The second route into the review/Repair pair, and the one that actually
+                # produced it — guarding `flag-review` alone left this open (ADR-0003,
+                # amended). Refused rather than silently clearing the flag: that would
+                # conclude a review with no reason and no audit row, and the verb that
+                # concludes one properly is a single call away.
+                _enforce(guards.ensure_repair_does_not_bury_a_review, item)
+            if change.status is not None:
+                set_status(session, item_id, change.status)
+            fields = {
+                key: value
+                for key, value in (
+                    ("name", change.name),
+                    ("brand", change.brand),
+                    ("purchase_date", change.purchase_date),
+                    ("serial_number", change.serial_number),
+                    ("category", change.category.value if change.category else None),
+                    ("notes", change.notes),
+                )
+                if key in sent
+            }
+            if fields:
+                edit_item(session, item_id, **fields)
             session.commit()
-        return {"id": item_id, "status": change.status.value}
+        return {"id": item_id, "edited": sorted(sent)}
 
     @app.delete("/api/hardware/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
     def remove_hardware(item_id: int, _: Account = Depends(current_admin)) -> Response:
@@ -578,14 +718,52 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.post(f"{HARDWARE}/{{item_id}}/return")
     def return_hardware(
-        item_id: int, account: Account = Depends(current_account)
+        item_id: int,
+        body: ReturnReport | None = None,
+        account: Account = Depends(current_account),
     ) -> dict[str, Any]:
-        """Close your own rental. Somebody else's is a `409` (ADR-0009)."""
+        """Close your own rental, optionally reporting a fault. `409` on somebody else's (ADR-0009).
+
+        **The returner may raise the flag the auditor may not** (ADR-0020). ADR-0014
+        denies `needs_review` to a judge that reasons over stored text; this person had
+        the device in their hands. The line is direct observation against inference, not
+        human against model — an admin acting on a *finding* still goes through the admin
+        verb.
+
+        The note becomes `review_reason` verbatim. It is the only first-hand account
+        anyone will get, and rewriting it into house style is how the detail that mattered
+        gets lost.
+
+        Two orderings matter here:
+
+        - **The return happens first, and unconditionally.** A report is not a refusal to
+          hand the item back; refusing would leave somebody holding a device the system
+          still believes they have.
+        - **An already-flagged item still returns.** `flag-review` answers `409` there,
+          because filing a mandatory reason against a non-event hides a UI bug (ADR-0017).
+          That reasoning does not survive contact with a physical handover, so the report
+          is folded into the existing flag instead of refusing it.
+        """
+        issue = body.issue.strip() if body and body.issue else None
         with new_session(engine) as session:
             _item_or_404(session, item_id)
             rental = _claim(lambda: rentals.return_(session, item_id, account))
+            if issue:
+                flag_review(session, item_id, issue)
+                audit.record(
+                    session,
+                    actor=account,
+                    action=audit.Action.REPORT_ON_RETURN,
+                    reason=issue,
+                    item_id=item_id,
+                )
             session.commit()
-        return {"item_id": item_id, "rental_id": rental.id, "close_kind": "return"}
+        return {
+            "item_id": item_id,
+            "rental_id": rental.id,
+            "close_kind": "return",
+            "needs_review": bool(issue),
+        }
 
     @app.post(f"{HARDWARE}/{{item_id}}/force-return")
     def force_return_hardware(
@@ -607,7 +785,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
     @app.post(f"{HARDWARE}/{{item_id}}/clear-review")
     def clear_review_flag(
-        item_id: int, body: Reason, admin: Account = Depends(current_admin)
+        item_id: int, body: ReviewRelease, admin: Account = Depends(current_admin)
     ) -> dict[str, Any]:
         """Release an item from `needs_review`. Admin-only, reason mandatory.
 
@@ -618,7 +796,55 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
         The reason goes with the flag: a cleared item still showing "purchase date is
         in the future" explains a restriction that no longer applies.
+
+        **A review concludes; it does not only absolve** (ADR-0017, second Phase 4
+        amendment). `outcome="repair"` is the exit for a finding that turned out to be
+        real: an admin who inspects seed id 5 and confirms the battery is swelling had,
+        before this, a choice between leaving the flag set — recording no decision — and
+        certifying a repair nobody performed. The second is the false record the first
+        amendment closed one move earlier, and here it ends with an unfit device in
+        somebody's bag, because a release makes the item rentable.
+
+        Repair sets the status and nothing else: unrentability comes from the guard that
+        already refuses rentals on repair items, not from a new mechanism. Both outcomes
+        clear the flag and write one `audit_events` row, because both are decisions with
+        an actor.
+
+        A release's reason must begin with `fixed:` (ADR-0017 as amended in Phase 4): a
+        release asserts what *changed*, not that somebody looked. Checked here,
+        after authorization, so a `user` still gets their `403` whatever their
+        reason says — only an authorized admin's prose is worth validating. **The repair
+        outcome is deliberately exempt**: its reason describes what is *wrong*, and
+        demanding "fixed:" would let the false record back in through the new door.
+
+        **And the release carries the change it describes.** Demanding "fixed:" while
+        offering no way to fix anything made the note certify work the system had not
+        done: an admin resolving seed id 6 wrote "fixed: corrected the purchase date"
+        and the date stayed 2027-10-10. The edit fields travel with the reason, both
+        land in one transaction, and one `audit_events` row holds both — two rows would
+        let the pair come apart, and a reader finding the release would have to join it
+        to an edit by timestamp to learn whether the certified change happened.
         """
+        release = body.reason
+        if body.outcome is ReviewOutcome.RELEASED and (
+            not release.lower().startswith("fixed:")
+            or not release[len("fixed:"):].strip()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='A release note must state what changed, starting with '
+                '"fixed:" — e.g. "fixed: battery replaced, safe to issue". '
+                "If the fault is real, conclude the review with the Repair outcome "
+                f'instead. Got {release!r}.',
+            )
+        edited = body.model_fields_set - {"reason", "outcome"}
+        if "name" in edited and body.name is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="An item cannot lose its name — it is the one field that "
+                "identifies the device.",
+            )
+
         with new_session(engine) as session:
             item = _item_or_404(session, item_id)
             if not item.needs_review:
@@ -627,11 +853,50 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     detail=f"{item.name} is not flagged for review, so there is "
                     "nothing to clear.",
                 )
+
+            # The edit first, the release second, one commit. Order matters only for
+            # readability — nothing is written until the commit, so a refused edit
+            # (an off-enum `category` never reaches here; a guard violation raises)
+            # leaves the item flagged rather than released against a rejected fix.
+            # The outcome decides the status when it is `repair`; an explicit `status`
+            # in the body still wins for a release, which is how an admin marks an item
+            # repaired *and* releases it in one action.
+            new_status = (
+                Status.REPAIR if body.outcome is ReviewOutcome.REPAIR else body.status
+            )
+            if new_status is Status.REPAIR:
+                _enforce(
+                    guards.ensure_no_active_rental,
+                    rentals.active_rental(session, item_id),
+                    item,
+                    "sent to Repair",
+                )
+            if new_status is not None:
+                set_status(session, item_id, new_status)
+            fields = {
+                key: value
+                for key, value in (
+                    ("name", body.name),
+                    ("brand", body.brand),
+                    ("purchase_date", body.purchase_date),
+                    ("serial_number", body.serial_number),
+                    ("category", body.category.value if body.category else None),
+                    ("notes", body.notes),
+                )
+                if key in edited
+            }
+            if fields:
+                edit_item(session, item_id, **fields)
+
             clear_review(session, item_id)
             audit.record(
                 session,
                 actor=admin,
-                action=audit.Action.CLEAR_REVIEW_FLAG,
+                action=(
+                    audit.Action.REVIEW_TO_REPAIR
+                    if body.outcome is ReviewOutcome.REPAIR
+                    else audit.Action.CLEAR_REVIEW_FLAG
+                ),
                 reason=body.reason,
                 item_id=item_id,
             )
@@ -668,6 +933,10 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
                     detail=f"{item.name} is already flagged for review — clear the "
                     "existing flag first if the reason has changed.",
                 )
+            # Checked before the write and before the audit row: a refusal is a
+            # non-event, and filing a mandatory reason against one is the mistake
+            # ADR-0010 refused when it made `clear-review` `409` on an unflagged item.
+            _enforce(guards.ensure_item_can_be_flagged, item)
             flag_review(session, item_id, body.reason)
             audit.record(
                 session,

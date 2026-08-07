@@ -123,7 +123,7 @@ def test_session_for_a_deleted_account_is_refused(app, admin_client: TestClient)
     """
     created = admin_client.post(
         USERS_PATH,
-        json={"email": "temp.admin@booksy.example", "password": "temp-admin-pw-3e81f0", "role": "admin"},
+        json={"email": "temp.admin@booksy.com", "password": "temp-admin-pw-3e81f0", "role": "admin"},
     )
     assert created.status_code in (200, 201), (
         f"setup: an admin must be able to create the account this test deletes; got "
@@ -133,7 +133,7 @@ def test_session_for_a_deleted_account_is_refused(app, admin_client: TestClient)
 
     condemned = TestClient(app)
     assert attempt_login(
-        condemned, "temp.admin@booksy.example", "temp-admin-pw-3e81f0"
+        condemned, "temp.admin@booksy.com", "temp-admin-pw-3e81f0"
     ).status_code in (200, 204), "setup: the new account must be able to log in"
     assert condemned.get(USERS_PATH).status_code == 200, (
         "setup: that session must work before it is invalidated, or this test cannot "

@@ -4,6 +4,7 @@
 // Home/End to jump. One Tab press enters the table and the arrows take over, instead
 // of Tab walking through every action button in every row.
 import { computed, nextTick, ref, watch } from 'vue'
+import { displayRank } from '../displayState.js'
 import Icon from './Icon.vue'
 import StatusChip from './StatusChip.vue'
 
@@ -24,20 +25,25 @@ const props = defineProps({
   busyId: { type: [Number, null], default: null },
 })
 
-const emit = defineEmits(['sort', 'toggle-repair', 'delete', 'rent', 'return', 'force-return', 'clear-review'])
+// Every event the table can raise must be declared here or Vue drops it silently — the
+// pencil called `emit('edit-hardware')` for a release without `edit-hardware` in this
+// list, so the click went nowhere and the feature looked built.
+const emit = defineEmits([
+  'sort',
+  'toggle-repair',
+  'delete',
+  'rent',
+  'return',
+  'force-return',
+  'clear-review',
+  'edit-hardware',
+])
 
 //: Why this row cannot be rented, in the words the API would use. Shown *before* the
 //: click rather than only after it: the reason is already in the row, and making
 //: somebody press a button to be told "it is in Repair" is a worse version of knowing.
 //: A 409 can still arrive — the row can go stale between paint and click — and the
 //: toast carries the server's own reason when it does.
-function blockedBecause(item) {
-  if (item.needs_review) return 'Needs review before it can be rented'
-  if (item.status === 'Repair') return 'In Repair'
-  if (item.status === 'In Use') return 'Somebody else has it'
-  return null
-}
-
 function heldByMe(item) {
   return item.status === 'In Use' && item.assigned_to === props.currentEmail
 }
@@ -55,6 +61,68 @@ watch(
 )
 
 const flaggedCount = computed(() => props.items.filter((item) => item.needs_review).length)
+
+// Sorting is local to the table, and all three columns use one mechanism.
+//
+// The API sorts by `purchase_date` only, in one direction (`SortKey` has a single
+// member and no `order`). Name and brand ascending *and* descending would mean four
+// new server behaviours and the tests to pin them; at eleven rows the browser can do
+// it for free and the two mechanisms would otherwise disagree about which one owns
+// order. Recorded in BACKLOG.md — the server parameter is now unused by this screen.
+const SORTABLE = {
+  name: (item) => (item.name ?? '').toLowerCase(),
+  brand: (item) => (item.brand ?? '').toLowerCase(),
+  purchase_date: (item) => item.purchase_date ?? '',
+  date_added: (item) => item.date_added ?? '',
+}
+
+const sortKey = ref(null)
+const sortAscending = ref(true)
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    sortAscending.value = !sortAscending.value
+  } else {
+    sortKey.value = key
+    sortAscending.value = true
+  }
+}
+
+const sorted = computed(() => {
+  const rows = [...props.items]
+  // First load: group by the state a person sees, not by the stored status. "In Review"
+  // is a display rule over `needs_review` and has no position in a status sort, so the
+  // rank comes from `displayState.js` — the same module the chip reads, which is what
+  // stops the order and the label drifting apart.
+  //
+  // `Array.prototype.sort` is stable (spec, ES2019), so rows inside a group keep the
+  // order the server sent them in. The secondary ordering is unchanged, not re-derived.
+  if (!sortKey.value) return rows.sort((a, b) => displayRank(a) - displayRank(b))
+  const read = SORTABLE[sortKey.value]
+  const direction = sortAscending.value ? 1 : -1
+  return rows.sort((a, b) => {
+    const left = read(a)
+    const right = read(b)
+    // Missing values sort last in both directions rather than flipping to the top on
+    // a descending click — seed id 10 has no brand and no date, and an empty string
+    // sorting first would put the one unidentifiable row above everything twice.
+    if (left === '' && right !== '') return 1
+    if (right === '' && left !== '') return -1
+    if (left < right) return -1 * direction
+    if (left > right) return 1 * direction
+    return 0
+  })
+})
+
+function ariaSort(key) {
+  if (sortKey.value !== key) return 'none'
+  return sortAscending.value ? 'ascending' : 'descending'
+}
+
+function sortGlyph(key) {
+  if (sortKey.value !== key) return '↕'
+  return sortAscending.value ? '↑' : '↓'
+}
 
 function move(delta, event) {
   const last = props.items.length - 1
@@ -99,20 +167,22 @@ function shown(value) {
       </caption>
       <thead>
         <tr>
-          <th scope="col"><span class="th-label">Name</span></th>
-          <th scope="col"><span class="th-label">Brand</span></th>
-          <th scope="col" :aria-sort="props.sort === 'purchase_date' ? 'ascending' : null">
-            <button
-              type="button"
-              class="sort-button"
-              @click="emit('sort', props.sort === 'purchase_date' ? null : 'purchase_date')"
-            >
-              Purchase date
-              <span class="sort-arrow">{{ props.sort === 'purchase_date' ? '↑' : '↕' }}</span>
+          <th scope="col" :aria-sort="ariaSort('name')">
+            <button type="button" class="sort-button" @click="toggleSort('name')">
+              Name <span class="sort-arrow">{{ sortGlyph('name') }}</span>
             </button>
           </th>
-          <th scope="col"><span class="th-label">Status</span></th>
-          <th scope="col"><span class="th-label">Review</span></th>
+          <th scope="col" :aria-sort="ariaSort('brand')">
+            <button type="button" class="sort-button" @click="toggleSort('brand')">
+              Brand <span class="sort-arrow">{{ sortGlyph('brand') }}</span>
+            </button>
+          </th>
+          <th scope="col" class="col-date" :aria-sort="ariaSort('purchase_date')">
+            <button type="button" class="sort-button" @click="toggleSort('purchase_date')">
+              Purchase date <span class="sort-arrow">{{ sortGlyph('purchase_date') }}</span>
+            </button>
+          </th>
+          <th scope="col" class="cell-status"><span class="th-label">Status</span></th>
           <th v-if="props.manage || props.rentable" scope="col">
             <span class="th-label" style="justify-content: flex-end">Actions</span>
           </th>
@@ -121,7 +191,7 @@ function shown(value) {
 
       <tbody @keydown="onKeydown">
         <tr
-          v-for="(item, index) in props.items"
+          v-for="(item, index) in sorted"
           :key="item.id"
           ref="rows"
           :tabindex="index === focusIndex ? 0 : -1"
@@ -133,21 +203,18 @@ function shown(value) {
             <span v-if="shown(item.brand)">{{ item.brand }}</span>
             <span v-else class="missing" title="No brand recorded">—</span>
           </td>
-          <td class="cell-mono">
+          <td class="cell-date">
             <span v-if="shown(item.purchase_date)">{{ item.purchase_date }}</span>
             <span v-else class="missing" title="No purchase date recorded">—</span>
           </td>
-          <td>
-            <StatusChip :status="item.status" />
-            <span v-if="item.status === 'In Use'" class="held-by">
-              {{ heldByMe(item) ? 'you' : item.assigned_to || 'unknown holder' }}
-            </span>
-          </td>
-          <td>
-            <span v-if="item.needs_review" class="chip chip-flag" :title="item.review_reason">
-              Needs review
-            </span>
-            <span v-else class="missing">—</span>
+          <!-- The holder is no longer inline. It sat between the pill and the next
+               column and pushed every Status cell to a different width, which is what
+               made the table's spacing look accidental. It moves to the "Rented"
+               control in Actions, reachable by pointer *and* by keyboard and screen
+               reader — ADR-0012 is untouched, the field is still served and still
+               visible, just not as a column that only some rows fill. -->
+          <td class="cell-status">
+            <StatusChip :status="item.status" :needs-review="item.needs_review" />
           </td>
           <td v-if="props.rentable" class="cell-actions">
             <button
@@ -159,11 +226,48 @@ function shown(value) {
             >
               Return
             </button>
-            <template v-else-if="blockedBecause(item)">
-              <span class="blocked-reason">{{ blockedBecause(item) }}</span>
-            </template>
+            <!-- One control per cell, all at the same width and height, so the column
+                 is a single rule down the page rather than four shapes. `In Repair` is
+                 the deliberate exception: an empty cell, because the pill already says
+                 it and there is nothing here for anyone to do. -->
+            <!-- Both tooltips use one mechanism, and neither uses `title`.
+                 A native `title` never appears on keyboard focus, so it can only ever be
+                 half an implementation; and leaving it on beside `.tip` gives the same
+                 control two tooltips, one instant and one drawn by the OS a second later.
+                 `.tip` covers hover and focus, `aria-label` covers the screen reader. -->
+            <span v-else-if="item.status === 'In Use'" class="tip-holder">
+              <!-- `role="img"` is load-bearing, not decoration. `aria-label` is ignored
+                   on a bare `<span>`, which maps to `role=generic`, and naming is
+                   prohibited there — the accessibility tree reported this control as
+                   `generic "Rented"` with the holder's address dropped entirely, while
+                   the `!` beside it announced in full because it already carried a role.
+                   Any role that permits naming fixes it; `img` is the one this table
+                   already uses for a non-interactive marker whose meaning is its label. -->
+              <span
+                class="button button-quiet is-static"
+                tabindex="0"
+                role="img"
+                :aria-label="`Rented by ${item.assigned_to || 'an unknown holder'}`"
+              >
+                Rented
+              </span>
+              <span class="tip" role="presentation" aria-hidden="true">
+                Rented by {{ item.assigned_to || 'an unknown holder' }}
+              </span>
+            </span>
+            <span v-else-if="item.needs_review" class="tip-holder">
+              <span
+                class="button flag-mark"
+                tabindex="0"
+                role="img"
+                :aria-label="`Needs review: ${item.review_reason || 'the record could not be verified at import'}`"
+              >!</span>
+              <span class="tip" role="presentation" aria-hidden="true">
+                {{ item.review_reason || 'The record could not be verified at import.' }}
+              </span>
+            </span>
             <button
-              v-else
+              v-else-if="item.status === 'Available'"
               type="button"
               class="button"
               :disabled="props.busyId === item.id"
@@ -175,15 +279,14 @@ function shown(value) {
 
           <td v-else-if="props.manage" class="cell-actions">
             <button
-              v-if="item.needs_review"
               type="button"
               class="icon-button"
               :disabled="props.busyId === item.id"
-              :title="`Clear the review flag on ${item.name}`"
-              :aria-label="`Clear the review flag on ${item.name}`"
-              @click="emit('clear-review', item)"
+              :title="`Edit ${item.name}`"
+              :aria-label="`Edit ${item.name}`"
+              @click="emit('edit-hardware', item)"
             >
-              <Icon name="flag" />
+              <Icon name="pencil" />
             </button>
             <button
               v-if="item.status === 'In Use'"

@@ -38,10 +38,10 @@ from tests.conftest import (
 #: legitimate target for both a delete and a Repair toggle.
 TARGET_ITEM = 1
 
-INTRUDER_EMAIL = "mallory@booksy.example"
+INTRUDER_EMAIL = "mallory@booksy.com"
 INTRUDER_PASSWORD = "intruder-pw-8b22c5"
 
-SECOND_ADMIN_EMAIL = "second.admin@booksy.example"
+SECOND_ADMIN_EMAIL = "second.admin@booksy.com"
 SECOND_ADMIN_PASSWORD = "second-admin-pw-1f90d4"
 
 

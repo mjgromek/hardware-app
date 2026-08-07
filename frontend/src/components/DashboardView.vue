@@ -6,6 +6,7 @@
 import { computed, ref } from 'vue'
 
 import HardwareTable from './HardwareTable.vue'
+import Icon from './Icon.vue'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -28,6 +29,37 @@ const flagged = computed(() => props.items.filter((item) => item.needs_review).l
 
 const query = ref('')
 
+/** Type-to-filter: instant, local, and deliberately shallow.
+ *
+ * **Name and brand only, and that is a security boundary rather than a scope decision.**
+ * ADR-0015 keeps the model's filter schema free of any predicate over `notes`, `history`
+ * and `review_reason`, because a filter that can *select* on a restricted field leaks it
+ * one query at a time — ask for "battery", get the Dell XPS back, and the notes have been
+ * read without ever being displayed. A client-side filter over the same fields would be
+ * the same oracle with a shorter round trip, and it would be worse: for an admin those
+ * fields are actually present in the payload, so it would work.
+ *
+ * Two columns, listed explicitly. Not `Object.values(item)`, not "everything except the
+ * restricted three" — an allow-list, so a field added later is excluded until somebody
+ * decides otherwise.
+ */
+const FILTERABLE = ['name', 'brand']
+
+const visible = computed(() => {
+  // Once the question has been asked, the text in the bar is the question — not a
+  // substring to filter by. Leaving the filter on showed the AI's answer above a full
+  // inventory table reading "No hardware matches this filter", because "apple laptops"
+  // matches no single name or brand. The full list returns underneath the results.
+  if (props.searchResults) return props.items
+  const needle = query.value.trim().toLowerCase()
+  if (!needle) return props.items
+  return props.items.filter((item) =>
+    FILTERABLE.some((field) => (item[field] ?? '').toLowerCase().includes(needle)),
+  )
+})
+
+//: Enter is the only thing that reaches the model. Typing costs nothing and calls
+//: nothing; asking is a deliberate act, which is also what makes the latency acceptable.
 function submitSearch() {
   const asked = query.value.trim()
   if (asked) emit('search', asked)
@@ -40,36 +72,49 @@ function clearSearch() {
 </script>
 
 <template>
-  <h1>Inventory</h1>
-  <p class="lede">
-    Every item the company owns, with the state it is in right now.
-    <template v-if="flagged">
-      {{ flagged }} of these need review before they can be rented.
-    </template>
-  </p>
+  <!-- Heading alone, search directly beneath it, as the wireframe has it. The lede
+       that used to sit between them is gone: it described what a table of hardware is
+       to somebody already looking at one, and it pushed the search box below the fold
+       on a laptop. The review count it carried now lives on the nav item, where it is
+       a link to the queue rather than a sentence about it. -->
+  <h1>Hardware list</h1>
 
   <form class="panel panel-head search-bar" @submit.prevent="submitSearch">
-    <label class="field" style="flex: 1 1 320px">
-      <span>Ask the inventory</span>
+    <!-- One pill, full width. The visible label is gone and the placeholder carries the
+         wireframe's "Ask AI…" — a label above a search field that already says what it
+         is for is a second sentence saying the first one again. `aria-label` keeps it
+         named for anybody not reading the placeholder. -->
+    <div class="search-field" :class="{ 'is-busy': props.searching }">
+      <Icon name="search" class="search-glyph" :size="18" />
+      <!-- Not `disabled` while searching. Disabling drops focus to `<body>`, so a
+           keyboard user is thrown to the top of the page every time they ask something,
+           and a disabled input is unreadable to a screen reader mid-request. `aria-busy`
+           says the same thing without taking the control away, and `readonly` stops the
+           text changing under an in-flight query. -->
       <input
         v-model="query"
         type="search"
-        placeholder="e.g. apple gear we could hand out today"
-        :disabled="props.searching"
+        placeholder="Type to filter, Enter to ask AI…"
+        aria-label="Filter the inventory by name or brand, or press Enter to ask AI"
+        :aria-busy="props.searching"
+        :readonly="props.searching"
       />
-    </label>
-    <button class="button" type="submit" style="align-self: flex-end" :disabled="props.searching">
-      {{ props.searching ? 'Searching…' : 'Search' }}
-    </button>
-    <button
-      v-if="props.searchResults"
-      class="button button-quiet"
-      type="button"
-      style="align-self: flex-end"
-      @click="clearSearch"
-    >
-      Clear
-    </button>
+      <Icon name="sparkle" class="search-spark" :size="18" />
+    </div>
+    <!-- The gradient outline is colour and motion, so it cannot be the only signal.
+         Polite, not assertive: the answer is worth interrupting for, the wait is not. -->
+    <p class="visually-hidden" role="status" aria-live="polite">
+      {{ props.searching ? 'Asking AI…' : '' }}
+    </p>
+    <!-- No submit button: Enter submits, which is what a search field has taught
+         everyone to expect, and a button beside a full-width pill was a second target
+         for no gain. The form still has `@submit`, so Enter and assistive technology
+         both reach it.
+
+         Clear used to live here as well, appearing *inside* this 52px form the instant
+         results arrived — it overlapped the bar and read as something popping up over
+         the control you had just typed into. It belongs to the results rather than to
+         the input, so it now sits in their header beside the mode chip. -->
   </form>
 
   <div v-if="props.searchResults" class="panel">
@@ -82,6 +127,12 @@ function clearSearch() {
           ? 'AI search'
           : 'Keyword results — AI search unavailable' }}
       </span>
+      <!-- Dismisses the results, so it sits with them. Beside the chip that says where
+           they came from, which is the other thing you read before deciding to keep or
+           drop them. -->
+      <button class="button button-quiet" type="button" @click="clearSearch">
+        Clear results
+      </button>
     </div>
     <p v-if="!props.searchResults.items.length" class="empty">
       Nothing matched. The filter only speaks in name, brand, status and dates — try
@@ -124,7 +175,7 @@ function clearSearch() {
     </div>
 
     <HardwareTable
-      :items="props.items"
+      :items="visible"
       :sort="props.sort"
       rentable
       :current-email="props.currentEmail"

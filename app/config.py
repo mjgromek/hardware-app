@@ -40,7 +40,11 @@ REQUIRED_IN_PRODUCTION = ("SECRET_KEY", "ADMIN_PASSWORD")
 #: Development-only fallbacks, so a fresh clone runs with no environment set.
 DEVELOPMENT_DEFAULTS = {
     "SECRET_KEY": "dev-secret-key-not-for-production",
-    "ADMIN_EMAIL": "admin@localhost",
+    # `@booksy.com`, not `admin@localhost`. Every account in the project is now on the
+    # company domain, which is what lets creation-time domain validation apply with no
+    # exemption for the bootstrap admin. Left as `admin@localhost`, a fresh local
+    # database would bootstrap the one account that validation would reject.
+    "ADMIN_EMAIL": "admin@booksy.com",
     "ADMIN_PASSWORD": "admin",
     # Not a secret by design: these are the credentials the README publishes, on a
     # `user`-role account that every admin route refuses.

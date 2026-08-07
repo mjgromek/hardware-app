@@ -51,8 +51,25 @@ class Action:
     CLEAR_REVIEW_FLAG = "clear_review_flag"
     #: ADR-0017 — the enum growing is the ADR's own consequence, not drift.
     FLAG_REVIEW = "flag_review"
+    #: A review that concluded the fault was real (ADR-0017, second Phase 4 amendment).
+    #: Its own action rather than a `clear_review_flag` whose prose happens to describe a
+    #: fault: both outcomes clear the flag, and a trail that cannot tell "released as fit"
+    #: from "confirmed unfit" cannot answer the first question an incident asks.
+    REVIEW_TO_REPAIR = "review_to_repair"
 
-    ALL = (FORCE_RETURN, CLEAR_REVIEW_FLAG, FLAG_REVIEW)
+    #: A returner reporting a fault in the device they were holding (ADR-0020). Its own
+    #: action rather than `flag_review`, because the actor class is the point: this flag
+    #: rests on direct observation, and a reviewing admin's next move is to ask the
+    #: person named on the row.
+    REPORT_ON_RETURN = "report_on_return"
+
+    ALL = (
+        FORCE_RETURN,
+        CLEAR_REVIEW_FLAG,
+        FLAG_REVIEW,
+        REVIEW_TO_REPAIR,
+        REPORT_ON_RETURN,
+    )
 
 
 audit_events = Table(

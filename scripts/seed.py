@@ -240,10 +240,6 @@ def main() -> None:
     )
 
 
-if __name__ == "__main__":
-    main()
-
-
 def _create_rentals_schema(engine: Engine) -> None:
     """DDL before the session, never inside it.
 
@@ -308,3 +304,12 @@ def seed_if_empty(engine: Engine) -> bool:
         len(report.quarantined),
     )
     return True
+
+
+# Last in the file, deliberately. Running `python -m scripts.seed` executes the module top
+# to bottom, so `main()` may only be called once every name it reaches is bound. This block
+# used to sit directly under `main`, above `_create_rentals_schema` and `_open_seed_rentals`
+# — importing the module bound them and every test passed, while the README's own setup
+# step died on a `NameError`. Found by a fresh-clone check, not by the suite.
+if __name__ == "__main__":
+    main()

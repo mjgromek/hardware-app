@@ -59,6 +59,7 @@ __all__ = [
     "RentalsExist",
     "set_status",
     "clear_review",
+    "edit_item",
     "flag_review",
     "delete_item",
 ]
@@ -80,6 +81,20 @@ hardware = Table(
     Column("notes", Text, nullable=True),
     Column("history", Text, nullable=True),
     Column("assigned_to", String, nullable=True),
+    # Phase 4. All nullable — the seed records none of them, and the migration
+    # below must be able to ALTER them onto a live volume (see create_schema).
+    Column("serial_number", String, nullable=True),
+    Column("category", String, nullable=True),
+    Column("date_added", Date, nullable=True),
+)
+
+#: What Phase 4 added to `hardware`, for the boot migration. Same shape as
+#: `app/accounts.py`'s `_ADDED_COLUMNS` and for the same reason: `create_all`
+#: skips a table that exists, so a live volume never gets new columns from it.
+_ADDED_HARDWARE_COLUMNS = (
+    ("serial_number", "VARCHAR"),
+    ("category", "VARCHAR"),
+    ("date_added", "DATE"),
 )
 
 #: Nothing from the seed is silently deleted — rejected rows land here with a
@@ -123,8 +138,39 @@ def create_engine_for(database_url: str) -> Engine:
 
 
 def create_schema(engine: Engine) -> None:
-    """Create the hardware and quarantine tables if they are absent."""
+    """Create the tables if absent — and migrate a `hardware` table that predates
+    Phase 4's columns.
+
+    `create_all` skips an existing table, so on a live volume it will never add a
+    column (the Phase 2 production defect, now a CLAUDE.md non-negotiable). Checked
+    by inspection rather than by catching the error: `ADD COLUMN` fails on a column
+    that exists, and a migration that works exactly once turns every later restart
+    into the outage it was meant to prevent.
+
+    The `date_added` backfill runs here *and* is set at insert time by `persist` /
+    `add_item` — here for rows that predate the column, there for rows that arrive
+    after it. Idempotent from both ends: the `WHERE date_added IS NULL` guard means
+    a second boot changes nothing, and seed id 10 (no `purchase_date`) stays null —
+    an honest "unknown" rather than an invented arrival day.
+    """
     metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        existing = {
+            row[1]
+            for row in connection.execute(text("PRAGMA table_info(hardware)")).all()
+        }
+        for column, sql_type in _ADDED_HARDWARE_COLUMNS:
+            if column not in existing:
+                connection.execute(
+                    text(f"ALTER TABLE hardware ADD COLUMN {column} {sql_type}")
+                )
+        connection.execute(
+            text(
+                "UPDATE hardware SET date_added = purchase_date "
+                "WHERE date_added IS NULL AND purchase_date IS NOT NULL"
+            )
+        )
 
 
 def new_session(engine: Engine) -> Session:
@@ -166,6 +212,12 @@ def persist(report: IngestReport, session: Session) -> None:
                     "notes": item.notes,
                     "history": item.history,
                     "assigned_to": item.assigned_to,
+                    "serial_number": item.serial_number,
+                    "category": item.category,
+                    # Backfilled at insert for the same reason create_schema
+                    # backfills at boot: the one date the record already carries.
+                    # Id 10 stays null — nothing to derive from.
+                    "date_added": item.date_added or item.purchase_date,
                 }
                 for item in report.imported
             ],
@@ -260,6 +312,9 @@ def load_items(
             notes=row["notes"],
             history=row["history"],
             assigned_to=row["assigned_to"],
+            serial_number=row["serial_number"],
+            category=row["category"],
+            date_added=row["date_added"],
         )
         for row in rows
     )
@@ -271,6 +326,8 @@ def add_item(
     name: str,
     brand: str | None,
     purchase_date: date | None,
+    serial_number: str | None = None,
+    category: str | None = None,
 ) -> HardwareItem:
     """Insert one new item as ``Available`` and unflagged, and return it.
 
@@ -306,6 +363,12 @@ def add_item(
             notes=None,
             history=None,
             assigned_to=None,
+            serial_number=serial_number,
+            category=category,
+            # An added device is dated by its arrival, not its purchase — the seed
+            # backfill derives from `purchase_date` only because those rows have no
+            # arrival to record.
+            date_added=date.today(),
         )
         .returning(hardware.c.id)
     ).scalar_one()
@@ -316,7 +379,24 @@ def add_item(
         brand=brand,
         purchase_date=purchase_date,
         status=Status.AVAILABLE,
+        serial_number=serial_number,
+        category=category,
+        date_added=date.today(),
     )
+
+
+def edit_item(session: Session, item_id: int, **fields) -> bool:
+    """Change the named fields on one item. Returns whether a row matched.
+
+    A pure row-mover, like `set_status` below: which fields may change, who may
+    change them and what counts as a legal value are the route's questions. The
+    caller passes only the fields the request actually named — partial semantics
+    live at the boundary that knows what was sent.
+    """
+    result = session.execute(
+        update(hardware).where(hardware.c.id == item_id).values(**fields)
+    )
+    return result.rowcount == 1
 
 
 def set_status(session: Session, item_id: int, status: Status) -> bool:

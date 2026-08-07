@@ -10,13 +10,21 @@ Built as a recruitment task for the Early Careers Programme.
 
 ## Live versions
 
+**v0–v3 deliver the brief in full** — the three pillars are the inventory and its dirty
+seed (v0), auth with roles and the admin surface (v1), the rental engine with its guards
+and audit trail (v2), and the AI layer (v3). **v4 is elective**: UI fidelity to the
+supplied wireframes, dark mode, notification sounds and an accessibility audit. It is work
+beyond the brief's scope, taken on because the wireframes were supplied and a close copy
+is checkable in a way "looks fine" is not. Read v0–v3 as the submission; read v4 as what
+was done with the time left.
+
 | Version | Phase | URL | Status |
 | --- | --- | --- | --- |
 | v0 | Phase 0 — foundation, data audit, first deploy | *(superseded by v1 on the same URL)* | ✅ shipped |
 | v1 | Phase 1 — auth, admin, dashboard | *(superseded by v2 on the same URL)* | ✅ shipped |
 | v2 | Phase 2 — rental engine, review queue, audit trail | *(superseded by v3 on the same URL)* | ✅ shipped |
-| **v3** | Phase 3 — semantic search, Inventory Auditor, flag-review | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
-| v4 | Phase 4 — wireframe fidelity | — | 🔮 planned, after v3 |
+| v3 | Phase 3 — semantic search, Inventory Auditor, flag-review | *(superseded by v4 on the same URL)* | ✅ shipped |
+| **v4** | Phase 4 — wireframe fidelity, dark mode, return-with-issue, two-outcome review, company-domain accounts | https://hardware-hub-production-24b7.up.railway.app | ✅ live |
 
 ### Signing in
 
@@ -73,7 +81,7 @@ over the inventory and the account list. Read access shows the dashboard, the re
 queue and the whole seed including its defects; the admin panel is described in
 [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) and is reachable by
 anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
-`admin@localhost` / `admin`.
+`admin@booksy.com` / `admin`.
 
 ---
 
@@ -101,12 +109,31 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
 - **`needs_review` queue, now with release** — every flagged item with the reason
   ingestion recorded, and an admin action that clears the flag, `409` on an unflagged
   item (ADR-0003)
+- **Return with an issue** — Return asks *"Anything wrong with it?"*; "All good" is the
+  one-click return it always was, and "Report a problem" takes a note, returns the item
+  and holds it for review with that note as the reason, attributed to the returner
+  (`report_on_return`). This closes the loop seed id 11's history implied — *"Returned
+  by user with liquid damage. Keyboard sticky."* was an event the application could not
+  previously have produced. The returner may raise a flag the auditor may not, because
+  the auditor reasons over stored text and the returner handled the equipment: direct
+  observation licenses direct action, inference does not (ADR-0020)
+- **A review concludes, both ways** — an admin who confirms the fault sends the item to
+  Repair with a reason describing it, rather than being forced to certify a repair
+  nobody performed; both outcomes clear the flag and write one audit row, and the trail
+  tells them apart (ADR-0017, second Phase 4 amendment)
 - **Audit trail** — force-return and clear-review each write an `audit_events` row
   with a mandatory reason, in the same transaction as the change; the transition
   itself writes it, so no caller can perform the override silently (ADR-0010)
 - **Field-level authorization** — `notes`, `history` and `review_reason` reach admins
   only; a `user` session gets `null` (ADR-0012, closing the `/security-review`
   finding Phase 1 carried)
+- **Company-domain accounts** — only `@booksy.com` addresses can be created, validated
+  on the request model and matched on the whole suffix, so `booksy.com.evil.net` and
+  `notbooksy.com` are both refused. Applied at **creation**, never at login: a login
+  check re-validates what creation already checked, and its one distinctive power is
+  locking out accounts that predate the rule. The bootstrap admin is exempt
+  *structurally* — it is created from the environment and never crosses the API
+  boundary — rather than by a conditional somebody has to remember (ADR-0019)
 - **`?held_by=me`** — the dashboard's "My Rentals" view, server-side
 - **Demo reset** — one confirmed admin route restores the seed's fingerprints
   (see "Restoring the demo" above)
@@ -127,7 +154,14 @@ anyone running it locally, where `ADMIN_EMAIL` / `ADMIN_PASSWORD` default to
   reason to a mandatory `fixed:` note — what changed, not merely that somebody looked
 - **Health endpoint** — `GET /api/health`, sessionless by design, touches nothing
 - Single origin: one service, one URL, no CORS (ADR-0001)
-- 118 tests, all green
+- **Phase 4, elective** — the schema trio (`serial_number`, `category`, `date_added`)
+  with a migration test that boots over the previous table shape; wireframe-fidelity
+  finish with uniform action controls and fixed column widths; **dark mode**, opt-in and
+  persisted, light by default so a reviewer sees what the wireframe shows; **six
+  notification sounds** as one family, off by default (ADR-0018); admin edit and a review
+  release that carries the change it certifies (ADR-0017 as amended); and a measured
+  **WCAG contrast audit** — [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md)
+- 152 tests, all green
 
 ### ⚡ Shortcuts & Hacks
 
@@ -202,6 +236,14 @@ Each of these works, and each cost something. The full table with reasoning is i
   *account* does now revoke its sessions properly (ADR-0013) — what is missing is ending
   one session without retiring the person.
   **Future:** a logout route plus session expiry.
+- **Sorting is client-side, and the server's `?sort` parameter has no caller.** Phase 4
+  gives every sortable column both directions, in the browser.
+  **Why:** `SortKey` has one member and no direction, so doing it server-side meant four
+  new behaviours and the tests to pin them; at eleven rows the browser reorders instantly
+  with no round trip. The server path stays implemented and tested because it is the one
+  that scales.
+  **Future:** move sorting back to the endpoint when the inventory needs pagination — the
+  parameter is already there and already proven.
 - **The frontend has no tests.** vitest is still not set up, and the UI now carries
   real logic: a roving-tabindex table, the `401`-to-login-screen path, filter counts.
   **Why:** time, and the Python suite covers the contract the UI consumes.
@@ -218,7 +260,8 @@ Each of these works, and each cost something. The full table with reasoning is i
 
 ### ⚠️ Partial / Missing
 
-- Editing an item's name, brand or date — only status changes and deletion exist
+- Bulk actions, and any edit history beyond the audit trail's one row per override —
+  an admin can see *that* a field changed and who changed it, not its previous value
 - **Post-import data is validated structurally, not semantically** — a manually added
   item with a 2027 purchase date is caught by nothing: ingestion only sees the seed,
   the add form checks shape, and the auditor's closed enum has no future-date kind
@@ -231,6 +274,19 @@ Each of these works, and each cost something. The full table with reasoning is i
   reach zero live admins. Reproduced, documented in ADR-0005, and deliberately not fixed:
   the trigger is concurrent demotions on a two-admin internal tool, and ADR-0008's
   conditional-`UPDATE` pattern is the known fix when it matters
+- **Nothing detects a deployment serving a stale build.** The live instance was found
+  serving a **Phase 0 image** — no authentication, the whole inventory readable
+  anonymously, including the `notes` and `history` ADR-0006 exists to protect. It was
+  caught by a manual query during an unrelated check; the suite passes against source, and
+  the health endpoint that would have failed did not exist in the rolled-back image. Fixed
+  by redeploying, and **the detection gap is now closed**:
+  `tests/test_smoke_deployed.py` asserts anonymous `GET /api/hardware` → `401`,
+  `/api/health` → `200`, that login answers, and that the inventory returns — skipped
+  unless `SMOKE_URL` is set, and `CLAUDE.md` makes a deploy incomplete until it passes
+  against the live URL. It is the only test that can fail while the code is correct,
+  which is the point. What remains partial is that nothing runs it *automatically*: it
+  is a step in a documented procedure, not a gate a machine enforces. See `AI_LOG.md`
+  Correction #6
 - Logout, session expiry, login throttling — no route ends a session, and the signed
   cookie has no server-side record to revoke
 - CI and vitest
@@ -262,12 +318,29 @@ ADR-0012 shipped role-aware serialisation in Phase 2):
    states, favicon, and the remaining `(pending)` SHA back-annotations in
    `AI_LOG.md`.
 
+> **Shipped in Phase 4, and not as planned.** *A user-facing "report an issue" path on
+> return* was item 3 here, specified to **propose, never flag** — the boundary ADR-0014
+> draws for the auditor. Building it reversed that: **ADR-0020** lets the returner raise
+> `needs_review` directly. The reason the earlier plan gave — "the person reporting is not
+> the person accountable" — turned out to be the wrong axis. The auditor is held back
+> because it reasons over stored *text*; a returner reports what they had *in their
+> hands*, and direct observation is exactly what a proposal queue would have delayed
+> behind an admin who cannot re-observe it. The propose-only version would also have left
+> a device with a known fault rentable until somebody got round to the queue. See ADR-0020
+> for the full argument, including what it deliberately does not grant.
+
 Then **Phase 4 — wireframe fidelity** (planned 2026-08-07, does not start until
 Phase 3 ships): the UI becomes a close copy of the supplied wireframes — heading and
 label changes, the review badge, exact type scale, the Add New Device modal, three
-new schema columns with their migration test, an ADR-0012 amendment hiding renter
-identity from non-admins, and muteable notification toasts. Scope in
-`brainstorm.md` §3 Phase 4.
+new schema columns with their migration test, and muteable notification sounds. Scope
+in `brainstorm.md` §3 Phase 4.
+
+That plan also contained an ADR-0012 amendment hiding renter identity from non-admins.
+**It was withdrawn and never built**: it contradicted ADR-0012's own reasoning and would
+have turned `test_renter_identity_is_visible_to_every_signed_in_user` red. ADR-0012 stands
+unamended, the server is unchanged, and the holder is still served to every signed-in
+account — Phase 4 only moved it off the row and onto the `Rented` control
+(`docs/WIREFRAME_JUSTIFICATION.md`).
 
 ---
 
@@ -387,10 +460,11 @@ a note on when it becomes urgent.
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain language. Say "quarantine record", not "the row we couldn't import". |
 | [`brainstorm.md`](brainstorm.md) | The phased build plan (v2). |
-| [`docs/adr/`](docs/adr/) | Architectural decisions, with the reasoning that produced them. |
+| [`docs/adr/`](docs/adr/) | 20 architectural decisions, with the reasoning that produced them. Four carry dated amendments, appended rather than rewritten so the revision stays visible: ADR-0003, ADR-0005, ADR-0014, and ADR-0017 twice. |
 | [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) | What the seed contained and what ingestion did about it. |
+| [`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | Measured WCAG contrast for every colour pair in both themes, and the one check that does not pass on colour alone. |
 | [`BACKLOG.md`](BACKLOG.md) | What is still owed, each with a note on when it becomes urgent. |
 | [`docs/WIREFRAME_JUSTIFICATION.md`](docs/WIREFRAME_JUSTIFICATION.md) | Every UI deviation from the supplied wireframes, described in prose — the images are confidential and stay uncommitted. |
 | [`AI_LOG.md`](AI_LOG.md) | Every commit, and the corrections where the AI was wrong. |
 | [`BACKLOG.md`](BACKLOG.md) | Findings deferred rather than acted on. |
-| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | The grilling sessions that settled the plan. |
+| [`docs/PROMPT_TRAIL.md`](docs/PROMPT_TRAIL.md) | 20 sessions — the prompts that settled the plan, verbatim where they were kept and marked *reconstructed* where they were not. Every ADR traces to one. |

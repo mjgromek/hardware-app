@@ -87,16 +87,16 @@ from app.main import create_app
 # Distinctive on purpose: `test_password_is_hashed_not_stored_plaintext` searches
 # the database file for these strings, and "admin"/"password" would collide with
 # column names, log lines and seed text.
-ADMIN_EMAIL = "founding.admin@booksy.example"
+ADMIN_EMAIL = "founding.admin@booksy.com"
 ADMIN_PASSWORD = "bootstrap-admin-pw-9c41e7"
 
-USER_EMAIL = "j.doe@booksy.example"
+USER_EMAIL = "j.doe@booksy.com"
 USER_PASSWORD = "regular-user-pw-4d17b2"
 
 # A second ordinary employee. The wrong-renter guard (ADR-0009) is only testable
 # with two of them, and it must be a `user` rather than the admin — an admin being
 # refused the *ordinary* return verb is a different claim, asserted separately.
-OTHER_USER_EMAIL = "s.novak@booksy.example"
+OTHER_USER_EMAIL = "s.novak@booksy.com"
 OTHER_USER_PASSWORD = "other-user-pw-6e83a1"
 
 LOGIN_PATH = "/api/login"

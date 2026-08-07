@@ -16,6 +16,40 @@ import ReasonDialog from './components/ReasonDialog.vue'
 import ReviewQueue from './components/ReviewQueue.vue'
 import ToastStack from './components/ToastStack.vue'
 import { api, ApiError, handleUnauthorized } from './api.js'
+import { sound } from './sound.js'
+
+// Theme. **Light is the default and `prefers-color-scheme` is deliberately not read.**
+// Every visitor lands on the light theme — it is what the wireframe shows and what a
+// reviewer should see first — and dark is opt-in. Once chosen it sticks, because the
+// choice is stored rather than re-derived from the OS on each visit.
+const THEME_KEY = 'hardware-hub-theme'
+const theme = ref(localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
+
+function applyTheme(next) {
+  // The attribute is what the token layer keys on; light removes it entirely so the
+  // `:root` defaults apply unmodified rather than being overridden back to themselves.
+  if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
+  else document.documentElement.removeAttribute('data-theme')
+}
+
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  localStorage.setItem(THEME_KEY, theme.value)
+  applyTheme(theme.value)
+}
+
+applyTheme(theme.value)
+
+// Sound is off until asked for, and the toggle sits beside the theme one. The four
+// events are in ADR-0018; each is paired with a toast at its call site, so muting
+// removes a channel rather than the information.
+const soundOn = ref(sound.enabled)
+
+function toggleSound() {
+  soundOn.value = !soundOn.value
+  sound.enabled = soundOn.value
+  if (soundOn.value) sound.rent()   // one tone, so "on" is audible immediately
+}
 
 const account = ref(null)
 const booting = ref(true)
@@ -75,7 +109,14 @@ async function loadInventory() {
     api.hardware({ status: statusFilter.value, sort: sortKey.value }),
     statusFilter.value ? api.hardware({ sort: sortKey.value }) : null,
   ])
+  // Two of ADR-0018's four events are about somebody *else's* action — a user rents an
+  // item, an item enters review — and there is no realtime channel to learn them from.
+  // So they are derived by diffing this fetch against the previous one: an admin hears
+  // them the next time their client refetches, which is after every action they take.
+  // Notification on refresh, not realtime, and ADR-0018 says so rather than implying it.
+  const previous = items.value
   items.value = visible
+  if (isAdmin.value && previous.length) announceChanges(previous, visible)
   const all = everything ?? visible
   counts.value = all.reduce(
     (tally, item) => ({ ...tally, [item.status]: (tally[item.status] ?? 0) + 1 }),
@@ -85,6 +126,37 @@ async function loadInventory() {
 
 async function loadMine() {
   mine.value = await api.hardware({ heldBy: 'me' })
+}
+
+function announceChanges(before, after) {
+  const was = new Map(before.map((item) => [item.id, item]))
+  for (const item of after) {
+    const prior = was.get(item.id)
+    if (!prior) continue
+    // Somebody took something out. Not fired for the admin's own rent — that path
+    // already reported itself as a confirmed action.
+    if (prior.status !== 'In Use' && item.status === 'In Use' && item.assigned_to !== account.value?.email) {
+      sound.rent()
+      say(`${item.name} was taken by ${item.assigned_to ?? 'somebody'}`)
+    }
+    if (!prior.needs_review && item.needs_review) {
+      sound.flag()
+      say(`${item.name} entered review`)
+    }
+    // A cleared flag is not always a release. Since the second Phase 4 amendment a
+    // review can conclude in Repair, which clears the flag too — and announcing "was
+    // released from review" over an item an admin just declared unfit is the false
+    // record ADR-0017 keeps closing, this time in the copy rather than the database.
+    // The Repair branch below reports that conclusion in its own words.
+    if (prior.needs_review && !item.needs_review && item.status !== 'Repair') {
+      sound.resolve()
+      say(`${item.name} was released from review`)
+    }
+    if (prior.status !== 'Repair' && item.status === 'Repair') {
+      sound.repair()
+      say(`${item.name} was sent to Repair`)
+    }
+  }
 }
 
 async function loadAccounts() {
@@ -121,12 +193,18 @@ async function onSignedIn(signedIn) {
   await refresh()
 }
 
-async function act(work, done) {
+async function act(work, done, voice) {
   try {
     await work()
     await refresh()
-    if (done) say(done)
+    if (done) {
+      voice?.()
+      say(done)
+    }
   } catch (e) {
+    // A 409 is a guard refusing with a readable reason (CONTEXT.md) — a different
+    // event from a network failure, and the only error worth its own voice.
+    if (e instanceof ApiError && e.status === 409) sound.refused()
     say(e.detail ?? 'Something went wrong.', 'error')
   } finally {
     busyId.value = null
@@ -149,6 +227,7 @@ function toggleRepair(item) {
   act(
     () => api.setHardwareStatus(item.id, next),
     next === 'Repair' ? `${item.name} marked as Repair` : `${item.name} released from Repair`,
+    next === 'Repair' ? sound.repair : sound.resolve,
   )
 }
 
@@ -179,12 +258,39 @@ function deleteAccount(target) {
 // failure. Nothing here flattens them.
 function rentItem(item) {
   busyId.value = item.id
-  act(() => api.rent(item.id), `${item.name} is yours`)
+  act(() => api.rent(item.id), `${item.name} is yours`, sound.rent)
 }
 
+// The return asks before it acts (ADR-0020). Not a confirmation step — the question is
+// the feature: the person handing the device back is the only one who can report what
+// they noticed, and the moment they let go of it is the last moment they will think of it.
 function returnItem(item) {
-  busyId.value = item.id
-  act(() => api.returnItem(item.id), `${item.name} returned`)
+  override.value = {
+    kind: 'return',
+    item,
+    title: 'Return this item',
+    subject: item.name,
+    outcomeLabel: 'Anything wrong with it?',
+    outcomes: [
+      {
+        value: 'ok',
+        label: 'All good',
+        hint: 'Goes straight back to Available for the next person.',
+        //: The honest majority stays one click. A flow that makes every return fill in
+        //: a field teaches people to type nothing into it.
+        reasonRequired: false,
+      },
+      {
+        value: 'issue',
+        label: 'Report a problem',
+        hint: 'Returns it and holds it for review, so nobody else takes it out.',
+        prompt: 'What did you notice?',
+        placeholder: 'Screen flickers when the lid moves',
+      },
+    ],
+    prompt: 'What did you notice?',
+    confirm: 'Return it',
+  }
 }
 
 function askForceReturn(item) {
@@ -202,11 +308,54 @@ function askClearReview(item) {
   override.value = {
     kind: 'clear-review',
     item,
-    title: 'Clear the review flag',
+    //: The form is prefilled from the item, so the release can correct the record it
+    //: certifies (ADR-0017 as amended).
+    editable: true,
+    title: 'Review this item',
     subject: `${item.name} — ${item.review_reason || 'flagged at import'}`,
-    prompt: 'What did you check?',
-    confirm: 'Clear the flag',
+    prompt: 'What was fixed? The note must start with "fixed:".',
+    confirm: 'Record the outcome',
+    //: A review concludes two ways (ADR-0017, second Phase 4 amendment). Release first,
+    //: because it is the common case and the default.
+    outcomes: [
+      {
+        value: 'released',
+        label: 'Release',
+        hint: 'The record is correct and the item is fit to issue.',
+      },
+      {
+        value: 'repair',
+        label: 'Send to Repair',
+        hint: 'The fault is real. The item stays unrentable until it is fixed.',
+        prompt: 'What is wrong with it?',
+        placeholder: 'Battery is swelling, confirmed by inspection',
+        // The reason already on the record, carried into the field the admin is about
+        // to fill. When the flag came from a return-with-issue this is the returner's
+        // own note (ADR-0020), and the admin is confirming or correcting first-hand
+        // observation rather than retyping it — a blank field invites a thinner reason
+        // than the one somebody already wrote. Editable, always: what gets recorded is
+        // whatever the admin leaves in the field, same rule as the auditor prefill.
+        prefill: item.review_reason || '',
+      },
+    ],
+    // The server refuses anything that does not state a change (ADR-0017 as
+    // amended); prefilling the prefix turns the rule into a prompt.
+    prefill: 'fixed: ',
   }
+}
+
+//: The row just released, kept visible in its resolved state for two seconds and
+//: then faded — the admin sees the result rather than watching it vanish.
+const justResolved = ref(null)
+
+function markResolved(item) {
+  justResolved.value = { item, fading: false }
+  setTimeout(() => {
+    if (justResolved.value?.item.id === item.id) justResolved.value.fading = true
+  }, 2000)
+  setTimeout(() => {
+    if (justResolved.value?.item.id === item.id) justResolved.value = null
+  }, 2600)
 }
 
 // From a finding, not from a row: the auditor proposed (ADR-0014), and this is the
@@ -225,16 +374,58 @@ function askFlagReview(finding) {
   }
 }
 
-function submitOverride(reason) {
+function askEditHardware(item) {
+  override.value = {
+    kind: 'edit',
+    item,
+    editable: true,
+    requireReason: false,
+    title: 'Edit item',
+    subject: item.name,
+    prompt: '',
+    confirm: 'Save changes',
+  }
+}
+
+function submitOverride(reason, edits = {}, outcome = 'released') {
   const { kind, item } = override.value
   override.value = null
   busyId.value = item.id
-  if (kind === 'force-return') {
+  if (kind === 'edit') {
+    if (!Object.keys(edits).length) {
+      busyId.value = null
+      return say('Nothing changed.')
+    }
+    act(() => api.editHardware(item.id, edits), `${item.name} updated`, sound.returned)
+  } else if (kind === 'return') {
+    const issue = outcome === 'issue' ? reason : null
+    act(
+      () => api.returnItem(item.id, issue),
+      issue ? `${item.name} returned and held for review` : `${item.name} returned`,
+      // No voice on a reported return: the change observer plays `flag` when it sees
+      // the item enter review, which is the more important of the two events.
+      issue ? undefined : sound.returned,
+    )
+  } else if (kind === 'force-return') {
     act(() => api.forceReturn(item.id, reason), `${item.name} recalled`)
   } else if (kind === 'flag-review') {
     act(() => api.flagReview(item.id, reason), `${item.name} is flagged and unrentable`)
   } else {
-    act(() => api.clearReview(item.id, reason), `${item.name} is no longer flagged`)
+    // Two outcomes, two messages and two sounds. Telling an admin who just declared a
+    // battery unsafe that the item was "released" would be the false record again, one
+    // layer up — the toast is what they read to confirm what they did.
+    const repairing = outcome === 'repair'
+    act(
+      async () => {
+        await api.clearReview(item.id, reason, edits, outcome)
+        markResolved(item)
+      },
+      repairing
+        ? `${item.name} sent to Repair — stays unrentable`
+        : `${item.name} released — resolved`,
+      // No voice here: the change observer plays `repair` when it sees the status move,
+      // exactly as it plays `resolve` for a release. Passing one too would double it.
+    )
   }
 }
 
@@ -320,6 +511,24 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
       </button>
 
       <span class="nav-spacer" />
+      <button
+        type="button"
+        class="theme-toggle"
+        :aria-pressed="soundOn"
+        @click="toggleSound"
+      >
+        <Icon :name="soundOn ? 'bell' : 'bell-off'" />
+        {{ soundOn ? 'Sounds on' : 'Sounds off' }}
+      </button>
+      <button
+        type="button"
+        class="theme-toggle"
+        :aria-pressed="theme === 'dark'"
+        @click="toggleTheme"
+      >
+        <Icon :name="theme === 'dark' ? 'sun' : 'moon'" />
+        {{ theme === 'dark' ? 'Light theme' : 'Dark theme' }}
+      </button>
       <p class="whoami">{{ account.email }} · {{ account.role }}</p>
       <button type="button" class="sign-out" @click="signOut">
         <Icon name="out" /> Sign out
@@ -353,7 +562,14 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         @return="returnItem"
       />
 
-      <ReviewQueue v-else-if="view === 'review'" :items="flagged" />
+      <ReviewQueue
+        v-else-if="view === 'review'"
+        :items="flagged"
+        :is-admin="isAdmin"
+        :busy-id="busyId"
+        :just-resolved="justResolved"
+        @review="askClearReview"
+      />
 
       <AdminPanel
         v-else-if="view === 'admin' && isAdmin"
@@ -369,6 +585,7 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
         @delete-hardware="deleteHardware"
         @force-return="askForceReturn"
         @clear-review="askClearReview"
+        @edit-hardware="askEditHardware"
         @flag-finding="askFlagReview"
         @run-audit="runAudit"
         @add-account="addAccount"
@@ -380,11 +597,15 @@ const nav = computed(() => NAV.filter((entry) => !entry.admin || isAdmin.value))
 
   <ReasonDialog
     :open="override !== null"
+    :item="override?.editable ? override.item : null"
+    :require-reason="override?.requireReason !== false"
     :title="override?.title ?? ''"
     :subject="override?.subject ?? ''"
     :prompt="override?.prompt ?? ''"
     :confirm="override?.confirm ?? ''"
     :prefill="override?.prefill ?? ''"
+    :outcomes="override?.outcomes ?? []"
+    :outcome-label="override?.outcomeLabel ?? 'Outcome'"
     @submit="submitOverride"
     @cancel="override = null"
   />

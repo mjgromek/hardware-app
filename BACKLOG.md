@@ -371,3 +371,64 @@ no test.** Observed live (the oracle probe's zero-selectivity answer, n=12). Cor
 behaviour — the model legitimately said "no constraints" — but nothing asserts it, so
 a regression that errored on `{}` or mislabelled it would be green. *Urgent when: the
 search route or `parse_filter` is next touched.*
+
+## Phase 4 schema slice — non-blocking
+
+- **`date_added` is not pinned as server-owned.** The scope says "defaults to now on
+  create" but names no test for a caller supplying it. If `NewHardware` grows a
+  `date_added` field, an admin could backdate an item and the "recently added" sort
+  becomes editable. One test would close it; left out because the scope did not name it.
+- **No `docs/specs/phase-4.md`.** Phases 2 and 3 have one; the schema slice was written
+  from the brainstorm section quoted in the task. Worth writing the spec file before the
+  UI slice, so the reviewer has the same contract the tests do.
+
+**Sorting is client-side, and the server's `?sort` parameter now has no caller.** Phase 4
+gives every sortable column both directions, including alphabetical on name and brand.
+`SortKey` has one member (`purchase_date`) and no `order`, so doing that server-side meant
+four new behaviours and the tests to pin them; at eleven rows the browser sorts for free
+and gives instant reordering with no round trip. Both are kept deliberately: the
+client-side sort is what the UI uses, and the server parameter stays implemented and
+tested because it is the path that scales — sorting in the browser stops being free the
+moment the inventory outgrows one response.
+
+The cost is honest API surface without a caller: `GET /api/hardware?sort=purchase_date`
+works, is tested, and nothing in the product calls it. *Urgent when: the inventory needs
+pagination — at which point sorting has to move back to the server, and the parameter is
+already there and already proven.*
+
+## Suite wall time — two findings, only one of them understood
+
+**Absolute cost: probably `scrypt`, and this is a hypothesis rather than a measurement.**
+`SCRYPT_N = 2**14` costs roughly 50 ms per hash, and a typical test pays for several —
+`admin_client`, `user_client` and `other_user_client` each create an account and log in,
+and every `create_app` runs `bootstrap_admin` plus `bootstrap_demo`. `--durations` shows no
+pathological case: the slowest test is 1.46 s, the top six total under 6 s, and the
+remaining ~50 s is spread at roughly 0.3 s across 152 tests. Four of those top six are
+`setup`, which is consistent with fixture hashing. **Nobody has measured it.** The fix, if
+it turns out to matter, is a lower work factor **under test only** — never in production,
+where the cost is the entire point (ADR-0013's threat model is a stolen database file).
+*Urgent when: the suite is slow enough to stop being run, which is the only cost that
+counts.*
+
+**The regression: unexplained, and it should stay written down as unexplained.** The suite
+held ~19 s for most of the session, then ran 82 s, then 56 s, with nothing recent touching
+the backend and the same 152 tests passing throughout. A stray `uvicorn` was offered as the
+cause and was not one — it was a single process at 0.1 % CPU, which cannot produce a 4×
+slowdown.
+
+**The pattern is what makes this worth a backlog entry rather than a shrug.** This is the
+third unexplained slowdown in this project. One earlier case was misattributed to a stray
+process and turned out to be iCloud materialising files. So a plausible local explanation
+has now been wrong twice here, which is enough to treat "I can think of a reason" as
+insufficient evidence in this repository specifically. *Urgent when: it recurs — and the
+first move is a measurement (time one fixture, compare a cold and warm run) rather than a
+story.*
+
+**The flagged branch of the Actions column is visually unverified.** The uniform-size pass
+gives a flagged row an amber `!` at the same 96×32 as the `Rent` button, and the markup is
+in `HardwareTable.vue` — but no screenshot shows it, because both flagged rows on the local
+scratch database had been released during earlier testing. Every other branch of that cell
+was confirmed on screen: `Rent`, the grey `Rented`, and the empty `In Repair`. The
+deployment verification against a freshly reset live instance covers it, since a reset
+restores ids 6 and 10 as flagged. *Urgent when: the v4 deploy is verified — and if the
+`!` is the wrong size there, this entry is why nobody caught it earlier.*

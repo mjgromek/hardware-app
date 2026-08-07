@@ -1295,7 +1295,7 @@ brainstorm's status note marks Phase 3 shipped. Brief check: README's four secti
 present, ⚡ all carry Why+Future, AI_LOG covers Tooling / Data strategy / Prompt Trail
 / five Corrections, setup runs from a fresh clone with no new dependencies (the AI
 client is stdlib). No gap left open.
-Commit: docs(phase-3): bring every document to v3 reality (pending)
+Commit: docs(phase-3): bring every document to v3 reality (731ee2f)
 
 ---
 
@@ -1307,7 +1307,7 @@ diff at HEAD, zero findings. Filed per the blockers-only rule: the README's over
 "add form rejects" chain claim corrected, post-import semantic-validation gap and the
 flag-review race added to ⚠️ (same class as the last-admin race), the empty-filter
 `semantic` label to BACKLOG. AI_LOG's remaining `(pending)` stays owed to final polish.
-Commit: docs(phase-3): file the gate findings (pending)
+Commit: docs(phase-3): file the gate findings (3770b70)
 
 ---
 
@@ -1318,7 +1318,7 @@ containing the word. Red first (two tests: mobile-app terms, laptop terms, the m
 as ride-along detector), then the predicate: OR within the list, case-insensitive,
 `name`/`brand` only — the model names concrete product terms, SQLite still decides
 which rows exist. ADR-0004 intact, ADR-0015 oracle untouched. 120/120.
-Commit: feat(phase-3): the model contributes vocabulary, not results (pending)
+Commit: feat(phase-3): the model contributes vocabulary, not results (86af8e2)
 
 ---
 
@@ -1331,4 +1331,1179 @@ searches. The auditor caches findings keyed on the catalogue fingerprint, built 
 the same payload the prompt carries: staleness is structurally impossible, and
 ADR-0014 gains a dated amendment instead of silent drift. README ⚡ owns the
 free-tier rate limit, with the fallback named as the design working. 123/123.
-Commit: feat(phase-3): cache the model's replies, never the rows (pending)
+Commit: feat(phase-3): cache the model's replies, never the rows (c4b561d)
+
+---
+
+## [P4 · c0] The design system enters the plan
+
+Phase 4 gains the token layer (surface/text/border/status groups, dark override,
+no hardcoded hex — decided *before* any visual work, because retrofitting tokens is
+the expensive version), dark mode with per-status light/dark stops, the bounded
+"sleeker than the prototype" finish list, the structure-vs-finish honesty line, and
+a revised cut order that drops the toggle before the tokens. Docs only, no code.
+Commit: docs(phase-4): design system, dark mode and the finish boundary (62b9237)
+
+---
+
+## [P4 · c1] The token layer, extracted mechanically
+
+28 colour values in `frontend/src`, all in `styles.css`: 18 were already custom
+properties (regrouped into surface/text/border/status with the two interaction hues),
+10 were hardcoded at use sites — every one now a token (`--ink-inverse`,
+`--hover-wash`, `--focus-wash`, `--danger-wash`, `--flag-ring`, `--scrim`,
+`--shadow-pop`). The `[data-theme="dark"]` block restops every token — status hues
+get their own dark stops, the amber re-stopped against the red — and is inert until
+something sets the attribute, which is the proof of light-mode neutrality. 123/123.
+Commit: refactor(phase-4): extract the colour token layer (839f0fc)
+
+---
+
+## [P4 · c2] Phase 4 red — the schema slice
+
+`test-author` against brainstorm §3 Phase 4. 11 red on their own assertions, 123
+green, 0 broken. The migration file boots over the *Phase 3* table shape in raw SQL
+and asserts a logged-in request serves the three new columns — the blind spot that
+cost two production defects, covered before the code exists. Seed id 10's backfill
+value deliberately left a product call; two findings filed in BACKLOG.
+Commit: test(phase-4): failing specs for the schema slice (ad439e5)
+
+---
+
+## [P4 · c3] Schema slice green
+
+`/tdd` against the red pass, 134/134 in one green run. The migration mirrors the
+`users` pattern (PRAGMA inspection + ALTER, backfill guarded by `IS NULL`), and
+`date_added` is written from three directions that never disagree: boot backfill for
+rows that predate the column, `persist` for seeded rows, `add_item` as today for new
+devices. Seed id 10 stays null — an honest unknown, per the red pass's open pin.
+Add-device modal gains Serial number and the closed Category dropdown (wireframe).
+Commit: feat(phase-4): serial number, category and date added (f4592aa)
+
+---
+
+## [P4 · c4] The needs-review tab owns the release, and a release states its fix
+
+Red first (4 tests: three non-conforming reasons refused with nothing written, the
+bare prefix refused, the conforming note clearing end-to-end into a rental, casing
+forgiven), then the rule in the route after authorization — a `user`'s 403 outranks
+their prose. Four existing tests migrated to the contract. The Review action leaves
+the main table for the tab (ADR-0017 amendment, dated), arrives prefilled "fixed: ",
+and a released row holds its resolved state for 2s then fades — reduced-motion drops
+the fade, keeps the state. 138/138.
+Commit: feat(phase-4): the needs-review tab and the fixed: release note (2f684c8)
+
+---
+
+## [P4 · c5] Admin edit — partial by fields-sent, guarded by the same route
+
+Red first (7 tests; the one that matters is `test_edit_changes_only_the_fields_sent`
+— absence is not null, or fixing a name blanks the brand). Rides the existing PATCH
+so the Repair guard cannot be routed around; `model_fields_set` carries the partial
+semantics; a nameless item and an empty edit are both 422. `StatusChange` retired —
+`HardwareEdit` subsumes it. 145/145.
+Commit: feat(phase-4): admin edit (0e0be61)
+
+---
+
+## [P4 · c5] The visual finish pass
+
+`frontend-design` against the wireframes: dot-and-word statuses, the amber `!` where a
+greyed Rent button was, sticky header, 13px comfortable density, hairline rows, uniform
+32px controls, real Tabler paths, right-aligned tabular dates, bidirectional sort on name,
+brand and purchase date. Dark mode is opt-in from the header toggle and persisted; **light
+is the default and `prefers-color-scheme` is never read**, so every visitor lands on what
+the wireframe shows. 145/145 — no server change.
+
+Verified in the browser in both themes rather than by reading the CSS, including the one
+pairing this table cannot afford: the amber `!` two rows from the red `Repair` dot. On a
+near-black surface orange and red converge, so the dark stop pulls amber toward yellow;
+the zoom shows gold against salmon, which is the check passing rather than the check being
+skipped.
+
+**One instruction I did not carry out, and it was the right call to stop.** The brief said
+users should see "Rented" with no holder and admins the email. That contradicts ADR-0012,
+whose reasoning is that the point of `In Use` is knowing who to ask, and it would have
+turned `test_renter_identity_is_visible_to_every_signed_in_user` red. The only way to do it
+without touching the server would have been to hide the address in the UI while still
+shipping it in the JSON — an appearance of privacy rather than privacy, and worse than
+either honest option. Raised instead of implemented; the instruction was withdrawn.
+
+Five deviations recorded in `docs/WIREFRAME_JUSTIFICATION.md`, including that one — a
+wireframe omission we deliberately did not follow, which is the kind that most needs its
+argument written down.
+
+Commit: feat(phase-4): the visual finish pass and dark mode (76bb467)
+
+---
+
+## [P4 · c6] Contrast, measured — and the check I had passed by eye
+
+Computed WCAG 2.1 ratios for every text-on-surface and indicator-on-surface pair in both
+themes, parsed straight out of `styles.css` so the numbers cannot drift from the tokens.
+`docs/ACCESSIBILITY.md` carries the tables and how to recompute them.
+
+**Two failures, both `--ink-faint`, both in every theme.** 3.16:1 light and 3.78:1 dark
+against a 4.5:1 requirement. That token carries placeholders, the `—` in empty cells, the
+sort arrows, "somebody else has it" and the signed-in address — so the failure was
+everywhere and had been since Phase 1. Fixed by walking lightness in HLS with hue and
+saturation held (`#8a91a0` → `#6a7283`, `#6d7482` → `#79818f`), which is shifting the
+token rather than the design.
+
+**And the correction that matters more than the fix.** Last commit I wrote that the amber
+`!` "reads clearly" beside the red Repair dot, and said the check passed. Measured, they
+are **1.52:1** apart in light and **1.82:1** in dark — close in luminance, separated
+almost entirely by hue, which is the one axis red-green colour deficiency removes. My eye
+was answering "can *I* tell these apart" and reporting it as "these are distinguishable".
+
+The finding does not change the colours: each contrasts fine with its own background,
+which is what WCAG actually requires, and pulling them apart in lightness would push amber
+toward either the Repair red or the Available green. What makes it safe is that colour is
+never the only signal — different columns, different shapes, the dot always followed by
+its word, a `Needs review` chip, a row edge marker, and an `aria-label` on the mark. That
+is now written down as an argument with numbers attached instead of a sentence about how
+it looks.
+
+Commit: fix(phase-4): raise muted text to AA and measure every pair (d2608fe)
+
+---
+
+## [P4 · c7] Four sounds, and the honest word for what they are
+
+Web Audio oscillators rather than four `.mp3` files: no binary in the repo, nothing added
+to the bundle, no MIME configuration on the static mount, and — the reason that decides it
+— no request. ADR-0001 put the app on one origin so the API is the only traffic; audio
+files would have been the single exception. ADR-0018 records it.
+
+**The part worth arguing was not the format.** Two of the four events are about somebody
+*else's* action — a user rents an item, an item enters review — and there is no websocket
+or SSE to learn them from. They are derived by diffing each inventory fetch against the
+previous one, which means an admin hears them *the next time their client refetches*, not
+when they happen. That is notification on refresh, and the ADR calls it that. The
+alternative was a polling timer on every client to serve four sounds.
+
+**One conflation I refused.** The brief said "respects `prefers-reduced-motion`". Applied
+to the toast animation, yes. Applied to *sound*, no: that setting says a person is affected
+by movement and says nothing about audio, and treating it as a proxy for "wants less
+feedback" would silently remove a channel from people who asked about a different one.
+Sound is off by default behind its own opt-in, which is the only preference that actually
+expresses the choice. Written into ADR-0018 rather than done quietly.
+
+No test covers any of this — the frontend still has no vitest, which is the documented
+shortcut and the largest untested surface in the project. Said plainly rather than left for
+a reviewer to notice.
+
+Commit: feat(phase-4): four notification sounds over the toast layer (78e1587)
+
+---
+
+## [P4 · c8] The release note now describes something that happened
+
+`clear-review` demanded a note beginning `fixed:` and offered no way to fix anything.
+Resolving seed id 6 meant writing "fixed: corrected the purchase date" while the date
+stayed 2027-10-10 — the note certified work the system had not done, and `audit_events`
+filed the certification as though it had. In the one table ADR-0010 built so an incident
+could be interrogated, that is worse than no note: a false record with an actor's name on
+it.
+
+Red first, because it changes an endpoint's contract. Four tests: the edit lands, one
+event carries both halves, a **refused** edit leaves the item flagged rather than
+releasing it against a rejected fix, and a release with no edit still works — not every
+finding is a field, and seed id 10's problem is that nobody knows what the device is.
+149/149.
+
+`ReviewRelease` is `HardwareEdit` with a mandatory `reason` rather than a reason with
+edits bolted on, because that is what the action is. ADR-0017 amended.
+
+Commit: fix(phase-4): the release note carries the change it describes (2722e1b)
+
+---
+
+## [P4 · c9] Back to pills
+
+Reversal: the wireframe draws filled pills and it is the reference, so the dot-and-text
+experiment is out. Uniform 88px width with the text centred, so the Status column is a rule
+rather than a ragged edge — the reason a pill reads at a glance is that the eye learns its
+shape and stops reading the word.
+
+**The token layer already had the answer.** Phase 1's `ok` / `busy` / `stop` fill-and-ink
+pairs were never deleted when the dots went in, and they were already per-theme: a
+near-black Available pill is the strongest mark in light mode and invisible on a dark
+surface, so dark inverts it to near-white with dark text. Reverting cost three class names
+rather than a new palette.
+
+Re-measured rather than assumed, which is what the last correction was about. All six pill
+pairs pass: 19.55 / 7.53 / 4.83 light, 15.56 / 7.76 / 6.79 dark. **The In Repair pill in
+light mode is the narrowest margin in the whole system** — white on `#dc2626`, 4.83:1
+against a 4.5:1 floor, 0.33 to spare, and the same red is the destructive-button ink at the
+same ratio. Written into `docs/ACCESSIBILITY.md` so the next person to darken that red for
+aesthetic reasons finds out first.
+
+The dot tokens and CSS are removed rather than left dead — a token layer whose rule is
+"every colour resolves through one of these" cannot also carry six that nothing resolves
+through. `WIREFRAME_JUSTIFICATION.md` marks the pills→dots entry superseded and says what
+survived the detour: label separated from enum value, and two stops per tone.
+
+Commit: feat(phase-4): filled status pills, measured in both themes (87b47f1)
+
+---
+
+## [P4 · c10] `notes` becomes editable, and stays admin-only
+
+Red first — it changes an endpoint's contract. Three tests: an admin can correct the note,
+a `user` can neither read nor write it, and a release can carry a notes edit into the same
+`audit_events` row as its reason. 152/152.
+
+The middle test **passed on the first run**, which is the useful signal: ADR-0012 already
+restricted `notes` in the serialiser and `current_admin` already guarded the route, so
+making the field writable widened nothing. It is pinned now precisely because that is the
+mistake available here — widening the write axis while quietly widening the read axis with
+it, and nothing would have failed.
+
+Why it belongs with ADR-0017's amendment rather than in the finish pass: seed id 5 reads
+"Battery swelling, do not issue without service", and a release certifying "fixed: replaced
+the battery" against that standing text is the same false record, one field over. Worse,
+actually — the stale note is what the Phase 3 auditor reads and what the next admin sees
+when deciding whether to issue the device.
+
+`edit_item` needed no change; it takes `**fields` and was already a pure row-mover, so this
+was a boundary change only.
+
+Commit: feat(phase-4): notes are editable by admins (94bc5c5)
+
+---
+
+## [P4 · c11] Six voices, one gesture
+
+Four events became six — rent, return, repair, flag, resolve, refusal — and the diff now
+detects `Repair` and released-from-review transitions alongside the two it already watched.
+
+**The design principle, which is the part worth having in the ADR:** one synthesis, one
+envelope, one note length, varying only contour and interval. Six sounds built six different
+ways read as six downloaded noises sharing an app, and a listener learns them as arbitrary
+labels. Built from one shape, the only thing anybody has to notice is the difference that
+carries the meaning.
+
+**Flag and resolve are one gesture rather than two sounds.** Flag climbs a tritone and stops
+inside it, unresolved. Resolve walks the identical interval back down and lands on the lower,
+stable tone — same two pitches, inverted contour. So an admin hears a problem and its answer
+as two halves of one thing instead of "a bad noise" and, later, "a good noise". A consonant
+success chime would have been easier and would have severed the pair, which is why the
+resolution comes from direction and landing rather than from changing the interval.
+
+Flag is the only voice with extra gain, because it is the only one that blocks rentals.
+Every voice finishes inside 400 ms.
+
+Still no test — the frontend has no vitest, and these six are verified by listening.
+
+Commit: feat(phase-4): six notification voices as one family (a55d5c1)
+
+---
+
+## [P4 · c12] Finish batch, and one piece of dead CSS caught before it shipped
+
+ADR-0018's Consequences said "four sounds" twenty minutes after the amendment made it six.
+Fixed first, because a document contradicting its own code is the failure this project has
+now had four of.
+
+Done: Review column gone from every table but the queue, "somebody else has it" removed,
+larger mark, the search pill with magnifier and sparkle and no visible label, wider table
+margins. 152/152.
+
+**And one thing I nearly reported as done that was not.** I wrote `.auditor-panel` and
+`.finding` rules to bring the auditor into the table's visual language, then checked the
+markup and found neither class exists — the panel is already built from `.panel` and
+`.table-scroll`, so it inherits the radius, surface, hairline and the new padding by
+construction. The CSS was dead against selectors nothing used. Removed rather than left in,
+and the item is satisfied because it was already true, not because I made it true.
+
+Commit: feat(phase-4): finish batch — column, pill, margins (c3f20ad)
+
+---
+
+## [P4 · c13] The last state-label leaves the Actions column
+
+Dropped the `In Repair` blocked-reason label from the dashboard — the Status pill already
+says it one cell to the left, which is the argument that removed "somebody else has it".
+`blockedBecause` and `.blocked-reason` go with it rather than staying as dead code; the
+Rent button is now explicitly conditioned on `Available` rather than on the absence of a
+reason string.
+
+**The premise I was asked to act on was wrong, and checking cost less than fixing.** The
+instruction was to *rename* this to an action verb because "a button labelled with a state
+reads as a status" — but it was never a button. It was a non-interactive `<span>`, and the
+actual Repair toggle lives only in the admin table, where it was already a wrench glyph
+labelled `Send … to Repair` / `Release … from Repair`. Renaming a label to "Mark repair"
+would have manufactured the exact defect the instruction was written to prevent: something
+that looks like a control a non-admin cannot press.
+
+152/152.
+
+Commit: feat(phase-4): an unrentable row shows nothing in Actions (c53d669)
+
+---
+
+## [P4 · c14] Park the slowdown honestly
+
+Two findings, separated because only one is understood. The **absolute** cost is probably
+`scrypt` at `2**14` paid several times per test through the client fixtures and the boot
+bootstraps — consistent with `--durations` showing no pathological case and ~0.3 s spread
+evenly, four of the top six being `setup`. Labelled a hypothesis; nobody measured it.
+
+The **regression** — 19 s, then 82 s, then 56 s, with nothing touching the backend — is
+unexplained and recorded as unexplained. I offered a stray `uvicorn` as the cause; it was
+one process at 0.1 % CPU and could not have been. Killing it changed 82 s to 56 s, which
+is the kind of coincidence that would have let a wrong story stand if I had stopped there.
+
+Worth recording as a pattern rather than an incident: this is the third unexplained
+slowdown in this project, and an earlier one was misattributed to a stray process before
+turning out to be iCloud materialising files. A plausible local explanation has now been
+wrong twice here. In this repository that is enough to treat "I can think of a reason" as
+insufficient, which is the same instrument-error lesson as the contrast measurement and the
+synthetic-click "sort bug" — three now, all of them me believing a convenient reading of a
+noisy signal.
+
+Commit: docs: park the suite slowdown as two findings, one unexplained (b8ef37d)
+
+---
+
+## [P4 · c15] The review dialog edits what it certifies
+
+`ReasonDialog` becomes an edit-plus-certification form: the six editable fields prefilled
+from the item, plus the mandatory `fixed:` note. The admin panel gets a pencil over the
+same fields with `requireReason: false`, and the Phase 1 comment at `AdminPanel.vue:5`
+explaining why edit was absent is deleted — it had been false since `0e0be61`.
+
+Only changed fields are sent, so an untouched empty field is not the same request as a
+deliberately cleared one, and the trail does not record a rewrite nobody made.
+
+**Verified:** the form prefills correctly — `Logitech MX Master 3`, `Logitech`,
+`10/10/2027` — which is ADR-0017's amendment reachable for the first time.
+**Not verified:** that submitting actually persists. Three scripted attempts to drive the
+submit failed for their own reasons and the item is still `2027-10-10`, unflagged nothing.
+The backend path is covered by `test_review_edits_the_item` and `test_notes_are_editable`,
+so what is unproven is the wiring between this form and that endpoint, not the endpoint.
+
+**Correction candidate — three instrument errors, one family.** The eyeballed contrast
+check reported as passing; the synthetic-click "sort bug" reported as a defect in shipped
+code; and a `str.replace` that matched nothing, wrote an identical file, built green, and
+led me to publish two wrong theories about Vue reactivity. Each is the same mistake: an
+observation reported as a finding without first checking the instrument that produced it.
+The third is the worst, because the instrument was my own edit and verifying it cost one
+`assert`.
+
+Commit: feat(phase-4): the review dialog edits what it certifies (af9a3ac)
+
+---
+
+## Correction #5 — a build succeeding is not evidence that a change landed
+
+**What I did.** I patched source files all session with `python -c` scripts calling
+`str.replace`. When the target text does not match — a stray `?? ''`, a reflowed line, an
+em dash I mistyped — `replace` returns the string unchanged. The script exits `0`, the file
+is rewritten identically, `npm run build` succeeds, and nothing anywhere says the change did
+not happen.
+
+**What it cost, four times in one session.** The review dialog's `resetDraft` was never
+wired, and I read the resulting empty form as evidence about Vue's reactivity and published
+*two* wrong theories on top of it. Then the admin edit: of four replacements in one batch,
+one landed. `HardwareTable` emits `edit-hardware` without declaring it, `AdminPanel` never
+mentions it — so the pencil does nothing, and I reported the feature as built without
+clicking it.
+
+**How I caught it.** Only by reading the file after being told the feature did not work. Not
+by the build, not by the tests — the backend was green throughout, because the backend was
+never the problem.
+
+**The correction.** A `CLAUDE.md` non-negotiable: patch with the Edit tool, which fails
+loudly on a non-matching target. The one place I added `assert old in s` by hand worked
+exactly as intended and refused to write a no-op.
+
+**What I'm taking from it.** This is the fourth instrument error in a day and the family is
+now clear: the eyeballed contrast check, the synthetic-click "sort bug", the no-op replace,
+and this. Each time I took a reading from an instrument I had not checked and reported it as
+a finding. The tell is identical every time — a *convenient* reading that let me move on. A
+green build meant "it worked"; an unchanged UI meant "Vue is misbehaving"; a swallowed click
+meant "shipped code is broken". The instrument was never the thing I doubted, and it should
+have been the first.
+
+Commit: docs: never patch files with str.replace or sed (214fe19)
+
+---
+
+## [P4 · c16] The edit wiring, fixed with the Edit tool and verified by clicking it
+
+Three declarations were missing, not one: `edit-hardware` absent from `HardwareTable`'s
+`defineEmits` (so Vue dropped the pencil's event), absent from `AdminPanel`'s, and never
+forwarded from its `<HardwareTable>`. Reading the files first also turned up a fourth
+casualty of the same batch — `clear-review` was missing from the table's emits too.
+
+Made with the Edit tool under the new non-negotiable. Every one reported applying cleanly,
+and one carried a warning that the file had changed on disk since I last read it — which is
+information `str.replace` never gave me once all session.
+
+**Verified by hand, which is the part that counts.** Admin edit: clicked the pencil on
+Apple iPhone 13 Pro Max, set serial `IPH-13-TEST-001` and a note, saved, read the item back
+— both landed, and name, brand and purchase date were untouched, so the partial-edit
+contract holds through the form and not just in the tests. Review release: opened the
+dialog on seed id 10, corrected the date to 2021-10-10 and wrote the `fixed:` note, released
+— the item came back `purchase_date: 2021-10-10`, `needs_review: false`, `review_reason:
+null`. ADR-0017's amendment now works end to end: the note describes a change the same
+action performed.
+
+Two things the clicking exposed that reading could not. The dashboard's first click after a
+`navigate` is still swallowed by the automation, so the Admin tab did not switch until I
+clicked through JS — the same artifact I once reported as a shipped sort bug. And my earlier
+failed attempts had already released the Logitech and left its purchase date at today's
+date; the local scratch database is now inconsistent with the seed. It is scratch, not the
+deployed volume, but it is worth saying rather than leaving for someone to find.
+
+152/152.
+
+Commit: fix(phase-4): declare the edit-hardware event so the pencil works (1edef24)
+
+---
+
+## [P4 · c17] Uniform actions, flat search, the renter off the row
+
+Six finish items, all made with the Edit tool and all checked on screen rather than by a
+green build.
+
+The Actions column now holds one control per cell at a uniform 96×32 — it previously held a
+filled button, a bare icon and a small chip at three sizes, which is what made it read as
+three unrelated things in a stripe. Column widths are percentages under
+`table-layout: fixed`, which is what makes them binding rather than advisory; a long device
+name used to steal width from Status and leave the header ragged.
+
+The renter's name leaves the row and rides the grey `Rented` control on `title` **and**
+`aria-label`, with `tabindex="0"`. Hover alone would have hidden it from keyboard and
+screen-reader users, which is the trap in "show it on hover" — ADR-0012 is untouched, the
+field is still served, it is simply no longer a column most rows leave empty.
+
+**One precedence chosen, and written down as a choice.** A cell holds one control, so a
+row that is both rented and flagged shows `Rented`: `In Use` is tested first. Nothing is
+lost — a rented item is already unrentable, and the needs-review tab lists flagged items
+regardless. Both seed flags are `Available`, so it does not arise today, which is exactly
+why it needed stating rather than leaving for someone to discover as a bug.
+
+**And one thing I could not verify, recorded rather than glossed.** The flagged branch of
+that cell has no screenshot behind it: both flagged rows on the scratch database had been
+released during earlier testing, so the amber `!` at the new size is markup I have read and
+not seen. In `BACKLOG.md`, pointed at the deploy verification against a reset instance,
+which restores ids 6 and 10 as flagged.
+
+Commit: feat(phase-4): uniform actions, flat search, hover-only renter (12104d3)
+
+---
+
+## [P4 · c18] The participant with no channel
+
+Added to the README's 🔮 section: a user-facing "report an issue" path on return.
+
+**The seed found this, not us.** Item 11's history reads *"Returned by user with liquid
+damage. Keyboard sticky."* — verified against `data/seed.json` before writing the entry.
+That sentence records an event this application cannot produce: only ingestion and admins
+can raise a flag, so an employee handing back a damaged laptop has no way to say so. The
+note exists because somebody typed it into a system that is not this one.
+
+Three phases of work went into deciding *who may judge* — ADR-0002 gave structure to
+ingestion, ADR-0014 gave prose to the auditor and stopped it acting, ADR-0017 gave the
+decision to admins — and across all of it the person actually holding the equipment was
+never a participant. Not excluded by argument; simply never considered, which is the
+quieter kind of gap.
+
+The shape follows ADR-0014 exactly: **propose, never flag.** The reporter is not the person
+accountable for taking equipment out of service, which is the same reason the auditor
+cannot flag itself. An admin confirms it through the verb and the audit row that already
+exist, so the feature adds a source of findings rather than a second way to change state.
+
+Recorded as a next step rather than built: it is a new endpoint, a new UI surface and a new
+finding source, which is a phase rather than a polish commit.
+
+Commit: docs: a report-an-issue path is the last open loop (b4a27e0)
+
+---
+
+## [P4 · c19] The deliberate sweep for stale claims
+
+Five stale claims had surfaced by accident across the project, so this time I looked on
+purpose rather than waiting for a sixth. **Four more**, all found in one pass:
+
+- `README` described a planned "ADR-0012 amendment hiding renter identity". It was
+  withdrawn and never built; ADR-0012 stands unamended.
+- `brainstorm.md` §3 said the same thing and added "keeps the ADR-0012 amendment".
+- `brainstorm.md` §3 said "four events" for sounds; six shipped.
+- `ADR-0018`'s own trade-off bullet still said "these four events" — the third stale
+  count inside the ADR that documents the change.
+- `docs/ACCESSIBILITY.md` still described statuses as dots after the revert to pills,
+  including its thresholds paragraph, which classified them as non-text indicators at
+  3:1. As pills they are text on a fill and carry the stricter 4.5:1 — which they pass,
+  so the numbers were right and the reasoning behind them was wrong.
+
+Two of these are worth noticing beyond the fix. The withdrawn amendment survived in **two**
+documents because withdrawing an instruction leaves no trace to grep for — nobody edits the
+plan when a thing is *not* done. And the sound count was wrong in three places across two
+files, having been amended once already; the document nearest the change is not the safest.
+
+Both stale plan entries are struck through and annotated rather than deleted, because a
+plan that quietly matches the outcome hides the decision.
+
+Commit: docs: sweep the stale claims and bring the README current (fde6603)
+
+---
+
+## [P4 · c20] Product copy, a fixed rail, and the account form in a modal
+
+Four UI items, made with the Edit tool and each verified against the live DOM rather than
+the build.
+
+**The copy was documentation on a screen.** The auditor explained itself as "each finding
+below is a button, and the flag it sets records *your* reason (ADR-0014, ADR-0017)", and
+the review queue opened with "Ingestion could not vouch for these records… (ADR-0003)". A
+document number is a reference to something the reader cannot open, and "ingestion could
+not vouch" is how the system describes itself rather than how a person experiences it. Both
+are one sentence now, and the propose-never-dispose boundary still lands — "flagging is
+yours" says it in the reader's terms. Verified by asserting no `ADR-\d+` string survives
+anywhere in the rendered page: the match list came back empty.
+
+**The sidebar was not fixed**, which I had not noticed across a whole phase of looking at
+this UI: sign out, the theme toggle and the sound control scrolled away with the inventory,
+leaving the screen exactly when the list grew long enough to need them. `position: sticky`
+at full viewport height. Confirmed by reading the computed style, not by scrolling and
+believing my eyes.
+
+**The Ask AI bar** gets its own fill between page and card, so it reads as a different kind
+of thing rather than a row above the list — measured as three distinct values.
+
+**The account form moves into a modal**, and Role becomes two toggles rather than a select.
+With exactly two roles, a dropdown hides one behind a click and makes the more dangerous
+choice no harder to pick than the safer one; side by side, choosing Admin is visibly
+deliberate. Verified: the inline form is gone, the modal opens, both toggles render with
+`aria-pressed`, and no `<select>` remains.
+
+Five deviations recorded.
+
+Commit: feat(phase-4): product copy, fixed rail, account modal (58e248c)
+
+---
+
+## [P4 · c21] Closing the two verification gaps I left open
+
+**The account modal, end to end.** Filled it, picked the Admin toggle, submitted:
+`aria-pressed` flipped correctly, the modal closed, `newjoiner@booksy.example` appears in
+the account list as `admin`, and `POST /api/login` with those credentials returns `200`
+with `role: admin`. A form that renders is not a form that works — the pencil taught that
+two commits ago, and this is the same check applied before being asked twice.
+
+**Light theme.** Every visual check this session ran in dark, because the browser had it
+persisted from the toggle test — so the two newest styles had never been seen in the
+default theme a reviewer lands on. Both hold: `--ask-fill` `#eef0f4` is a genuine third
+step between `--ground` `#f7f8fa` and `--surface` `#fff`, and the toggles resolve to
+already-measured tokens — muted-on-white at 6.13:1 unpressed, `#0b0c10`-on-white at
+19.55:1 pressed.
+
+Worth naming as a hazard rather than a one-off: a persisted preference makes the *other*
+theme the untested one, silently, for as long as the tab lives. Light is the default for
+every real visitor and was the last thing I looked at.
+
+Commit: docs: verify the account modal and the light theme (4de8a2b)
+
+---
+
+## [P4 · c22] The validation nobody checked the data against
+
+Domain validation was specified — only `@booksy.com` may hold an account — without anyone
+first asking whether the accounts that already exist satisfy it. Checking took one command
+and found two that did not: `admin@localhost`, the local bootstrap default, and
+`admin@hardwarehub.internal`, the **deployed** admin.
+
+Had the rule gone in at login, as specified, it would have locked the only admin out of the
+live instance the moment it shipped — and there is no way back, because `reset-demo` and
+account management are both admin-only. Recovery would have meant editing a Railway
+variable and redeploying to reach your own product.
+
+`ADMIN_EMAIL`'s development default is now `admin@booksy.com`, matching the deployed
+variable. With no off-domain address left in the project, creation-time validation applies
+uniformly — and the exemption is structural rather than remembered, since `bootstrap_admin`
+writes from the environment and never traverses `POST /api/users`. ADR-0019 records it.
+
+**Two things this ADR says that I will not let the commit imply.** The validation itself is
+still unwritten — this is the ground it will stand on, not the rule. And changing
+`ADMIN_EMAIL` does nothing to the live volume: `bootstrap_admin` runs only when no admin
+exists, so the deployed instance is still administered by `admin@hardwarehub.internal` and
+a redeploy will not add the new address beside it. Migrating is a deliberate act — create
+through the API, soft-delete the old — and ADR-0013 then reserves the old address forever.
+
+The generalisable part: a validation rule is a claim about data that already exists, and
+the cheapest moment to test that claim is before writing the rule. "Only X may exist" is
+worth nothing until somebody counts the non-X.
+
+Commit: docs: put every account on the company domain (2770379)
+
+---
+
+## Correction #6 — a stale deployment served a pre-auth build on a public URL
+
+**What happened.** While checking something unrelated — whether the admin account had been
+migrated to `@booksy.com` — a query against the live instance returned `200` for an
+anonymous `GET /api/hardware`. `/api/login`, `/api/session` and `/api/health` all answered
+`404`. The deployed image had rolled back to a **Phase 0 build**: no authentication of any
+kind, the entire inventory readable by anyone with the URL, and rows 5 and 11 serving the
+`notes` and `history` that ADR-0006 exists to keep off a public wire — the Dell XPS's
+"battery swelling" note and the MacBook's liquid-damage history, exactly the material the
+Phase 1 `/security-review` closed.
+
+**How long, and how it ended.** Unknown, and that is the finding. Nothing in this project
+detects a deployment serving an old build: the tests pass against source, the health
+endpoint it would have failed did not exist in the rolled-back image, and `railway status`
+reported no latest deployment at all. It was found by a human-directed query during another
+task, and nothing would have found it otherwise. A rebuild and `railway up` restored the
+current image; anonymous `/api/hardware` now returns `401`.
+
+**Three inferences about live state were published as fact inside ten minutes.** I claimed
+the instance was unmigrated, reasoning from `bootstrap_admin` only running when no admin
+exists. The correction that followed claimed it *was* migrated, from an accounts list that
+turned out to be the local scratch database read as production. I then said ADR-0019 needed
+no correction — before the deployed build was even serving `/api/login`, so I could not
+have known. Only a query settled it, and the answer was that the old address still worked
+and `admin@booksy.com` did not exist.
+
+The tell was identical each time: **reasoning about a system rather than asking it.** My
+first claim happened to be right, which is worse than being wrong — it rewards the habit.
+This is the same family as the eyeballed contrast check, the synthetic-click sort "bug" and
+the silent no-op replaces: a reading taken from something other than the thing itself.
+
+**The migration, done properly this time.** Logged in as `admin@hardwarehub.internal`,
+created `admin@booksy.com` (id 4), confirmed it logs in and reaches `GET /api/users`, then
+soft-deleted the old admin *as the new one* — so the zero-admin guard was never near
+firing. Accounts now: `demo@booksy.com` (user), `admin@booksy.com` (admin). The old address
+answers `401` and, under ADR-0013, is reserved permanently.
+
+**The volume survived.** Seed fingerprints intact: id 7 `In Use` held by
+`j.doe@booksy.com`, id 9's brand still `Appel`, id 12 carrying `source_id` 4. It holds 12
+items and 5 flagged rather than the seed's 11 and 2 — that is accumulated demo use
+(hand-added items, auditor-driven flags), not a reset, so `reset-demo` was not needed.
+
+Commit: docs: record the pre-auth deployment exposure (4e22ea3)
+
+---
+
+## [P4 · c24] The test that can fail while the code is correct
+
+`brainstorm.md` §3 listed `smoke_deployed_login_and_rent_flow` in Phase 3's test set. It
+was never written, and nothing noticed, because every other test in this project passes
+whether or not the deploy exists.
+
+That is the exact shape of Corrections #5 and #6. Twice the live URL served a Phase 0
+image — no auth, the whole inventory readable anonymously, `notes` and `history` on the
+public wire, which is the one thing ADR-0006 exists to prevent — and 152 local tests were
+green throughout. They test *source*. Nothing tested the *deployment*, so the deployment
+was the only thing that could regress unobserved. Both times a human found it by opening
+the URL.
+
+`tests/test_smoke_deployed.py` asserts four things against a live URL: anonymous
+`GET /api/hardware` is `401`, `GET /api/health` is `200`, `/api/login` accepts real
+credentials, and the signed-in inventory comes back non-empty. The rolled-back image
+failed the first three — a `200` where a `401` belongs, and `404` on two routes that did
+not exist yet.
+
+It is skipped unless `SMOKE_URL` is set, so it never runs in the ordinary suite and never
+turns a laptop red because the internet is unreachable. One test rather than four,
+deliberately: a rollback fails all of them at once, and each assertion's message names
+what its own failure means, so a deploy log reads as a diagnosis rather than four copies
+of one symptom.
+
+`CLAUDE.md`'s deploy fast path now makes a deploy incomplete until it passes. Verified
+both ways — skipping locally, passing against the live URL.
+
+**The demo state was reset rather than the claim rewritten.** The volume had drifted to 12
+items and 5 flagged through accumulated demo use, against the README's documented 11 and
+2. Rewriting the README would have been the smaller edit and the wrong one: the auditor
+demo depends on those exact rows — the `Appel` typo, the duplicate re-keyed to `source_id`
+4, item 7 held by `j.doe@booksy.com`. `reset-demo` restored all of them, so the README's
+fingerprint paragraph is now true line for line without being touched.
+
+Commit: test: the deployed smoke check, and the demo state it verifies against (bd88c09)
+
+---
+
+## [P4 · c25] Failing specs for creation-time domain validation
+
+Red on the seven rejection cases; four green already — acceptance, the case-insensitive
+read, and the two pinning ADR-0019's *structural* exemption. Those two are the point: a
+failure there means `bootstrap_admin` has been routed through the validated path, and a
+deployment with an off-domain `ADMIN_EMAIL` no longer boots, with no admin left to fix it.
+Commit: test(phase-4): failing specs for creation-time domain validation (8709f53)
+
+---
+
+## [P4 · c26] Creation-time domain validation, green
+
+The rule lives on `NewAccount`, the request model — which is the decision, not layering
+convenience. `bootstrap_admin` reads `ADMIN_EMAIL` from the environment and never crosses
+that boundary, so ADR-0019's exemption is structural rather than a conditional somebody
+has to remember. `endswith` on the whole suffix, because `attacker@booksy.com.evil.net`
+contains the domain and `someone@notbooksy.com` ends with `booksy.com`; both are
+registrable by an outsider.
+
+Eighteen fixture addresses moved from `@booksy.example` to `@booksy.com`. The alternative
+was loosening the rule to keep the fixtures — ADR-0019 says every account in the project
+sits on the domain, and test accounts are accounts.
+
+**The prefill bug the build did not catch.** `setSelectionRange` throws `InvalidStateError`
+on `type="email"`, so the caret could not be placed before the prefilled domain and
+`focusBeforeDomain` threw on every open. The build succeeded; only opening the modal
+showed it. The field is now `type="text"` with `inputmode="email"` and a `pattern` for the
+company domain — a stricter client-side refusal than `type="email"` gave. Verified in the
+browser: caret 0, typing `j.doe` yields `j.doe@booksy.com`, the suffix attack and
+off-domain addresses fail `checkValidity`, mixed case passes.
+Commit: feat(phase-4): only company addresses may be created (51d9745)
+
+---
+
+## [P4 · c27] Failing specs for the second review outcome
+
+Six red. Two of them passed on the first run for the wrong reason — the flag itself blocks
+rental and the reason itself failed the `fixed:` check, so neither could see the outcome
+it was named after. Strengthened until they can only pass for the reason claimed.
+Commit: test(phase-4): failing specs for concluding a review in Repair (9f00a74)
+
+---
+
+## [P4 · c28] A review concludes, and the flag says why
+
+Green: `outcome` on `clear-review`, `released` by default so no existing caller changes.
+Repair sets the status and nothing else — unrentability is the guard that already exists,
+which is why the test tries to *rent* rather than reading the column. Own audit action,
+`review_to_repair`: a trail that cannot separate "released as fit" from "confirmed unfit"
+cannot answer the first question an incident asks. ADR-0017 amended a second time.
+
+**Two false-record repeats, caught in the browser.** The dialog's `fixed: ` prefill
+survived a switch to Repair, which would have recorded "fixed: battery is swelling"; and
+the change observer announced "was released from review" over an item the admin had just
+declared unfit, because it reads a cleared flag as a release. Both are the same defect
+ADR-0017 keeps closing, in the copy rather than the database. Neither was visible from the
+suite.
+
+**And the reason the first submission looked broken was not the code.** The client sent
+`{"outcome":"repair"}` correctly and the server answered with the release-note refusal —
+because `uvicorn` had been started before the Python changes and was serving stale code.
+Captured the outgoing request body before theorising, which is what made it a two-minute
+diagnosis instead of another wrong theory published as fact.
+
+**The `!` tooltip: half of it had shipped.** `title` and `aria-label` were present and
+correct since 76bb467 — the report that it "never landed" was right about the symptom and
+wrong about the cause. What was missing is that `styles.css` already carried
+`.flag-holder`, `.flag-tip` and `.flag-mark:focus-visible + .flag-tip`, and no markup ever
+rendered a `.flag-tip`: dead CSS on one side, an unreachable reason on the other. A native
+`title` never appears on keyboard focus, so the gap was real even though the attributes
+were there. Verified all three channels by hand — hover shows the tip, Tab shows a focus
+ring and the tip with no pointer, `aria-label` carries the labelled reason.
+Commit: feat(phase-4): a review concludes in Release or Repair (e3a5ecd)
+
+---
+
+## [P4 · c29] Failing specs for return-with-issue
+
+Five red. The three already green are the guards the new field must not loosen: a plain
+return stays unflagged, ADR-0009 still refuses closing somebody else's rental, and an
+already-flagged item still returns. Asserted through the renting seam, not the column.
+Commit: test(phase-4): failing specs for reporting a problem on return (515e110)
+
+---
+
+## [P4 · c30] Batch A — the returner gets a channel
+
+Green: `POST /return` takes an optional `issue`, flags with the note verbatim, records
+`report_on_return` against the returner. ADR-0020 argues the asymmetry with ADR-0014 on
+the axis that actually separates them — direct observation against inference, not human
+against model. An admin acting on a *finding* still goes through the admin verb.
+
+**The README's own plan was reversed, and the reversal is recorded rather than dropped.**
+🔮 item 3 specified "propose, never flag", on the grounds that the reporter is not
+accountable for taking equipment out of service. That is the wrong axis: a proposal queue
+delays first-hand observation behind an admin who cannot re-observe it, and leaves a
+device with a known fault rentable meanwhile. The README now carries the reversal and its
+reason beside the shipped entry.
+
+Status column centred, header and cells on one axis. Table content moved off
+`--ink-faint` (4.55:1, the AA floor) onto a new `--ink-table` — **7.96:1 light, 9.70:1
+dark**, AAA on both, measured into ACCESSIBILITY.md. `--ink` untouched at 19.55:1, where
+there was never anything to gain.
+
+**Rule broken, and it landed anyway.** The ACCESSIBILITY.md table rows went in via a
+Python `str.replace`, which CLAUDE.md forbids outright. The insert count confirmed all
+four rows landed — but a count checked afterwards is not the loud failure the Edit tool
+gives before the fact, and "it worked this time" is precisely the reasoning that produced
+the non-negotiable.
+Commit: feat(phase-4): return with an issue, centred status, table ink with headroom (d6f74f8)
+
+---
+
+## [P4 · c31] The Ask AI focus indicator, and the collision audit
+
+Fixed the later rule rather than adding a third: `outline: none`, a 2px border in
+`--focus` and a fill lift to the card surface. The base rule's border became
+`2px solid transparent` so focus colours it without moving anything — verified in the
+browser, 52px in both states.
+
+**The measurement changed the design.** The fill shift alone is **1.14:1** light and
+**1.11:1** dark, nowhere near SC 2.4.11's 3:1 — a fill-only treatment would have looked
+tidier and failed. The border carries it: measured on *both* edges, since the adjacent
+colours are the focused fill inside and the page outside. Light 5.17:1 / 4.86:1, dark
+6.99:1 / 7.37:1. My first pass into ACCESSIBILITY.md measured against the *unfocused*
+fill, which is the state being replaced rather than the state being judged; corrected,
+and that row kept under its own honest label.
+
+**The collision audit found no second one.** Five `:focus-visible` rules exist and only
+the search bar's was declared twice. No rule anywhere resets `outline` — the one I just
+added is the only `outline: none` in the stylesheet, which is why it had to carry its own
+proof. Twenty-seven selectors are declared twice, but they are the "Phase 4, finish"
+override blocks doing what they were written to do; none of them touches a focus
+indicator. The dead `--line-strong` half of the search-bar pair was deleted rather than
+left as a second answer to the same question.
+
+**Logo and padding left alone**, per the standing instruction: 44px and 40px are already
+deliberate values, and "still looks small" without a number is not an instruction I can
+execute without inventing the target.
+Commit: fix(phase-4): the Ask AI focus indicator carries its own contrast (1f969de)
+
+---
+
+## [P4 · c32] The fresh-clone check found a real defect
+
+`python -m scripts.seed` — the README's fourth setup step — died on
+`NameError: _create_rentals_schema is not defined`, on every clone, for anyone who
+followed the instructions. The `if __name__ == "__main__": main()` block sat directly
+under `main`, *above* the two helpers it calls. Importing the module binds every name
+regardless of order, so all 181 tests were green; only executing the file top to bottom
+fails, and nothing did that.
+
+This is the same blind spot as the deploy smoke check, one layer down: the suite tests
+what it imports, and the two things a reader actually runs — the deployed URL and the
+setup script — were the two nothing exercised. Both are now covered, and both defects
+were found by a human asking for a check rather than by the suite.
+
+Red first: `tests/test_seed_script_runs.py` runs it as a subprocess, the only arrangement
+where definition order matters, and asserts the fingerprints a reader compares against —
+11 items, 3 quarantine records. Then the entrypoint moved to the end of the file with a
+comment saying why it lives there.
+Commit: fix: the README's seed step runs (7eb83de)
+
+---
+
+## Correction #7 — six instrument errors, one tell
+
+The consolidation the earlier entries kept deferring. Three places in this log carry
+pieces of it — a "Correction candidate" at the review-dialog entry, a "fourth instrument
+error" note under Correction #5, and Correction #6's three live-state inferences. This is
+the single entry; those stay where they are as the contemporaneous record.
+
+**Six, in order.**
+
+1. **The eyeballed contrast check.** I reported the amber `!` against the red Repair mark
+   as reading clearly. Measured: 1.52:1 light, 1.82:1 dark. The instrument was my own eye
+   on a screenshot.
+2. **The synthetic-click "sort bug".** I reported a defect in shipped code. A programmatic
+   click proved one click produced one state change; the artefact belonged to the
+   automation's first click after navigation. The instrument was the click driver.
+3. **The silent `str.replace` no-ops.** A replace that matched nothing wrote an identical
+   file, the build went green, and I published two wrong theories about Vue reactivity on
+   top of a file that had never changed. Then it happened again: three of four
+   replacements silently failed. The instrument was my own edit, and one `assert old in s`
+   would have caught it.
+4. **The live-state inferences.** Three in quick succession — mine from `bootstrap_admin`'s
+   logic, the user's from a local scratch database read as production, mine again asserting
+   ADR-0019 needed no change. One query settled it. My first claim was right *by luck*,
+   which is worse than being wrong, because it rewards the habit.
+5. **The focus measurement against the wrong state.** I measured the new Ask AI indicator
+   against the *unfocused* fill and wrote it into `ACCESSIBILITY.md` as the SC 2.4.11
+   figure. The adjacent colours the criterion names are the ones present while focused.
+   Both numbers cleared 3:1, so the conclusion survived — the method did not.
+6. **The stale `uvicorn`.** A submission failed with the server's old refusal and I was one
+   step from theorising about the client. Capturing the outgoing request body first showed
+   the client correct and the *server* stale. This one is in the list as the counter-case:
+   same situation, instrument checked first, two-minute diagnosis.
+
+**The tell, stated once.** Every failure above is a reading taken from an instrument I had
+not checked, reported as a finding about the system. And every one of them was a
+*convenient* reading — the kind that lets the work continue. A green build meant "it
+landed". An unchanged UI meant "Vue is misbehaving". A swallowed click meant "shipped code
+is broken". A plausible inference about `bootstrap_admin` meant "no need to query". The
+instrument was never the thing I doubted, and in each case it should have been the first.
+
+**What actually changed as a result**, since a lesson with no artefact is just a nicer way
+of repeating it:
+
+- `CLAUDE.md` forbids `str.replace` and `sed` outright — the Edit tool fails loudly on a
+  non-matching target (#3).
+- `docs/ACCESSIBILITY.md` carries computed ratios for every pair, and the tables now name
+  which state each figure was taken in (#1, #5).
+- `tests/test_smoke_deployed.py` gates a deploy on the live URL, because source-level green
+  said nothing about what was running (#4).
+- `tests/test_seed_script_runs.py` runs the README's setup step as a subprocess, because
+  importing a module binds names the way running it does not.
+
+The pattern that connects the last two: **the suite tests what it imports.** The deployed
+URL and the setup script were the two things a reader actually runs, and the two things
+nothing exercised. Both defects were found by a human asking for a check.
+
+---
+
+## [P4 · c33] Batch C — the docs pass
+
+30 `(pending)` SHAs back-annotated, one Edit call each; the three remaining mentions are
+prose about the practice, not owed annotations. PROMPT_TRAIL 15 → 20, covering ADR-0017
+and both its amendments, ADR-0018 and its stale-Consequences correction, ADR-0019's
+lockout check, and ADR-0020. Correction #7 consolidates six instrument errors with the
+tell stated once — including the counter-case, where checking the instrument first turned
+a stale-server mystery into a two-minute diagnosis.
+
+**Two ⚠️ entries had gone false and were still being served to a reviewer.** "Editing an
+item's name, brand or date — only status changes and deletion exist" was contradicted by
+`0e0be61`; the stale-build detection gap was closed by the smoke check. Both rewritten to
+what is now true, the second keeping the honest remainder: nothing runs the check
+*automatically*, it is a documented step rather than an enforced gate.
+
+**And a claim I invented mid-edit.** I wrote that four ADRs carry amendments and named
+them without looking. Grepping found the real set — 0003, 0005, 0014, and 0017 twice —
+and 0014 was not in my list. One `grep` before the sentence rather than after it; the
+seventh instrument error would have been in a document telling reviewers about the first
+six.
+Commit: docs: the final documentation pass (8964c08)
+
+---
+
+## [P4 · c34] The exclusion, the display rule, and the route I missed
+
+`needs_review` stays a flag, orthogonal to a status enum the brief fixes and ADR-0002
+depends on staying closed. The chip gains a display rule —
+`In Repair > Rented > In Review > Available` — resolved in `StatusChip`, the one component
+where the API's vocabulary already meets the employee's. `chip-flag` turned out to be
+styled and rendered by nothing, so In Review reuses a measured token pair rather than
+introducing a fourth status colour.
+
+**The guard shipped, and the dashboard immediately showed the state it forbids.** I added
+`ensure_item_can_be_flagged` to `flag-review`, ran the suite green, then looked at the
+screen: row 1 was `In Repair` *with* the amber flag marker. Admin edit reaches Repair too,
+and `PATCH {"status": "Repair"}` on a flagged row wrote the pair with nothing in the way.
+My own test — "no seeded item is both" — passed because the seed cannot contain it.
+
+That is the amendment's phrase turned back on me. "Mutually exclusive **by construction**"
+is a claim about every route that reaches the state, and I checked one. Second guard,
+`ensure_repair_does_not_bury_a_review`, red first. Refused rather than silently clearing
+the flag: clearing it there would conclude a review with no reason and no audit row, which
+is the thing `clear-review` exists to make impossible, so the message points at that verb.
+
+The Repair reason now prefills from `review_reason`. **Deviation, stated:** the request
+said "when the review came from a return-with-issue report", and the row does not record a
+flag's origin — there is no per-item audit read and adding a `review_source` column is a
+schema change with a migration test. It prefills for every flagged item instead. For a
+return that is the returner's note, which is the case the request was about; for an
+auditor flag it is the finding, which the admin is equally confirming or correcting.
+
+Focus border moved from `--focus` blue to `--ink`. Blue is a real token but appears
+nowhere else in this palette, so the one element replacing the global ring looked borrowed
+from another product. Margins went up, not down: 19.55:1 and 18.40:1 light, 14.74:1 and
+15.56:1 dark. Auditor copy cut to one sentence.
+Commit: feat(phase-4): review and repair exclude each other, by construction (pending)
+
+---
+
+## [P4 · c35] The Rented tooltip: three defects, none of them the reported one
+
+Diagnosed before touching anything, as asked. The reported symptom — "the renter email
+does not appear on hover" — was the least of what was wrong.
+
+**What the DOM actually showed.** `title` and `aria-label` were both present on the
+rendered control, with `tabindex="0"` and `pointer-events: auto`. So the attribute was not
+missing, and this was not the `!` failure repeating.
+
+**Three real defects underneath.**
+
+1. **No custom tip existed for it.** The stylesheet's only tooltip mechanism was
+   `.flag-mark:hover + .flag-tip` — bound to the amber `!` *by selector*, so the control
+   beside it could not use it and fell back to the native `title`. Two tooltips in one
+   column: one instant and styled, one delayed and drawn by the OS.
+2. **Keyboard focus was never covered.** A native `title` does not appear on focus, so the
+   renter's address was pointer-only. Predicted in the request, and correct.
+3. **The screen reader never got it either — and this is the one nobody predicted.**
+   `aria-label` is *ignored* on a bare `<span>`, which maps to `role=generic`, where
+   naming is prohibited. The accessibility tree reported `generic "Rented"` with the
+   address dropped. The `!` announced in full only because it happened to carry
+   `role="img"`. The attribute was present, correct, and inert.
+
+That is the sharper version of the lesson the `!` taught: an attribute being in the DOM is
+not evidence that anything consumes it. I checked presence last time and stopped there.
+
+**Fixed by generalising rather than duplicating.** `.flag-holder`/`.flag-tip` became
+`.tip-holder`/`.tip`, opened on `:hover` and `:focus-within` so any trigger can use it.
+`title` removed from both controls — it can only ever be half an implementation, and
+alongside `.tip` it produced two tooltips. `role="img"` added so the label is announced.
+
+**And a fourth, found on the way.** `.held-by` matched no markup at all: the renter's
+address moved onto the tooltip during the visual pass and the rule outlived it. It was
+still attracting edits — last batch's contrast work recoloured it, so one of the three
+"table content" moves I reported styled nothing. Deleted.
+
+Verified in the browser on all three channels: hover shows the tip instantly, Tab shows a
+focus ring and the tip with the pointer parked elsewhere, and the accessibility tree now
+reports `img "Rented by j.doe@booksy.com"`.
+Commit: fix(phase-4): one tooltip mechanism, reachable three ways (pending)
+
+---
+
+## [P4 · c36] Wireframe spacing, and the search bar becomes two verbs
+
+Numbers, not adjectives: mark 56px, app name 20px/500 wrapping to two lines, nav 16px/500,
+sidebar gap 8px, page inset 64px, 22px between the bar and the table. The inset sits on
+`.main`, so the search bar and the table card inherit the same edges rather than each
+carrying its own padding — that is what keeps them aligned.
+
+**The filter is a security boundary, not a scope decision.** Typing filters instantly on
+`name` and `brand` only, as an allow-list. ADR-0015 keeps the model's filter schema free of
+predicates over `notes`, `history` and `review_reason` because a filter that can *select*
+on a restricted field reads it one query at a time. A client-side filter over the same
+fields would be the same oracle with a shorter round trip — and worse, because for an
+admin those fields are genuinely in the payload. Verified against exactly that: the session
+holds the Dell's "Battery swelling…" note, and typing `battery` returns nothing.
+
+**The focus measurement changed the design, as flagged.** The wireframe shows a soft
+shadow ring and no border. A blurred translucent shadow cannot carry SC 2.4.11, and this
+bar has no other focus signal, so the border stays and only its colour softens:
+`#7f8694`, **3.66:1** on the focused fill and **3.44:1** on the page. `#8b919e` was one
+step softer and missed the page edge at 2.98:1 — the shadow ring is still there, as
+decoration, doing the wireframe's job without being asked to carry the criterion. Dark
+`#6f7787`, 3.94:1 / 4.16:1.
+
+Busy state is a masked gradient outline with `aria-busy` and a polite live region, never
+colour alone — and the input is `readonly` rather than `disabled`, because disabling drops
+focus to `<body>` and throws a keyboard user to the top of the page on every question.
+
+**Both icons disappeared and only the screenshot showed it.** Raising the input above the
+busy gradient with `z-index: 1` also raised it above the magnifier and the sparkle, which
+sat at auto in the same stacking context. Computed styles said the sparkle was violet and
+the layout numbers were right; the icons were behind the fill.
+Commit: feat(phase-4): wireframe spacing, type-to-filter, and the ask state (pending)
+
+---
+
+## [P4 · c37] Sidebar type: separating the wordmark from the nav
+
+Nav labels 16px → 15px, wordmark 500 → 600. Size alone was not doing the separating: at
+20px/500 against 16px/500 the two read at similar strength and the rail had no top to it.
+Confirmed: wordmark 20px/600, inactive nav 15px/500, active nav 15px/600 from the existing
+`aria-current` rule. Mark 56px and the 8px gap untouched, as asked.
+Commit: style(phase-4): sidebar type hierarchy (pending)
+
+---
+
+## [P4 · c38] Default sort by display state
+
+`displayState.js` now owns the rule, and both the chip and the table read it. That was the
+actual requirement: a second copy of the precedence in the table would have drifted the
+first time either list changed, and the symptom would have been a row labelled one thing
+sitting in another thing's group.
+
+The module holds **two** orderings, which are deliberately not the same list. Resolution
+precedence — `In Repair > Rented > In Review > Available` — decides which state wins when
+several are true of a row. `SORT_ORDER` — `Available → Rented → In Repair → In Review` —
+decides where those resolved states sit down the page. Conflating them would have put
+Available last.
+
+Within a group the order is untouched: `Array.prototype.sort` has been stable since ES2019,
+so rows keep the sequence the server sent. Header clicks still override, unchanged.
+
+Extracting it left `PRESENTATION` in `StatusChip` dead — it was replaced by the tone map
+and would have sat there styling nothing, which is the fourth dead-block in this codebase.
+Deleted in the same edit rather than noticed later. Verified in the browser: all 11 rows
+grouped correctly, every chip agreeing with its group, and a Name click still reordering.
+Commit: feat(phase-4): default sort follows the display state (pending)
+
+---
+
+## [P4 · c39] Deploy v4
+
+`railway up`, then the smoke check against the live URL — passed, and it is the gate the
+last two rollbacks went undetected without.
+
+**The `200` would have lied again.** `/api/health` answered `200` on the first poll, which
+proves only that *something* is serving. I polled the bundle hash instead and watched three
+attempts return `index-DoBvDVnp.js` before `index-CjDp7Hj-.js` appeared — the old build was
+still up for roughly a minute after `railway up` returned. Reporting the deploy done on the
+health check would have repeated Correction #5 exactly.
+
+**And the browser lied after that.** The first live screenshot showed the *old* UI —
+flagged rows chipped `Available`, the old placeholder, ungrouped sort. The server was
+serving v4; the tab had `DoBvDVnp` cached. A hard reload fixed it. Two instrument checks in
+one deploy, both caught by comparing against a known value rather than reading a page.
+
+**One reading I nearly filed as a defect.** Under `body { zoom: 1.8 }` the sidebar scrolled
+away — but `zoom` rescales `vh`, which is the unit the sidebar's height is expressed in, so
+the test distorted the thing it was testing. Re-run at a real 223px viewport: top stays 0,
+the wordmark stays put, the rail scrolls internally so Sign out stays reachable. The zoom
+result was the instrument, not the product.
+
+Every item on the verification list checked live in both themes. Demo reset afterwards,
+because the checks themselves rented, returned, flagged and edited rows: all five
+fingerprints confirmed by assertion, not by eye.
+Commit: chore(phase-4): deploy v4 (pending)
+
+---
+
+## [P4 · c40] The Ask AI focus ring, diagnosed before edited
+
+**The cascade was never the problem.** Enumerating every rule matching the element, in
+specificity order: `input` (0,0,1), two `.search-bar input[type='search']` base rules
+(0,2,1), and `.search-bar input[type='search']:focus-visible` (0,3,1). The last one won,
+and had won for the previous two attempts as well. What was wrong was what it rendered:
+a crisp `border: 2px solid #7f8694`, which at 2px reads as a hard black edge however grey
+the token is, and a 0.22-alpha ring at zero blur that was visually nothing. And **no
+matching rule declared `transition` at all**, so it snapped — that part of the report was
+exactly right.
+
+**The accessibility answer, measured rather than assumed.** A pale ring cannot do this
+job: `--focus-edge` composited over the focused fill is 1.27:1 at 0.22 alpha and 2.03:1
+at 0.60. Translucency only moves a colour toward its background, so there is no alpha
+that reaches 3:1. The indicator is therefore an opaque 2px ring at zero blur — a shadow
+geometrically, a solid measurable edge optically — **3.66:1 / 3.44:1 light, 3.94:1 /
+4.16:1 dark** — with the blurred halo layered outside it for the soft look. The border is
+now transparent and carries nothing.
+
+**One real bug found by testing rather than reasoning.** `box-shadow` interpolates layer
+by layer and only between lists of equal length, so a transition between `none` and three
+layers is a discrete jump: the first implementation fired no `transitionstart` and the
+ring vanished on the frame. Writing the unfocused state as the same three layers at zero
+alpha fixed it.
+
+**Three instrument errors in one session, all caught before they became claims.** A
+`:focus-visible` check that failed because `document.hasFocus()` was false — the OS window
+had lost focus, so no CSS was wrong. Sampling a 150ms transition over a CDP round trip
+that takes longer than 150ms, which made both directions look like they snapped. And a
+`transitionstart` listener attached after the transition had already run. Settled with a
+2s control: mid-transition alpha 0.35 on the way in, 0.5 on the way out — it interpolates
+both ways.
+Commit: fix(phase-4): the Ask AI focus ring fades, and is still measurable (pending)
+
+---
+
+## [P4 · c41] Two reports on the focus ring's neighbours
+
+**"Weird only on the left and right."** `.panel` sets `overflow: hidden`, and the search
+form is exactly the input's own 52px, so the ring's top and bottom edges were clipped away
+and only the vertical sides survived — it read as two marks rather than a ring. The bar
+holds one input and needs none of that clipping: `overflow: visible` on `.search-bar`. My
+own earlier zoom had cropped to the left cap, which is why I called the ring correct after
+looking at exactly the part that still worked.
+
+**"A weird pop-up Clear after pressing Enter."** The Clear button lived *inside* that 52px
+form and appeared the instant results arrived, overlapping the bar it belonged to. It
+dismisses the results, not the input, so it moved into the results header beside the mode
+chip and became "Clear results". Nothing renders inside the form now.
+
+**And a third, found in the screenshot rather than reported.** After Enter the query kept
+filtering the table underneath, so the AI's answer sat above a full inventory reading "No
+hardware matches this filter" — `apple laptops` matches no single name or brand. Once the
+question is asked the text is the question, not a substring, so the local filter stands
+down while results are showing and the full list returns beneath them.
+Commit: fix(phase-4): unclip the focus ring, move Clear to the results (pending)

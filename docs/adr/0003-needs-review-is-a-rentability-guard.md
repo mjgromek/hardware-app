@@ -97,3 +97,45 @@ item in `Repair`.
   are both quarantined and flagged (§2), so both are blocked from rental even
   though neither is unsafe to use. Availability is being traded for caution, and
   the direction of that trade is deliberate.
+
+- **Amended 2026-08-07 (Phase 4): review and Repair are mutually exclusive, in both
+  directions.** The flag and the status are orthogonal — that is why the dashboard gives
+  the flag its own column rather than a fourth chip, and the enum stays exactly
+  `Available | In Use | Repair` (ADR-0002). Orthogonal is not the same as *unconstrained*,
+  and one combination is incoherent rather than merely unusual.
+
+  `Repair` says an admin has taken the item out of service and knows why. `needs_review`
+  says nobody has decided yet. An item asserting both tells a reader neither, and it puts
+  an entry in the review queue that cannot honestly be concluded: releasing it would
+  return to service a device somebody deliberately withdrew, and the other outcome — send
+  it to Repair — is already where it is.
+
+  Both halves now hold:
+
+  - **Repair → not flagged.** Concluding a review in Repair clears the flag, because a
+    review that reaches a conclusion is over (ADR-0017, second Phase 4 amendment).
+  - **Flagged → not Repair.** `POST /flag-review` refuses an item already in Repair,
+    `409` through the guard layer with a reason that says what to do instead. This was
+    the open path: it accepted any unflagged item, whatever its status.
+
+  **Deliberately narrow.** `In Use` and `needs_review` still coexist, and must: somebody
+  holding a device can be told it is under review, and the flag is what stops the *next*
+  rental rather than the current one. The exclusion is Repair-shaped, not a general rule
+  against flagging busy items.
+
+  **This is what lets display precedence be a presentation rule.** The status chip renders
+  `In Repair > Rented > In Review > Available`, and its first comparison now decides
+  nothing the data can actually produce. A precedence order that existed to break a tie
+  between two states a row should never hold at once would be a patch over the hole; with
+  the exclusion enforced at the write, the order is only about which of several *true*
+  facts is the most useful to show.
+
+  **Both write paths, not one.** The first version of this amendment guarded
+  `flag-review` only, and the dashboard showed the forbidden pair within minutes: admin
+  edit reaches `Repair` too, and `PATCH {"status": "Repair"}` on a flagged row wrote it
+  with nothing in the way. That route now refuses as well, pointing the admin at the
+  review conclusion — which sets the same status *and* records why, against their name.
+  Silently clearing the flag there was the tempting alternative and would have concluded
+  a review with no reason and no audit row, which is precisely what ADR-0010 and ADR-0017
+  exist to prevent. "By construction" is a claim about every route that can reach the
+  state, and it is only worth making after enumerating them.

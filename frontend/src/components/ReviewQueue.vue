@@ -1,23 +1,35 @@
 <script setup>
-// The needs_review queue. Not in the wireframes at all, and here because ADR-0003
-// makes the flag a rentability guard: an item nobody can rent and nobody can see is
-// inventory that has silently disappeared.
+// The needs-review tab. Not in the wireframes; here because ADR-0003 makes the flag
+// a rentability guard — an item nobody can rent and nobody can see is inventory that
+// has silently disappeared.
 //
-// Read-only, and that is a gap rather than a decision. Nothing in the API clears the
-// flag — ADR-0003 records it as an unresolved consequence and BACKLOG.md keeps it open
-// — so this screen names the state and says plainly what it cannot do, instead of
-// offering a button that would 404.
+// The Review action lives here and only here (ADR-0017 as amended): one place to
+// release an item, next to the reason it was held. The main table shows the amber
+// marker and offers nothing — a release is a decision, not a row action.
 import StatusChip from './StatusChip.vue'
 
-const props = defineProps({ items: { type: Array, required: true } })
+const props = defineProps({
+  items: { type: Array, required: true },
+  //: Releasing is an admin's decision; a `user` sees the queue and no button.
+  isAdmin: { type: Boolean, default: false },
+  busyId: { type: [Number, null], default: null },
+  //: The row just released: `{ item, fading }` or null. Kept on screen for two
+  //: seconds in its resolved state, then faded out — the admin sees the result
+  //: rather than watching it vanish (brainstorm §3 Phase 4).
+  justResolved: { type: [Object, null], default: null },
+})
+
+const emit = defineEmits(['review'])
 </script>
 
 <template>
   <h1>Needs review</h1>
+  <!-- "Ingestion could not vouch for these records" is how the system describes itself;
+       "these items are blocked" is how a person experiences it. Same fact, reader's
+       vocabulary, and no ADR number on a screen. -->
   <p class="lede">
-    Ingestion could not vouch for these records, so they are blocked from rental until
-    someone checks the equipment (ADR-0003). The reason is the one ingestion recorded
-    at import.
+    These items are blocked from rental until someone checks them. Releasing one records
+    what was fixed.
   </p>
 
   <div class="panel">
@@ -25,8 +37,8 @@ const props = defineProps({ items: { type: Array, required: true } })
       <h2>{{ props.items.length }} flagged {{ props.items.length === 1 ? 'item' : 'items' }}</h2>
     </div>
 
-    <div v-if="props.items.length === 0" class="empty">
-      Nothing is flagged. Every item in the inventory is accounted for.
+    <div v-if="props.items.length === 0 && !props.justResolved" class="empty">
+      No items awaiting review.
     </div>
 
     <div v-else class="table-scroll">
@@ -35,27 +47,44 @@ const props = defineProps({ items: { type: Array, required: true } })
           <tr>
             <th scope="col"><span class="th-label">Item</span></th>
             <th scope="col"><span class="th-label">Status</span></th>
-            <th scope="col"><span class="th-label">Why it was flagged</span></th>
+            <th scope="col"><span class="th-label">Review</span></th>
+            <th v-if="props.isAdmin" scope="col">
+              <span class="th-label" style="justify-content: flex-end">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>
+          <tr
+            v-if="props.justResolved"
+            class="is-resolved"
+            :class="{ 'is-fading': props.justResolved.fading }"
+          >
+            <td class="cell-name">{{ props.justResolved.item.name }}</td>
+            <td><StatusChip :status="props.justResolved.item.status" /></td>
+            <td class="resolved-note">Resolved — released for rental.</td>
+            <td v-if="props.isAdmin" class="cell-actions"></td>
+          </tr>
           <tr v-for="item in props.items" :key="item.id" class="is-flagged">
             <td class="cell-name">
               {{ item.name }}
               <span v-if="item.brand" class="hint">{{ item.brand }}</span>
               <span v-else class="missing" title="No brand recorded">— no brand</span>
             </td>
-            <td><StatusChip :status="item.status" /></td>
+            <td><StatusChip :status="item.status" :needs-review="item.needs_review" /></td>
             <td>{{ item.review_reason ?? 'No reason recorded.' }}</td>
+            <td v-if="props.isAdmin" class="cell-actions">
+              <button
+                type="button"
+                class="button button-quiet"
+                :disabled="props.busyId === item.id"
+                @click="emit('review', item)"
+              >
+                Review
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-
-  <p class="lede" style="margin-top: 16px">
-    Clearing a flag needs a decision that has not been made yet — what evidence
-    releases an item, and who records it. Until then a flagged item is released by
-    editing the database directly. Tracked in <code>BACKLOG.md</code>.
-  </p>
 </template>

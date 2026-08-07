@@ -283,8 +283,13 @@ import.
   Rent button would be — no button at all; the **!** is the affordance, a tooltip
   explains. Keyboard-reachable and screen-reader labelled, not hover-only.
   *(Supersedes the earlier "badge before the device name" placement.)*
-- Rented rows: users see "Rented" with no holder; admins see the holder's email.
-  Keeps the ADR-0012 amendment; "somebody else has it" is gone either way.
+- ~~Rented rows: users see "Rented" with no holder; admins see the holder's email.~~
+  **Withdrawn, not built.** It contradicted ADR-0012's reasoning — the point of `In Use`
+  on an internal tool is knowing who to ask — and would have turned
+  `test_renter_identity_is_visible_to_every_signed_in_user` red. ADR-0012 stands
+  unamended and every signed-in account still receives the holder. What shipped instead
+  is presentation: the holder moved off the row onto the `Rented` control, via `title`
+  and `aria-label`. "Somebody else has it" is gone either way.
 - Display `In Use` as "Rented". **Display label only** — the stored enum stays
   `Available | In Use | Repair` per the brief and every ADR. Map at the view layer.
 - Every button the same width, height and font size — Rent, Repair, Edit, Remove.
@@ -337,7 +342,9 @@ item; ADR-0012 decided the opposite, with reasoning (knowing who to ask). Write 
 amendment rather than silently reversing: the item still shows Rented, the holder is
 admin-only (which is what the table rules above implement).
 
-**Sounds and toasts — four events:**
+**Sounds and toasts — six events as shipped** (planned as four; `repair` and `resolve`
+were added so the diff covers every transition an admin cares about, and so `flag` has an
+answering voice — ADR-0018):
 
 - Admin, rent happened: toast + soft chime.
 - Admin, item entered review: toast + distinct, slightly more urgent tone.
@@ -352,14 +359,56 @@ websockets.
 **Scope: desktop only.** State it in the README rather than leaving it to be
 discovered — an internal tool with six columns is a legitimate desktop-first decision.
 
+**Design system — before any visual work.** Every colour becomes a CSS custom
+property on `:root`, with a `[data-theme="dark"]` override. No hardcoded hex anywhere
+in components — retrofitting tokens after the fact is the expensive version of this.
+Token groups: **surface** (page, card, raised), **text** (primary, secondary, muted),
+**border** (hairline, strong), and the four status hues.
+
+**Dark mode:**
+
+- Respects `prefers-color-scheme` on first visit; manual toggle in the header,
+  persisted in `localStorage`, overrides the system.
+- Status dots stay distinguishable in both modes — the light-mode green and red will
+  be too dark on a dark surface, so each status gets a light and a dark stop, not
+  one value.
+- The amber **!** must not vibrate against a dark background; test it next to the
+  red Repair dot in both modes.
+- Nothing pure black or pure white. Near-black surfaces, near-white text.
+
+**Sleeker than the prototype — bounded.** The wireframe stays the structure; what
+changes is finish:
+
+- Hairline borders (0.5px, low-contrast) instead of solid grey rules.
+- Row hover state, subtle surface shift — the biggest single readability gain in a
+  dense table.
+- One accent colour for interactive elements. Status hues are the only other
+  colour; nothing decorative gets colour.
+- Generous vertical rhythm in the header, tight inside the table — density where
+  scanning happens, air where orientation happens.
+- Numeric and date columns right-aligned with tabular figures; text columns left.
+- Sticky table header on scroll.
+- Reference: dense-list interfaces like Reddit and Linear — muted chrome, one
+  accent, information density without crowding. **Do not copy any specific
+  product's visual identity.**
+
+**The constraint that keeps this honest.** Structure, column order, control
+placement and labels follow the wireframe. Only finish changes — colour, spacing,
+borders, typography, states. If a change alters what a control does or where it
+lives, it is a deviation and needs an entry in `docs/WIREFRAME_JUSTIFICATION.md`,
+not a tweak. When the finish work lands, add **one summary entry** there explaining
+the visual-finish deviation as a whole, so a reviewer comparing screenshots
+understands it was deliberate.
+
 **Skills and agents:** `frontend-design` for every visual item — feed it the
 screenshots and the constraint that fidelity beats expressiveness here. `test-author`
 then `/tdd` for the schema slice, migration test included. `mvp-reviewer` at the gate.
 No `architecture-scout` — this phase adds no new seams.
 
-**Cut order if time runs out:** sounds first, then Date Added, then the notification
-toasts. The visual fidelity items are cheap and are what a reviewer sees. Schema
-changes keep their migration test whatever else is cut.
+**Cut order if time runs out (revised):** sounds → Date Added → toasts → admin edit
+→ the dark-mode *toggle* (system preference alone still works, and the token layer
+is what makes it cheap either way). The visual fidelity items are cheap and are what
+a reviewer sees. Schema changes keep their migration test whatever else is cut.
 
 ### Final polish — one commit, not a phase
 

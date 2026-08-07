@@ -12,15 +12,39 @@
  * them align, which is the whole reason a table is the right shape here.
  */
 
+/* The token layer (brainstorm.md §3 Phase 4). Four groups — surface, text, border,
+ * status — plus the two interaction hues. Every colour in the app resolves through
+ * one of these; components carry no hex. `[data-theme="dark"]` below overrides the
+ * full set and is inert until something sets the attribute, which is what makes the
+ * extraction provably behaviour-neutral in light mode. */
 :root {
-  --ground: #f7f8fa;
-  --surface: #ffffff;
-  --ink: #0b0c10;
-  --ink-muted: #5b6270;
-  --ink-faint: #8a91a0;
-  --line: #e4e6ec;
-  --line-strong: #cfd3dc;
+  /* surface */
+  --ground: #f7f8fa;          /* page */
+  --surface: #ffffff;         /* card */
+  --ask-fill: #eef0f4;        /* the Ask AI bar — its own step, neither page nor card */
+  --hover-wash: #fafbfc;      /* row under the pointer */
+  --focus-wash: #f4f7ff;      /* row under the keyboard */
+  --danger-wash: #fef2f2;     /* destructive control, hovered */
+  --scrim: rgba(11, 12, 16, 0.4);
+  --shadow-pop: 0 6px 20px rgba(11, 12, 16, 0.1);
 
+  /* text */
+  --ink: #0b0c10;             /* primary */
+  --ink-muted: #5b6270;       /* secondary */
+  --ink-faint: #6a7283;       /* muted — 4.83:1 on card, 4.55:1 on page */
+  /* Table content: dates, the renter's address, the `—` placeholders. Its own token
+   * because these are data a person reads across a row, not the chrome around it —
+   * 4.55:1 passes AA and is the floor, and the floor is the wrong place for the numbers
+   * somebody is comparing. 7.96:1 on card, 7.49:1 on page — AAA on both. */
+  --ink-table: #4a5160;
+  --ink-inverse: #ffffff;     /* on ink-filled elements */
+
+  /* border */
+  --line: #e4e6ec;            /* hairline */
+  --line-strong: #cfd3dc;     /* strong */
+
+  /* status — four hues, each a fill/ink pair so dark mode can restop them
+   * independently (a light-mode green or red is too dark on a dark surface). */
   /* Available: the default, so it carries the strongest fill — an admin scanning for
    * what can be issued should find it without reading. */
   --ok-fill: #0b0c10;
@@ -36,9 +60,23 @@
   --flag-fill: #fef3c7;
   --flag-ink: #7c4a02;
   --flag-edge: #d97706;
+  --flag-ring: rgba(217, 119, 6, 0.35);
 
+
+  /* interaction — the only non-status colour anything gets */
   --danger: #dc2626;
   --focus: #2563eb;
+  /* The Ask AI bar's focused border. The wireframe draws a soft shadow ring and no
+   * border; a blurred shadow cannot carry SC 2.4.11, and this bar has no other focus
+   * signal, so the border stays and only its colour softens. This is the *softest* value
+   * that still clears 3:1 against both edges it touches — 3.66:1 on the focused fill,
+   * 3.44:1 on the page. #8b919e was one step softer and missed the page edge at 2.98:1. */
+  --focus-edge: #7f8694;
+  --focus-ring: rgba(127, 134, 148, 0.22);
+  /* The one violet in the tool, and only the sparkle wears it. Blue read as a system
+   * accent; this marks the one control that talks to a model. 4.99:1 on the bar fill. */
+  --ai: #7c3aed;
+  --ai-soft: rgba(124, 58, 237, 0.55);
 
   --sidebar: 248px;
   --radius: 8px;
@@ -47,6 +85,55 @@
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
+}
+
+/* Dark. Inert until the Phase 4 toggle (or a boot script honouring
+ * prefers-color-scheme) sets the attribute — nothing does yet, deliberately.
+ * Near-black surfaces, near-white text, nothing pure. Every status hue gets its own
+ * dark stop rather than surviving on its light value; the amber pair is re-stopped
+ * to sit quietly next to the red Repair dot instead of vibrating against it. */
+:root[data-theme='dark'] {
+  /* surface */
+  --ground: #101216;
+  --surface: #16181d;
+  --ask-fill: #1e222a;
+  --hover-wash: #1b1e24;
+  --focus-wash: #16202e;
+  --danger-wash: #2a1717;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.45);
+
+  /* text */
+  --ink: #e8eaee;
+  --ink-muted: #9aa1ae;
+  --ink-faint: #79818f;       /* 4.52:1 on card, 4.78:1 on page */
+  --ink-table: #b9c0cc;       /* 9.70:1 on card, 10.24:1 on page */
+  --ink-inverse: #101216;
+
+  /* border */
+  --line: #262a31;
+  --line-strong: #363b44;
+
+
+  /* status — restopped, not inverted */
+  --ok-fill: #e8eaee;
+  --ok-ink: #101216;
+  --busy-fill: #23262d;
+  --busy-ink: #b3bac6;
+  --stop-fill: #f87171;
+  --stop-ink: #1c0e0e;
+  --flag-fill: #2c2312;
+  --flag-ink: #fbbf24;
+  --flag-edge: #b45309;
+  --flag-ring: rgba(251, 191, 36, 0.28);
+
+  /* interaction */
+  --danger: #f87171;
+  --focus: #60a5fa;
+  --focus-edge: #6f7787;      /* 3.94:1 on the focused fill, 4.16:1 on the page */
+  --focus-ring: rgba(111, 119, 135, 0.3);
+  --ai: #a78bfa;              /* 5.86:1 on the bar fill */
+  --ai-soft: rgba(167, 139, 250, 0.5);
 }
 
 * {
@@ -246,7 +333,7 @@ button {
   border: 1px solid var(--ink);
   border-radius: var(--radius);
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
   font-weight: 550;
 }
 
@@ -273,7 +360,7 @@ button {
 
 .button-danger:hover:not(:disabled) {
   border-color: var(--danger);
-  background: #fef2f2;
+  background: var(--danger-wash);
 }
 
 /* `inline-grid`, not `grid`: a row of these must stay a row. As block-level grids they
@@ -304,7 +391,7 @@ button {
 
 .icon-button.is-danger:hover:not(:disabled) {
   border-color: var(--danger);
-  background: #fef2f2;
+  background: var(--danger-wash);
   color: var(--danger);
 }
 
@@ -408,14 +495,14 @@ tbody tr:last-child {
 }
 
 tbody tr:hover {
-  background: #fafbfc;
+  background: var(--hover-wash);
 }
 
 /* The keyboard-focused row, not the hovered one. Arrow keys move this. */
 tbody tr:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
-  background: #f4f7ff;
+  background: var(--focus-wash);
 }
 
 td {
@@ -429,7 +516,7 @@ td {
 }
 
 .cell-mono {
-  color: var(--ink-muted);
+  color: var(--ink-table);
   font-family: var(--mono);
   font-size: 12.5px;
 }
@@ -445,7 +532,7 @@ td {
 }
 
 .missing {
-  color: var(--ink-faint);
+  color: var(--ink-table);
   font-family: var(--mono);
   font-size: 12.5px;
 }
@@ -493,7 +580,7 @@ tr.is-flagged td:first-child {
 .chip-flag {
   background: var(--flag-fill);
   color: var(--flag-ink);
-  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.35);
+  box-shadow: inset 0 0 0 1px var(--flag-ring);
 }
 
 .chip-role {
@@ -504,22 +591,11 @@ tr.is-flagged td:first-child {
   font-size: 11px;
 }
 
-/* Who holds an item, beside its status. Renter identity is operational information —
- * the point of `In Use` on an internal tool is knowing who to ask (ADR-0012). */
-.held-by {
-  margin-left: 8px;
-  color: var(--ink-faint);
-  font-family: var(--mono);
-  font-size: 11.5px;
-}
-
-/* Why a row cannot be rented, in place of the button that would fail. Quieter than a
- * disabled button, and it says the reason rather than implying one. */
-.blocked-reason {
-  color: var(--ink-faint);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
+/* `.held-by` stood here and matched no markup: the renter's address moved onto the
+ * `Rented` control's tooltip during the visual pass and the rule outlived it. It was
+ * still attracting edits — the table-content contrast pass recoloured a rule that styled
+ * nothing. Removed. Renter identity is still operational information an internal tool
+ * should show (ADR-0012); it is shown on the tooltip. */
 
 /* ---------------------------------------------------------------- filters */
 
@@ -548,7 +624,7 @@ tr.is-flagged td:first-child {
 .filter-chip[aria-pressed='true'] {
   border-color: var(--ink);
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
 }
 
 .filter-count {
@@ -614,7 +690,7 @@ tr.is-flagged td:first-child {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(11, 12, 16, 0.4);
+  background: var(--scrim);
   z-index: 20;
 }
 
@@ -675,7 +751,7 @@ tr.is-flagged td:first-child {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(11, 12, 16, 0.1);
+  box-shadow: var(--shadow-pop);
 }
 
 .toast-mark {
@@ -687,7 +763,7 @@ tr.is-flagged td:first-child {
   margin-top: 1px;
   border-radius: 999px;
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
   font-size: 11px;
 }
 
@@ -753,4 +829,664 @@ tr.is-flagged td:first-child {
   .main {
     padding: 20px 16px 48px;
   }
+}
+
+/* ------------------------------------------------ the resolved row (Phase 4) */
+
+/* Two seconds of "done", then gone. `prefers-reduced-motion` keeps the state and
+ * drops the fade — the information is the row, the animation is courtesy. */
+tr.is-resolved {
+  background: var(--focus-wash);
+  transition: opacity 0.6s ease;
+}
+
+tr.is-resolved .resolved-note {
+  color: var(--ink-muted);
+  font-weight: 550;
+}
+
+tr.is-resolved.is-fading {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  tr.is-resolved {
+    transition: none;
+  }
+}
+
+
+/* ================================================================ Phase 4 finish
+ *
+ * Structure is the wireframe's; these are finish changes only. Every value resolves
+ * through the token layer above — no hex below this line.
+ */
+
+/* Comfortable density. 13px is the wireframe's table type: one step down from the
+ * body, which is what lets eleven rows and eight columns sit on one screen without
+ * the row height collapsing to something you cannot hit with a pointer. */
+.table-scroll table {
+  font-size: 13px;
+}
+
+/* Sticky header. The table is the product and it is the thing people scroll; a header
+ * that leaves the screen turns column six into a guess. */
+.table-scroll {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  /* The hairline has to travel with the header — a sticky row with a border-bottom
+   * loses it under the scrolling rows in most engines. */
+  box-shadow: inset 0 -1px 0 var(--line);
+  border-bottom: 0;
+}
+
+/* Hairline rows, and a hover state that reads without shouting. */
+.table-scroll tbody tr {
+  border-bottom: 1px solid var(--line);
+}
+
+.table-scroll tbody tr:hover {
+  background: var(--hover-wash);
+}
+
+.table-scroll td {
+  height: 40px;
+  padding: 7px 14px;
+}
+
+/* Dates right-aligned with tabular figures, so the column forms a rule you can scan
+ * down. This is the reason a date column exists rather than a date on the name. */
+.cell-date {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+th.col-date .th-label,
+th.col-date .sort-button {
+  justify-content: flex-end;
+}
+
+/* ---------------------------------------------------------------- the flag mark */
+
+/* The amber `!` that stands where Rent would be on a flagged row. Not a disabled
+ * button: a disabled control says "not now" and makes you hover to find out why,
+ * while this says the row is *under review* and carries the reason in its tooltip. */
+.flag-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--flag-edge);
+  border-radius: var(--radius);
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+}
+
+/* One tooltip mechanism for the whole table, not one per control.
+ *
+ * This started as `.flag-mark:hover + .flag-tip` — tied to the amber `!` by selector, so
+ * the grey `Rented` control beside it could not use it and fell back to a native `title`.
+ * That gave the same column two different tooltips: one instant and styled, one delayed
+ * and drawn by the OS. Worse, a native `title` never appears on keyboard focus, so the
+ * renter's address was pointer-only while the review reason was not.
+ *
+ * `:focus-within` rather than `:focus-visible` on a sibling, because the holder wraps the
+ * trigger: focus landing anywhere inside opens the tip, which is what a keyboard user
+ * tabbing onto the control expects. Reachable by pointer and by keyboard through the same
+ * rule, with `aria-label` on the trigger carrying it to a screen reader. */
+.tip-holder:hover > .tip,
+.tip-holder:focus-within > .tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tip-holder {
+  position: relative;
+  display: inline-block;
+}
+
+.tip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tip {
+    transition: opacity 90ms ease-out;
+  }
+}
+
+/* ---------------------------------------------------------------- uniform controls */
+
+/* One size for every control in a row. The wireframe's actions column mixed a filled
+ * button with bare icons at three different heights; uniform width and height is what
+ * stops the column reading as three unrelated things. */
+.button,
+.icon-button,
+.flag-mark {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.cell-actions .button {
+  min-width: 76px;
+  justify-content: center;
+  padding: 6px 12px;
+}
+
+.cell-actions .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
+/* ---------------------------------------------------------------- sort affordance */
+
+.sort-button {
+  gap: 6px;
+}
+
+.sort-arrow {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+th[aria-sort] .sort-arrow {
+  color: var(--focus);
+}
+
+/* ---------------------------------------------------------------- theme toggle */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+.theme-toggle:hover {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+
+/* ---------------------------------------------------------------- status pills
+
+ * One width for all three, so the Status column is a rule rather than a ragged edge —
+ * the whole reason a pill reads at a glance is that the eye learns its shape and stops
+ * reading the word. Sized to the longest label ("Available", "In Repair") with the text
+ * centred, so "Rented" does not shrink to a different object.
+ *
+ * Each tone is a fill/ink *pair per theme*, not one value: a near-black Available pill
+ * is the strongest mark in light mode and invisible on a dark surface, so dark inverts
+ * it to a near-white fill with dark text. Both stops are measured — docs/ACCESSIBILITY.md.
+ */
+.chip-status {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 88px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+}
+
+
+/* ---------------------------------------------------------------- Phase 4, finish II */
+
+/* The mark carries the product's only piece of identity, and at 34px it read as a
+ * favicon that had wandered into the sidebar. */
+.brand-mark {
+  width: 44px;
+  height: 44px;
+}
+
+/* The search field is the wireframe's "Ask AI…" bar: one full-width pill, generous
+ * height, a subtle fill instead of a hard border. A 1px outline around a 52px field
+ * reads as a form input; a filled pill reads as a place to type a question, which is
+ * what this one is for. */
+.search-bar {
+  gap: 10px;
+  padding: 14px 18px;
+}
+
+.search-bar .field,
+.search-bar label {
+  flex: 1;
+}
+
+.search-bar input[type='search'] {
+  height: 52px;
+  padding: 0 46px 0 44px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--ground);
+  font-size: 14px;
+}
+
+/* The focused state of this field lives in the Phase 4 finish section below, with the
+ * measurement it has to satisfy. A `--line-strong` version stood here and was shadowed
+ * by that later rule, so it styled nothing — removed rather than left as a second
+ * answer to the same question. */
+
+/* Magnifier left, sparkle right — both inside the pill, neither clickable. The sparkle
+ * is the one accent-coloured mark in the table view, and it is there because "Ask AI"
+ * is a different promise from "filter". */
+.search-field {
+  position: relative;
+  flex: 1;
+}
+
+.search-field .search-glyph {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.search-field .search-spark {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  color: var(--focus);
+  pointer-events: none;
+}
+
+/* The wireframe's margins. The table sat flush against the panel edge, which is what
+ * made a dense table feel cramped rather than dense. */
+.main {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.table-scroll td,
+.table-scroll th .th-label,
+.table-scroll th .sort-button {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* The auditor panel needed no new rules: it is already built from `.panel` and
+ * `.table-scroll`, so the radius, surface, hairline and the wider table padding above
+ * reach it by construction. Writing `.auditor-panel` selectors would have been dead CSS
+ * against markup that does not use them — checked before adding, and removed after
+ * adding them anyway. */
+
+/* ================================================================ Phase 4, finish III */
+
+/* One control per Actions cell, all the same box. The column previously held a filled
+ * button, a bare icon and a small chip at three sizes, which is what made it read as
+ * three unrelated things stacked in a stripe. */
+.cell-actions .button,
+.cell-actions .flag-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  width: 96px;
+  height: 32px;
+  padding: 0;
+}
+
+/* The "Rented" control is a label wearing a button's shape: same box, so the column
+ * stays a rule, but nothing to press. `tabindex` is what carries the holder to a
+ * keyboard — the name is in `title` for a pointer and `aria-label` for a screen reader,
+ * and hover alone would have hidden it from both. */
+.is-static {
+  cursor: default;
+  color: var(--ink-muted);
+}
+
+.cell-actions .flag-mark {
+  border: 1px solid var(--flag-edge);
+  background: var(--flag-fill);
+  color: var(--flag-ink);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* Equal spacing, enforced rather than hoped for. Percentages fix the geometry so no
+ * column widens because of what happens to be in it — a long device name used to steal
+ * width from Status and leave the header ragged. `table-layout: fixed` is what makes
+ * the percentages binding instead of advisory. */
+.table-scroll table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.table-scroll th:nth-child(1) { width: 28%; }
+.table-scroll th:nth-child(2) { width: 16%; }
+.table-scroll th:nth-child(3) { width: 18%; }
+.table-scroll th:nth-child(4) { width: 18%; }
+.table-scroll th:nth-child(5) { width: 20%; }
+
+.cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Air between the heading and the question box. They were one block. */
+.main > h1 {
+  margin-bottom: 22px;
+}
+
+/* The search bar, flat. No border, no stroke, no submit button — Enter submits, which
+ * is what every search field on the internet has taught people to expect, and a button
+ * beside a full-width pill was a second thing to aim at for no gain. */
+.search-bar {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The Ask AI bar gets its own fill, distinct from both the page and the table surface.
+ * Sharing the page's grey made it read as a row sitting above the list rather than as a
+ * different kind of thing — it asks a question of the inventory, it is not part of it. */
+.search-bar input[type='search'] {
+  /* Transparent rather than `0`, so the bar cannot change height between states.
+   * `box-sizing: border-box` and the fixed 52px keep the geometry identical. The border
+   * is no longer the focus indicator — see below — but it still reserves the space. */
+  border: 2px solid transparent;
+  background: var(--ask-fill);
+  /* Three *transparent* shadows, not `none`. `box-shadow` interpolates layer by layer
+   * and only between lists of the same length — `none` is not a list, so a transition
+   * between `none` and three layers is a discrete jump. With the unfocused state written
+   * as the same three layers at zero alpha, only the colours animate. Verified: with
+   * `none` here, blurring fired no `transitionstart` at all and the ring vanished on the
+   * frame. */
+  box-shadow:
+    0 0 0 2px transparent,
+    0 0 0 7px transparent,
+    0 4px 12px transparent;
+  /* Declared on the *base* rule, not inside `:focus-visible`. A transition listed only
+   * in the focused state animates the way in and snaps on the way out, because on blur
+   * that rule stops matching and takes its own transition with it. */
+  transition:
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-bar input[type='search'] {
+    transition: none;
+  }
+}
+
+/* The one place the global focus ring is deliberately replaced rather than inherited,
+ * and the only `outline` reset in this stylesheet — so the replacement has to carry
+ * WCAG SC 2.4.11 by itself.
+ *
+ * **A soft ring alone cannot.** Measured: `--focus-edge` composited over the fill at
+ * 0.18 alpha is 1.21:1, and even at 0.60 it reaches only 2.03:1 — a pale or blurred ring
+ * cannot get near 3:1 at any alpha, because contrast is a function of the composited
+ * colour and translucency only moves it toward the background. So the indicator is a
+ * *two-layer* shadow:
+ *
+ *   1. an opaque 2px ring at zero blur — geometrically a ring, but a solid colour with a
+ *      hard edge, which is what makes it measurable: 3.66:1 against the focused fill and
+ *      3.44:1 against the page in light, 3.94:1 and 4.16:1 in dark;
+ *   2. a wider translucent halo with blur, which is what makes it read as soft.
+ *
+ * The border is no longer involved. It was a 2px solid `--focus-edge` edge, and a crisp
+ * 2px line at that value reads as a hard black outline however grey the token is — that
+ * was the complaint, and the cascade was never the problem: this rule (0,3,1) already
+ * won. Replacing the border with layer 1 keeps the same measured contrast while letting
+ * layer 2 blur the outer edge, and the transition on the base rule fades both.
+ *
+ * The fill shift is supporting feedback only — 1.14:1 light, 1.11:1 dark, nowhere near
+ * 3:1. If the two shadow layers are ever removed, the indicator goes with them. */
+.search-bar input[type='search']:focus-visible {
+  background: var(--surface);
+  box-shadow:
+    0 0 0 2px var(--focus-edge),
+    0 0 0 7px var(--focus-ring),
+    0 4px 12px var(--focus-ring);
+  outline: none;
+}
+
+/* Two adjacent toggles, not a dropdown. Both options visible, the same size, so picking
+ * Admin is a deliberate act rather than the second line of a menu. */
+.toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-weight: 550;
+}
+
+.toggle:hover {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--ink-inverse);
+}
+
+/* The sidebar holds its position. Sign out, the theme toggle and the sound control are
+ * the controls a person reaches for without looking, and they were scrolling away with
+ * the inventory — which is the one thing a sidebar exists to prevent. The main column
+ * scrolls; the rail does not. */
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* The auditor panel in the same language as the search bar: the flat fill, the same
+ * radius, no card border. Quiet, because it is a second reading of the inventory rather
+ * than a competing surface. */
+.panel.is-flat {
+  border: 0;
+  background: var(--ground);
+}
+
+/* ---------------------------------------------------------------- Phase 4, finish III */
+
+/* Status centred under its own heading. The column holds one pill of varying width —
+ * left-aligned, the pills' right edges ragged against a wide gap before Actions, which
+ * read as a column that had lost its contents. Centring both the cell and the header
+ * keeps the chip and its label on one axis. */
+.cell-status {
+  text-align: center;
+}
+
+th.cell-status .th-label {
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------- Phase 4, finish IV */
+
+/* Sidebar type scale and breathing room, measured against the wireframe rather than
+ * adjusted by feel — "larger" and "more" were each tried once already and landed short. */
+.brand-mark {
+  width: 56px;
+  height: 56px;
+}
+
+/* The app name wraps to two lines in the reference, and that is a deliberate shape: it
+ * squares the block under the mark instead of running a long single line into the nav.
+ * `white-space: normal` because `.brand` is a flex row and the name would otherwise sit
+ * on one line whatever the width allows. */
+.brand {
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 22px;
+  font-size: 20px;
+  /* 600 against the nav's 500. At 500 the wordmark and the nav labels read at the same
+   * strength, so the rail had no top to it — size alone was not enough separation at
+   * 20px vs 15px. */
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+/* Nav labels were 15px inherited at the sidebar's weight and read lighter and smaller
+ * than everything they sit beside. */
+.nav-item {
+  padding: 12px 10px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.sidebar {
+  gap: 8px;
+}
+
+/* Page inset. 40px still ran the table close to both the sidebar edge and the window
+ * edge; the reference insets it well clear of each. Applied to `.main` so the search bar
+ * and the table card inherit exactly the same left and right edges — they are siblings in
+ * this column, which is what keeps them aligned without either carrying its own padding. */
+.main {
+  padding-left: 64px;
+  padding-right: 64px;
+}
+
+/* A beat between the question and the answer it filters. */
+.search-bar {
+  margin-bottom: 22px;
+  /* `.panel` clips its children (`overflow: hidden`), and this form is exactly the
+   * input's own 52px, so the focus ring's top and bottom edges were cut off and only the
+   * left and right survived — the ring looked like two vertical marks. The bar needs
+   * none of that clipping: it holds one input, not a scrolling table. */
+  overflow: visible;
+}
+
+/* Less pill, more rounded rectangle — the wireframe's shape. 999px made a 52px field
+ * read as a chat bubble; 14px keeps it soft without pretending to be one. The fill is
+ * unchanged. */
+.search-bar input[type='search'] {
+  border-radius: 14px;
+}
+
+.search-field .search-spark {
+  color: var(--ai);
+}
+
+/* In flight. A gradient outline rather than a spinner: the bar itself is the thing
+ * working, and a spinner beside it would be a second object to watch. The gradient
+ * lives on the holder's ::after so it can sit behind the input without the input's own
+ * border having to become transparent — swapping the border here would move the focus
+ * indicator, which is measured.
+ *
+ * `aria-busy` on the input and a polite live region carry this to assistive technology;
+ * the animation is never the only signal. */
+.search-field.is-busy::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(110deg, var(--ai), var(--focus), var(--ai-soft), var(--ai));
+  background-size: 300% 100%;
+  /* Punch the middle out, leaving the gradient as an outline only. */
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+.search-field.is-busy input[type='search'] {
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-field.is-busy::after {
+    animation: ask-sweep 1.4s linear infinite;
+  }
+}
+
+@keyframes ask-sweep {
+  to {
+    background-position: -300% 0;
+  }
+}
+
+/* The input sits above the gradient, not under it. */
+.search-field input[type='search'] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Present to a screen reader, absent to everyone else. The clip-rect idiom rather than
+ * `display: none` or `visibility: hidden`, both of which remove it from the
+ * accessibility tree — which would make the live region announce nothing at all. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The input was given `z-index: 1` to sit above the busy gradient, and that put it above
+ * the two icons as well — both vanished behind its fill. They need to clear the input,
+ * not just the gradient. Caught by looking at the page; nothing else would have. */
+.search-field .search-glyph,
+.search-field .search-spark {
+  z-index: 2;
 }
