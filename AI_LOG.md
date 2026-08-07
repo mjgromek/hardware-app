@@ -1516,3 +1516,32 @@ finding is a field, and seed id 10's problem is that nobody knows what the devic
 edits bolted on, because that is what the action is. ADR-0017 amended.
 
 Commit: fix(phase-4): the release note carries the change it describes (pending)
+
+---
+
+## [P4 · c9] Back to pills
+
+Reversal: the wireframe draws filled pills and it is the reference, so the dot-and-text
+experiment is out. Uniform 88px width with the text centred, so the Status column is a rule
+rather than a ragged edge — the reason a pill reads at a glance is that the eye learns its
+shape and stops reading the word.
+
+**The token layer already had the answer.** Phase 1's `ok` / `busy` / `stop` fill-and-ink
+pairs were never deleted when the dots went in, and they were already per-theme: a
+near-black Available pill is the strongest mark in light mode and invisible on a dark
+surface, so dark inverts it to near-white with dark text. Reverting cost three class names
+rather than a new palette.
+
+Re-measured rather than assumed, which is what the last correction was about. All six pill
+pairs pass: 19.55 / 7.53 / 4.83 light, 15.56 / 7.76 / 6.79 dark. **The In Repair pill in
+light mode is the narrowest margin in the whole system** — white on `#dc2626`, 4.83:1
+against a 4.5:1 floor, 0.33 to spare, and the same red is the destructive-button ink at the
+same ratio. Written into `docs/ACCESSIBILITY.md` so the next person to darken that red for
+aesthetic reasons finds out first.
+
+The dot tokens and CSS are removed rather than left dead — a token layer whose rule is
+"every colour resolves through one of these" cannot also carry six that nothing resolves
+through. `WIREFRAME_JUSTIFICATION.md` marks the pills→dots entry superseded and says what
+survived the detour: label separated from enum value, and two stops per tone.
+
+Commit: feat(phase-4): filled status pills, measured in both themes (pending)

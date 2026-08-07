@@ -56,17 +56,6 @@
   --flag-edge: #d97706;
   --flag-ring: rgba(217, 119, 6, 0.35);
 
-  /* status dots (Phase 4). The wireframe's filled pills became dot + text, so each
-   * status needs a *hue* rather than a fill/ink pair: a dot is 8px of colour with no
-   * label inside it, which is the whole reason it needs to be distinguishable rather
-   * than merely legible. Two stops per hue — the dot itself and a dimmer ring — so
-   * dark mode can restop both without either washing out. */
-  --dot-available: #16a34a;
-  --dot-available-ring: rgba(22, 163, 74, 0.18);
-  --dot-rented: #2563eb;
-  --dot-rented-ring: rgba(37, 99, 235, 0.18);
-  --dot-repair: #dc2626;
-  --dot-repair-ring: rgba(220, 38, 38, 0.18);
 
   /* interaction — the only non-status colour anything gets */
   --danger: #dc2626;
@@ -106,17 +95,6 @@
   --line: #262a31;
   --line-strong: #363b44;
 
-  /* status dots — restopped, not inverted. The light green and red are too dark on a
-   * #16181d surface; these are lifted until each dot reads at a glance. The amber `!`
-   * (--flag-edge) is deliberately pulled toward yellow here rather than orange, so it
-   * cannot be mistaken for the red Repair dot two rows away — orange-on-dark and
-   * red-on-dark converge, which is the one pairing this table cannot afford. */
-  --dot-available: #4ade80;
-  --dot-available-ring: rgba(74, 222, 128, 0.16);
-  --dot-rented: #60a5fa;
-  --dot-rented-ring: rgba(96, 165, 250, 0.16);
-  --dot-repair: #f87171;
-  --dot-repair-ring: rgba(248, 113, 113, 0.16);
 
   /* status — restopped, not inverted */
   --ok-fill: #e8eaee;
@@ -927,45 +905,6 @@ th.col-date .sort-button {
   justify-content: flex-end;
 }
 
-/* ---------------------------------------------------------------- status dots */
-
-/* Dot + text, replacing the wireframe's filled pills. The dot carries the hue and the
- * word carries the meaning, so the status survives being printed, screenshotted in
- * greyscale, or read by somebody who cannot separate red from green. */
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  /* The ring is the second stop: it keeps an 8px dot visible against both a white
-   * card and a near-black one without changing the dot's own hue. */
-  box-shadow: 0 0 0 3px var(--dot-ring);
-}
-
-.status-available {
-  --dot: var(--dot-available);
-  --dot-ring: var(--dot-available-ring);
-}
-.status-rented {
-  --dot: var(--dot-rented);
-  --dot-ring: var(--dot-rented-ring);
-}
-.status-repair {
-  --dot: var(--dot-repair);
-  --dot-ring: var(--dot-repair-ring);
-}
-
-.status-dot {
-  background: var(--dot);
-}
-
 /* ---------------------------------------------------------------- the flag mark */
 
 /* The amber `!` that stands where Rent would be on a flagged row. Not a disabled
@@ -1086,4 +1025,26 @@ th[aria-sort] .sort-arrow {
 .theme-toggle:hover {
   background: var(--ground);
   color: var(--ink);
+}
+
+
+/* ---------------------------------------------------------------- status pills
+
+ * One width for all three, so the Status column is a rule rather than a ragged edge —
+ * the whole reason a pill reads at a glance is that the eye learns its shape and stops
+ * reading the word. Sized to the longest label ("Available", "In Repair") with the text
+ * centred, so "Rented" does not shrink to a different object.
+ *
+ * Each tone is a fill/ink *pair per theme*, not one value: a near-black Available pill
+ * is the strongest mark in light mode and invisible on a dark surface, so dark inverts
+ * it to a near-white fill with dark text. Both stops are measured — docs/ACCESSIBILITY.md.
+ */
+.chip-status {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 88px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
 }

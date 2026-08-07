@@ -232,6 +232,14 @@ this repository and the document has to stand without them.
 
 ### Status pills became a dot and a word
 
+> **Superseded later in Phase 4 — reverted to pills.** The wireframe is the reference and
+> it draws pills; we came back to them, with a fixed width and per-theme fills. The
+> argument below is still the honest reason the detour happened and is left in place
+> rather than deleted. What survived it: the *label* is still separated from the *value*
+> (see the entry below), and each tone still carries a light and a dark stop — the
+> problem the dots were reaching for was real even though the shape was not the answer.
+
+
 **The wireframe showed:** a filled pill per status — black `Available`, grey `Rented`,
 red `In Repair` — the whole chip carrying the status colour with the label reversed out
 of it.

@@ -27,18 +27,17 @@ without the numbers changing too.
 | Secondary text | `#5b6270` | `#ffffff` | **6.13:1** | 4.5:1 | ✅ |
 | Muted text / placeholders | `#6a7283` | `#ffffff` | **4.83:1** | 4.5:1 | ✅ |
 | Muted text on page | `#6a7283` | `#f7f8fa` | **4.55:1** | 4.5:1 | ✅ |
-| Status dot — Available | `#16a34a` | `#ffffff` | **3.30:1** | 3.0:1 | ✅ |
-| Status dot — Rented | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
-| Status dot — Repair | `#dc2626` | `#ffffff` | **4.83:1** | 3.0:1 | ✅ |
+| Pill — Available | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
+| Pill — Rented | `#454b58` | `#eceef2` | **7.53:1** | 4.5:1 | ✅ |
+| Pill — In Repair | `#ffffff` | `#dc2626` | **4.83:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#7c4a02` | `#fef3c7` | **6.65:1** | 4.5:1 | ✅ |
 | Amber `!` border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 | Primary button label | `#ffffff` | `#0b0c10` | **19.55:1** | 4.5:1 | ✅ |
 | Destructive button label | `#dc2626` | `#ffffff` | **4.83:1** | 4.5:1 | ✅ |
 | Focus ring | `#2563eb` | `#ffffff` | **5.17:1** | 3.0:1 | ✅ |
-| Rented chip text | `#454b58` | `#eceef2` | **7.53:1** | 4.5:1 | ✅ |
-| Repair chip text | `#ffffff` | `#dc2626` | **4.83:1** | 4.5:1 | ✅ |
+| Amber ! border | `#d97706` | `#ffffff` | **3.19:1** | 3.0:1 | ✅ |
 
-Amber `!` against the red Repair dot: **1.52:1** — see the note below.
+Amber `!` against the red In Repair pill: **1.52:1** — see the note below.
 
 ### Dark theme
 
@@ -49,18 +48,17 @@ Amber `!` against the red Repair dot: **1.52:1** — see the note below.
 | Secondary text | `#9aa1ae` | `#16181d` | **6.84:1** | 4.5:1 | ✅ |
 | Muted text / placeholders | `#79818f` | `#16181d` | **4.52:1** | 4.5:1 | ✅ |
 | Muted text on page | `#79818f` | `#101216` | **4.78:1** | 4.5:1 | ✅ |
-| Status dot — Available | `#4ade80` | `#16181d` | **10.19:1** | 3.0:1 | ✅ |
-| Status dot — Rented | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
-| Status dot — Repair | `#f87171` | `#16181d` | **6.42:1** | 3.0:1 | ✅ |
+| Pill — Available | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
+| Pill — Rented | `#b3bac6` | `#23262d` | **7.76:1** | 4.5:1 | ✅ |
+| Pill — In Repair | `#1c0e0e` | `#f87171` | **6.79:1** | 4.5:1 | ✅ |
 | Amber `!` glyph | `#fbbf24` | `#2c2312` | **9.28:1** | 4.5:1 | ✅ |
 | Amber `!` border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 | Primary button label | `#101216` | `#e8eaee` | **15.56:1** | 4.5:1 | ✅ |
 | Destructive button label | `#f87171` | `#16181d` | **6.42:1** | 4.5:1 | ✅ |
 | Focus ring | `#60a5fa` | `#16181d` | **6.99:1** | 3.0:1 | ✅ |
-| Rented chip text | `#b3bac6` | `#23262d` | **7.76:1** | 4.5:1 | ✅ |
-| Repair chip text | `#1c0e0e` | `#f87171` | **6.79:1** | 4.5:1 | ✅ |
+| Amber ! border | `#b45309` | `#16181d` | **3.54:1** | 3.0:1 | ✅ |
 
-Amber `!` against the red Repair dot: **1.82:1** — see the note below.
+Amber `!` against the red In Repair pill: **1.82:1** — see the note below.
 
 ---
 
@@ -80,7 +78,7 @@ the sort arrows and the signed-in address in the sidebar. All of it was below AA
 themes, which is the kind of failure that never gets reported because the people who can
 read it never notice and the people who cannot assume the fault is theirs.
 
-## The amber `!` beside the red Repair dot — the check that did not pass
+## The amber `!` beside the red In Repair pill — the check that did not pass
 
 I claimed this one passed by eye. Measured, the two colours sit **1.52:1** apart in light
 and **1.82:1** in dark. That is a luminance ratio, and a low one: the amber mark and the
@@ -89,18 +87,24 @@ red-green colour deficiency removes. To a protanope or deuteranope they are plau
 same colour.
 
 **This is not fixed by shifting a token, and shifting one would make it worse.** The amber
-`!` and the red dot are both signals that an item cannot be taken, and pulling them apart
+`!` and the red pill are both signals that an item cannot be taken, and pulling them apart
 in lightness would either make the amber compete with the Repair red for "stop" or push it
-toward the green of Available. WCAG does not require two adjacent indicators to contrast
-with each other — it requires each to contrast with its background, and both do (3.19:1
-and 4.83:1 light; 3.54:1 and 6.42:1 dark).
+toward Available's fill. WCAG does not require two adjacent indicators to contrast with
+each other — it requires each to be legible in itself, and both are.
+
+**The narrowest margin in the system is the In Repair pill in light mode: white on
+`#dc2626`, 4.83:1 against a 4.5:1 requirement.** It passes, with 0.33 to spare. Worth
+knowing before anybody nudges that red darker for aesthetic reasons — there is very little
+room, and the same red is the destructive-button ink at exactly the same ratio.
 
 What makes it safe is that **colour is never the only signal**, which is SC 1.4.1's actual
 requirement:
 
-- the two live in **different columns** — the `!` in Actions, the dot in Status
-- they are **different shapes**: a 32px bordered square carrying a glyph, versus an 8px dot
-- the dot is always **followed by its word** — "Repair", "Available", "Rented"
+- the two live in **different columns** — the `!` in Actions, the pill in Status
+- they are **different shapes**: a 32px bordered square carrying a glyph, versus a
+  fixed-width filled pill
+- the pill **is its word** — "Available", "Rented", "In Repair" — so the status never
+  depends on colour at all
 - the flagged row carries a **`Needs review` chip in the Review column** and an amber edge
   marker on the row itself
 - the `!` has an `aria-label` naming the review reason, and is keyboard-focusable so the
