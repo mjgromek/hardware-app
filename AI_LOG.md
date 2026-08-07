@@ -1570,3 +1570,30 @@ when deciding whether to issue the device.
 was a boundary change only.
 
 Commit: feat(phase-4): notes are editable by admins (pending)
+
+---
+
+## [P4 · c11] Six voices, one gesture
+
+Four events became six — rent, return, repair, flag, resolve, refusal — and the diff now
+detects `Repair` and released-from-review transitions alongside the two it already watched.
+
+**The design principle, which is the part worth having in the ADR:** one synthesis, one
+envelope, one note length, varying only contour and interval. Six sounds built six different
+ways read as six downloaded noises sharing an app, and a listener learns them as arbitrary
+labels. Built from one shape, the only thing anybody has to notice is the difference that
+carries the meaning.
+
+**Flag and resolve are one gesture rather than two sounds.** Flag climbs a tritone and stops
+inside it, unresolved. Resolve walks the identical interval back down and lands on the lower,
+stable tone — same two pitches, inverted contour. So an admin hears a problem and its answer
+as two halves of one thing instead of "a bad noise" and, later, "a good noise". A consonant
+success chime would have been easier and would have severed the pair, which is why the
+resolution comes from direction and landing rather than from changing the interval.
+
+Flag is the only voice with extra gain, because it is the only one that blocks rentals.
+Every voice finishes inside 400 ms.
+
+Still no test — the frontend has no vitest, and these six are verified by listening.
+
+Commit: feat(phase-4): six notification voices as one family (pending)

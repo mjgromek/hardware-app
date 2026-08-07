@@ -48,7 +48,7 @@ const soundOn = ref(sound.enabled)
 function toggleSound() {
   soundOn.value = !soundOn.value
   sound.enabled = soundOn.value
-  if (soundOn.value) sound.confirmed()   // one tone, so "on" is audible immediately
+  if (soundOn.value) sound.rent()   // one tone, so "on" is audible immediately
 }
 
 const account = ref(null)
@@ -140,8 +140,16 @@ function announceChanges(before, after) {
       say(`${item.name} was taken by ${item.assigned_to ?? 'somebody'}`)
     }
     if (!prior.needs_review && item.needs_review) {
-      sound.review()
+      sound.flag()
       say(`${item.name} entered review`)
+    }
+    if (prior.needs_review && !item.needs_review) {
+      sound.resolve()
+      say(`${item.name} was released from review`)
+    }
+    if (prior.status !== 'Repair' && item.status === 'Repair') {
+      sound.repair()
+      say(`${item.name} was sent to Repair`)
     }
   }
 }
@@ -180,12 +188,12 @@ async function onSignedIn(signedIn) {
   await refresh()
 }
 
-async function act(work, done) {
+async function act(work, done, voice) {
   try {
     await work()
     await refresh()
     if (done) {
-      sound.confirmed()
+      voice?.()
       say(done)
     }
   } catch (e) {
@@ -214,6 +222,7 @@ function toggleRepair(item) {
   act(
     () => api.setHardwareStatus(item.id, next),
     next === 'Repair' ? `${item.name} marked as Repair` : `${item.name} released from Repair`,
+    next === 'Repair' ? sound.repair : sound.resolve,
   )
 }
 
@@ -244,12 +253,12 @@ function deleteAccount(target) {
 // failure. Nothing here flattens them.
 function rentItem(item) {
   busyId.value = item.id
-  act(() => api.rent(item.id), `${item.name} is yours`)
+  act(() => api.rent(item.id), `${item.name} is yours`, sound.rent)
 }
 
 function returnItem(item) {
   busyId.value = item.id
-  act(() => api.returnItem(item.id), `${item.name} returned`)
+  act(() => api.returnItem(item.id), `${item.name} returned`, sound.returned)
 }
 
 function askForceReturn(item) {
