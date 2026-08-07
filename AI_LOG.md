@@ -2592,3 +2592,33 @@ feature. Now: two legal readings quarantine with both named, no date stored, fla
 for a human; one reading (22-05, 04-04) still imports. ADR-0002 amended with the
 sharpened rule; DATA_AUDIT's boundary paragraph corrected. 196 green.
 Commit: feat(review): an ambiguous date quarantines instead of choosing (self)
+
+## [review · c3-red] The blind-spot bet, tested — and it was a bug
+
+The grilling's Q5 answer named "a rent racing an account deletion" as the likely next
+lifecycle blind spot. Tested deterministically: the delete route's rentals read is
+wrapped so a racing rent commits on a second connection between the read and the
+write. Outcome: rent committed, delete answered 204, account soft-deleted holding an
+active rental it can never return — ADR-0013's "no active rental outlives its owner"
+broken. The guess did not survive contact; it was correct.
+Commit: test(review): a rent racing a deletion strands the rental (self)
+
+## [review · c3] The write comes before the read
+
+ADR-0008's lesson one layer up: guard-then-delete read "holds nothing" without a
+lock, so the fix inverts the order — soft-delete first (takes SQLite's write lock),
+rentals check behind it, guard refusal rolls the uncommitted delete back. The racing
+rent now waits on the lock and loses cleanly; a rental committed first still 409s the
+delete. 197 green, including the sequential delete-with-rental test, untouched.
+Commit: fix(review): delete writes before it reads, closing the strand (self)
+
+## [review · c4] The rule written down, the probe armed, the arithmetic closed
+
+The three non-code closures from the grilling. Lifecycle-pair testing is now a
+CLAUDE.md non-negotiable instead of an interview answer. The four smoke assertions
+run every 30 minutes from GitHub Actions (scripts/probe.sh, demo credentials, no
+secrets) — the between-deploys detector Corrections #5/#6 lacked; verified green
+against the live URL before committing. And the README retrospective now closes its
+own arithmetic: the docs cost nothing marginal because they were written in the
+moment; the wasted hours bought the corrections log — waste versus tuition.
+Commit: chore(review): lifecycle rule, scheduled probe, honest arithmetic (self)

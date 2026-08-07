@@ -531,12 +531,19 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
             # No active rental may outlive its owner: `rentals.account_id` is a
             # recyclable rowid, so a rental left behind is one an unrelated future
             # employee inherits (`/security-review`).
+            #
+            # The write comes *before* the read, deliberately — ADR-0008's lesson one
+            # layer up. Guard-then-delete reads "holds nothing" without a lock, so a
+            # rent committed in the gap stranded an active rental on a deleted
+            # account (test_lifecycle_race pins it). Deleting first takes SQLite's
+            # write lock; the rentals read then runs behind it, a racing rent waits
+            # on the lock, and a guard refusal rolls the uncommitted delete back.
+            accounts.delete_account(session, account_id)
             _enforce(
                 guards.ensure_account_holds_nothing,
                 rentals.item_ids_held_by(session, account_id),
                 target,
             )
-            accounts.delete_account(session, account_id)
             session.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
