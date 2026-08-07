@@ -2688,3 +2688,13 @@ named, and the timeline grouped by phase. Corrections renumbered one to seven wi
 the drift owned in place; four cross-references updated to match. PROMPT_TRAIL gains
 the session-to-ADR index. Em dashes rewritten out of README and CLAUDE.md.
 Commit: docs(curation): a ten-minute tour, an indexed log, three stale claims fixed (self)
+
+## [curation · c3] The over-engineering audit, recorded and unapplied
+
+Read-only ponytail pass at submission: eleven findings ranked by reviewer visibility,
+written into BACKLOG.md with what each would become and the condition that makes the
+cut worth taking. Headline: the code is lean (deps at the floor, two dead paths, a
+handful of shrinks); the over-build is the elective sound system and the 4:1
+doc-to-code ratio, both of which this brief grades. Nothing applied within the hour
+before submission, deliberately.
+Commit: docs: over-engineering audit findings, unapplied (self)

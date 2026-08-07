@@ -432,3 +432,67 @@ was confirmed on screen: `Rent`, the grey `Rented`, and the empty `In Repair`. T
 deployment verification against a freshly reset live instance covers it, since a reset
 restores ids 6 and 10 as flagged. *Urgent when: the v4 deploy is verified — and if the
 `!` is the wrong size there, this entry is why nobody caught it earlier.*
+
+---
+
+## Over-engineering audit (2026-08-07, unapplied)
+
+A read-only `/ponytail-audit` pass at submission, ranked by how much a reviewer would
+notice. Nothing here was applied; each entry records what it is, why it is more than
+the task needs, what it would become, and the condition that would make the cut worth
+taking.
+
+1. **The documentation outweighs the code four to one** (~11,800 lines of markdown,
+   ~3,000 of production code). More than the task needs in any product repo, where
+   PROMPT_TRAIL, brainstorm.md and the three phase specs would become links in one
+   README paragraph. It stands here because the brief grades exactly these artifacts.
+   *Worth doing when: this repo stops being a submission and starts being a product.*
+2. **Seven synthesized notification voices with a music-theory ADR** (sound.js,
+   ADR-0018): interval families and a tritone pair, in an internal CRUD tool. Declared
+   elective and argued, but it is the loudest beyond-scope artifact here. Would become:
+   nothing. *Worth doing when: never, unless a brief grades delight.*
+3. **The deploy contract is implemented twice**: the same four assertions as pytest
+   (`test_smoke_deployed.py`, admin credentials, human gate) and as bash (`probe.sh`,
+   demo credentials, cron). Would become: one implementation serving both callers.
+   *Worth doing when: the assertions next change and someone has to update both.*
+4. **The server-side `?sort` path has no caller**: `SortKey`, the query parameter and
+   the order-by branch in `load_items` serve nobody since Phase 4 sorted client-side.
+   The README owns this deliberately as the path that scales. Would become: ~25 fewer
+   lines. *Worth doing when: pagination arrives and the parameter grows a caller, or
+   when it is clear it never will.*
+5. **`rental_count` is dead** (`app/rentals.py`): exported, called by nothing; the
+   ADR-0011 refusal runs its own `SELECT 1 LIMIT 1`. Would become: nothing, ~8 lines.
+   *Worth doing when: next touching the file.*
+6. **`_call` accepts four client spellings** (`app/ai.py`) and the test fake defines
+   all four because the production code accepts them; each side exists to satisfy the
+   other. Would become: `__call__` only, ~12 lines across both files. *Worth doing
+   when: a second real provider appears and settles the interface.*
+7. **`ResponseCache` is a class wrapping two dicts** with no methods (`app/ai.py`).
+   Would become: two plain dicts on `app.state`. *Worth doing when: next touching the
+   AI layer.*
+8. **The 15-field `HardwareItem` row-mapper exists twice**, identically, in
+   `storage.load_items` and `ai._items`. Would become: one shared mapper, ~18 lines.
+   *Worth doing when: the next column addition forces editing both and one gets
+   missed.*
+9. **The Phase 4 schema trio** (`serial_number`, `category`, `date_added`) and the
+   five-value `Category` enum: nullable everywhere, null in every seed row, populated
+   only by hand-added items. Wireframe-driven scope beyond the data. Would become:
+   nothing lost today. *Worth doing when: never remove; fills itself when real data
+   arrives.*
+10. **`PRECEDENCE` as a chain of lambdas** (`displayState.js`) where `if/elif` reads
+    the same in half the lines. *Worth doing when: next touching the file.*
+11. **`set_status` duplicates `edit_item`** (`app/storage.py`): the general updater
+    already covers the specific one. Would become: one row-mover, ~10 lines. *Worth
+    doing when: next touching the file.*
+
+Not findings, for the record: the dependency list is already at the floor (three
+runtime, two dev, one frontend), and `sessions.py` hand-rolling HMAC from the standard
+library instead of importing a signing dependency is the lazy-correct choice, not a
+gap. The guards, quarantine and audit trail were checked against their ADRs and against
+the incidents that motivated them; they are proportionate.
+
+**Verdict:** for what it does, the production code is not over-built — the deps are
+minimal, the modules are thin, and the heavy machinery traces to real incidents; the
+over-build lives at the edges (a dead sort path, a twice-written deploy check) and,
+most visibly, in the elective Phase 4 polish and the documentation mass, both of which
+this brief happens to grade and any other repo would cut first.
