@@ -1640,3 +1640,27 @@ that looks like a control a non-admin cannot press.
 152/152.
 
 Commit: feat(phase-4): an unrentable row shows nothing in Actions (pending)
+
+---
+
+## [P4 · c14] Park the slowdown honestly
+
+Two findings, separated because only one is understood. The **absolute** cost is probably
+`scrypt` at `2**14` paid several times per test through the client fixtures and the boot
+bootstraps — consistent with `--durations` showing no pathological case and ~0.3 s spread
+evenly, four of the top six being `setup`. Labelled a hypothesis; nobody measured it.
+
+The **regression** — 19 s, then 82 s, then 56 s, with nothing touching the backend — is
+unexplained and recorded as unexplained. I offered a stray `uvicorn` as the cause; it was
+one process at 0.1 % CPU and could not have been. Killing it changed 82 s to 56 s, which
+is the kind of coincidence that would have let a wrong story stand if I had stopped there.
+
+Worth recording as a pattern rather than an incident: this is the third unexplained
+slowdown in this project, and an earlier one was misattributed to a stray process before
+turning out to be iCloud materialising files. A plausible local explanation has now been
+wrong twice here. In this repository that is enough to treat "I can think of a reason" as
+insufficient, which is the same instrument-error lesson as the contrast measurement and the
+synthetic-click "sort bug" — three now, all of them me believing a convenient reading of a
+noisy signal.
+
+Commit: docs: park the suite slowdown as two findings, one unexplained (pending)

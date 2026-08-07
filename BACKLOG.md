@@ -395,3 +395,31 @@ The cost is honest API surface without a caller: `GET /api/hardware?sort=purchas
 works, is tested, and nothing in the product calls it. *Urgent when: the inventory needs
 pagination — at which point sorting has to move back to the server, and the parameter is
 already there and already proven.*
+
+## Suite wall time — two findings, only one of them understood
+
+**Absolute cost: probably `scrypt`, and this is a hypothesis rather than a measurement.**
+`SCRYPT_N = 2**14` costs roughly 50 ms per hash, and a typical test pays for several —
+`admin_client`, `user_client` and `other_user_client` each create an account and log in,
+and every `create_app` runs `bootstrap_admin` plus `bootstrap_demo`. `--durations` shows no
+pathological case: the slowest test is 1.46 s, the top six total under 6 s, and the
+remaining ~50 s is spread at roughly 0.3 s across 152 tests. Four of those top six are
+`setup`, which is consistent with fixture hashing. **Nobody has measured it.** The fix, if
+it turns out to matter, is a lower work factor **under test only** — never in production,
+where the cost is the entire point (ADR-0013's threat model is a stolen database file).
+*Urgent when: the suite is slow enough to stop being run, which is the only cost that
+counts.*
+
+**The regression: unexplained, and it should stay written down as unexplained.** The suite
+held ~19 s for most of the session, then ran 82 s, then 56 s, with nothing recent touching
+the backend and the same 152 tests passing throughout. A stray `uvicorn` was offered as the
+cause and was not one — it was a single process at 0.1 % CPU, which cannot produce a 4×
+slowdown.
+
+**The pattern is what makes this worth a backlog entry rather than a shrug.** This is the
+third unexplained slowdown in this project. One earlier case was misattributed to a stray
+process and turned out to be iCloud materialising files. So a plausible local explanation
+has now been wrong twice here, which is enough to treat "I can think of a reason" as
+insufficient evidence in this repository specifically. *Urgent when: it recurs — and the
+first move is a measurement (time one fixture, compare a cold and warm run) rather than a
+story.*
