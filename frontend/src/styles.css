@@ -12,15 +12,33 @@
  * them align, which is the whole reason a table is the right shape here.
  */
 
+/* The token layer (brainstorm.md §3 Phase 4). Four groups — surface, text, border,
+ * status — plus the two interaction hues. Every colour in the app resolves through
+ * one of these; components carry no hex. `[data-theme="dark"]` below overrides the
+ * full set and is inert until something sets the attribute, which is what makes the
+ * extraction provably behaviour-neutral in light mode. */
 :root {
-  --ground: #f7f8fa;
-  --surface: #ffffff;
-  --ink: #0b0c10;
-  --ink-muted: #5b6270;
-  --ink-faint: #8a91a0;
-  --line: #e4e6ec;
-  --line-strong: #cfd3dc;
+  /* surface */
+  --ground: #f7f8fa;          /* page */
+  --surface: #ffffff;         /* card */
+  --hover-wash: #fafbfc;      /* row under the pointer */
+  --focus-wash: #f4f7ff;      /* row under the keyboard */
+  --danger-wash: #fef2f2;     /* destructive control, hovered */
+  --scrim: rgba(11, 12, 16, 0.4);
+  --shadow-pop: 0 6px 20px rgba(11, 12, 16, 0.1);
 
+  /* text */
+  --ink: #0b0c10;             /* primary */
+  --ink-muted: #5b6270;       /* secondary */
+  --ink-faint: #8a91a0;       /* muted */
+  --ink-inverse: #ffffff;     /* on ink-filled elements */
+
+  /* border */
+  --line: #e4e6ec;            /* hairline */
+  --line-strong: #cfd3dc;     /* strong */
+
+  /* status — four hues, each a fill/ink pair so dark mode can restop them
+   * independently (a light-mode green or red is too dark on a dark surface). */
   /* Available: the default, so it carries the strongest fill — an admin scanning for
    * what can be issued should find it without reading. */
   --ok-fill: #0b0c10;
@@ -36,7 +54,9 @@
   --flag-fill: #fef3c7;
   --flag-ink: #7c4a02;
   --flag-edge: #d97706;
+  --flag-ring: rgba(217, 119, 6, 0.35);
 
+  /* interaction — the only non-status colour anything gets */
   --danger: #dc2626;
   --focus: #2563eb;
 
@@ -47,6 +67,48 @@
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
+}
+
+/* Dark. Inert until the Phase 4 toggle (or a boot script honouring
+ * prefers-color-scheme) sets the attribute — nothing does yet, deliberately.
+ * Near-black surfaces, near-white text, nothing pure. Every status hue gets its own
+ * dark stop rather than surviving on its light value; the amber pair is re-stopped
+ * to sit quietly next to the red Repair dot instead of vibrating against it. */
+:root[data-theme='dark'] {
+  /* surface */
+  --ground: #101216;
+  --surface: #16181d;
+  --hover-wash: #1b1e24;
+  --focus-wash: #16202e;
+  --danger-wash: #2a1717;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.45);
+
+  /* text */
+  --ink: #e8eaee;
+  --ink-muted: #9aa1ae;
+  --ink-faint: #6d7482;
+  --ink-inverse: #101216;
+
+  /* border */
+  --line: #262a31;
+  --line-strong: #363b44;
+
+  /* status — restopped, not inverted */
+  --ok-fill: #e8eaee;
+  --ok-ink: #101216;
+  --busy-fill: #23262d;
+  --busy-ink: #b3bac6;
+  --stop-fill: #f87171;
+  --stop-ink: #1c0e0e;
+  --flag-fill: #2c2312;
+  --flag-ink: #fbbf24;
+  --flag-edge: #b45309;
+  --flag-ring: rgba(251, 191, 36, 0.28);
+
+  /* interaction */
+  --danger: #f87171;
+  --focus: #60a5fa;
 }
 
 * {
@@ -246,7 +308,7 @@ button {
   border: 1px solid var(--ink);
   border-radius: var(--radius);
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
   font-weight: 550;
 }
 
@@ -273,7 +335,7 @@ button {
 
 .button-danger:hover:not(:disabled) {
   border-color: var(--danger);
-  background: #fef2f2;
+  background: var(--danger-wash);
 }
 
 /* `inline-grid`, not `grid`: a row of these must stay a row. As block-level grids they
@@ -304,7 +366,7 @@ button {
 
 .icon-button.is-danger:hover:not(:disabled) {
   border-color: var(--danger);
-  background: #fef2f2;
+  background: var(--danger-wash);
   color: var(--danger);
 }
 
@@ -408,14 +470,14 @@ tbody tr:last-child {
 }
 
 tbody tr:hover {
-  background: #fafbfc;
+  background: var(--hover-wash);
 }
 
 /* The keyboard-focused row, not the hovered one. Arrow keys move this. */
 tbody tr:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
-  background: #f4f7ff;
+  background: var(--focus-wash);
 }
 
 td {
@@ -493,7 +555,7 @@ tr.is-flagged td:first-child {
 .chip-flag {
   background: var(--flag-fill);
   color: var(--flag-ink);
-  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.35);
+  box-shadow: inset 0 0 0 1px var(--flag-ring);
 }
 
 .chip-role {
@@ -548,7 +610,7 @@ tr.is-flagged td:first-child {
 .filter-chip[aria-pressed='true'] {
   border-color: var(--ink);
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
 }
 
 .filter-count {
@@ -614,7 +676,7 @@ tr.is-flagged td:first-child {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(11, 12, 16, 0.4);
+  background: var(--scrim);
   z-index: 20;
 }
 
@@ -675,7 +737,7 @@ tr.is-flagged td:first-child {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(11, 12, 16, 0.1);
+  box-shadow: var(--shadow-pop);
 }
 
 .toast-mark {
@@ -687,7 +749,7 @@ tr.is-flagged td:first-child {
   margin-top: 1px;
   border-radius: 999px;
   background: var(--ink);
-  color: #fff;
+  color: var(--ink-inverse);
   font-size: 11px;
 }
 

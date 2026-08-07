@@ -1343,3 +1343,16 @@ the expensive version), dark mode with per-status light/dark stops, the bounded
 "sleeker than the prototype" finish list, the structure-vs-finish honesty line, and
 a revised cut order that drops the toggle before the tokens. Docs only, no code.
 Commit: docs(phase-4): design system, dark mode and the finish boundary (pending)
+
+---
+
+## [P4 · c1] The token layer, extracted mechanically
+
+28 colour values in `frontend/src`, all in `styles.css`: 18 were already custom
+properties (regrouped into surface/text/border/status with the two interaction hues),
+10 were hardcoded at use sites — every one now a token (`--ink-inverse`,
+`--hover-wash`, `--focus-wash`, `--danger-wash`, `--flag-ring`, `--scrim`,
+`--shadow-pop`). The `[data-theme="dark"]` block restops every token — status hues
+get their own dark stops, the amber re-stopped against the red — and is inert until
+something sets the attribute, which is the proof of light-mode neutrality. 123/123.
+Commit: refactor(phase-4): extract the colour token layer (pending)
